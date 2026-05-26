@@ -45,7 +45,8 @@ function renderHeader(total: number): string {
   if (total === 0) {
     return '✅ Habit Hooks: clean';
   }
-  return `❌ Habit Hooks: ${total} violations`;
+  const noun = total === 1 ? 'violation' : 'violations';
+  return `❌ Habit Hooks: ${total} ${noun}`;
 }
 
 export function report(violations: Violation[], rules: Rule[]): ReportResult {

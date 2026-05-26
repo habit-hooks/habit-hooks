@@ -46,7 +46,7 @@ describe('report', () => {
   it('returns exit 1 and renders group with guidance for enforced violation', () => {
     const result = report([makeViolation('eslint:max-params', 4)], rules);
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain('Habit Hooks: 1 violations');
+    expect(result.stdout).toContain('Habit Hooks: 1 violation');
     expect(result.stdout).toContain('Too many parameters');
     expect(result.stdout).toContain('Functions should accept at most 3 parameters.');
     expect(result.stdout).toMatch(/parameters/i);

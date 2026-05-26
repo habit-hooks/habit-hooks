@@ -10,7 +10,7 @@ describe('runner.run', () => {
   it('returns exit 1 and grouped output for a project with violations', async () => {
     const result = await run(join(fixturesDir, 'dirty-project'));
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain('Habit Hooks: 1 violations');
+    expect(result.stdout).toContain('Habit Hooks: 1 violation');
     expect(result.stdout).toContain('Too many parameters');
     expect(result.stdout).toContain('bad.ts:1');
   });
