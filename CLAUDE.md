@@ -56,6 +56,10 @@ We pin `knip@5.88.1` because v6 dropped detection of unused class members.
 If knip 6 ever re-introduces it (or if we move to a different unused-member
 strategy), revisit `src/checks/knip-check.ts` and the version pin.
 
+We invoke our bundled knip (not the consumer's), because consumer knip 6
+silently breaks our args. `resolveBundledKnip` is intentionally not
+consumer-version-aware.
+
 ### Runner file discovery doesn't honour project ignores
 
 `runner.discoverFiles` uses fast-glob with a hardcoded ignore set

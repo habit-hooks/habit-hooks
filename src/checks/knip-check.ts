@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 
 const RULE_ID = 'knip:unused-class-members';
 const KNIP_ARGS = ['--no-exit-code', '--reporter', 'json', '--include', 'classMembers'];
+const STDERR_TRUNCATE = 200;
 
 interface KnipClassMember {
   name: string;
@@ -24,21 +25,18 @@ interface KnipReport {
   issues?: KnipIssue[];
 }
 
+interface KnipProcessResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
+
 function binFromMain(mainPath: string): string | null {
   const candidate = join(dirname(mainPath), '..', 'bin', 'knip.js');
   return existsSync(candidate) ? candidate : null;
 }
 
-function resolveFromCwd(cwd: string): string | null {
-  try {
-    const localRequire = createRequire(`${cwd}/__noop.js`);
-    return binFromMain(localRequire.resolve('knip'));
-  } catch {
-    return null;
-  }
-}
-
-function resolveFromPackage(): string | null {
+export function resolveBundledKnip(): string | null {
   try {
     return binFromMain(require.resolve('knip'));
   } catch {
@@ -46,24 +44,25 @@ function resolveFromPackage(): string | null {
   }
 }
 
-function resolveKnipBin(cwd: string): string | null {
-  return resolveFromCwd(cwd) ?? resolveFromPackage();
+function pipeStream(stream: NodeJS.ReadableStream | null | undefined, onChunk: (s: string) => void): void {
+  stream?.on('data', (chunk: Buffer) => onChunk(chunk.toString('utf8')));
 }
 
-function collectStdout(child: ReturnType<typeof spawn>, onDone: (stdout: string) => void): void {
-  let stdout = '';
-  child.stdout?.on('data', (chunk: Buffer) => {
-    stdout += chunk.toString('utf8');
-  });
-  child.stderr?.on('data', () => {});
-  child.on('close', () => onDone(stdout));
+function collectProcess(
+  child: ReturnType<typeof spawn>,
+  onDone: (result: KnipProcessResult) => void,
+): void {
+  const buf = { stdout: '', stderr: '' };
+  pipeStream(child.stdout, (s) => (buf.stdout += s));
+  pipeStream(child.stderr, (s) => (buf.stderr += s));
+  child.on('close', (code) => onDone({ stdout: buf.stdout, stderr: buf.stderr, exitCode: code }));
 }
 
-function runKnipProcess(binPath: string, cwd: string): Promise<string> {
+function runKnipProcess(binPath: string, cwd: string): Promise<KnipProcessResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [binPath, ...KNIP_ARGS], { cwd });
     child.on('error', reject);
-    collectStdout(child, resolve);
+    collectProcess(child, resolve);
   });
 }
 
@@ -119,24 +118,67 @@ function warnMissing(cwd: string): void {
   );
 }
 
-async function detectViolations(binPath: string, cwd: string, files: string[]): Promise<Violation[]> {
-  const stdout = await runKnipProcess(binPath, cwd);
-  const report = parseReport(stdout);
-  if (report === null) return [];
-  return reportToViolations(report, cwd, files);
+function firstNonEmptyLine(text: string): string {
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
+  return '';
 }
 
-export const knipCheck: Check = {
-  id: 'knip',
-  async run(files, _rules, cwd) {
-    if (files.length === 0) return [];
-    const runCwd = cwd ?? process.cwd();
-    if (!hasPackageJson(runCwd)) return [];
-    const binPath = resolveKnipBin(runCwd);
-    if (binPath === null) {
-      warnMissing(runCwd);
-      return [];
-    }
-    return detectViolations(binPath, runCwd, files);
-  },
-};
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) : text;
+}
+
+function warnFailure(cwd: string, reason: string, stderr: string): void {
+  const detail = firstNonEmptyLine(stderr);
+  const suffix = detail.length > 0 ? `: ${truncate(detail, STDERR_TRUNCATE)}` : '';
+  process.stderr.write(
+    `habit-hooks: ${RULE_ID} failed in ${cwd} (${reason})${suffix}\n`,
+  );
+}
+
+function isFailure(result: KnipProcessResult, report: KnipReport | null): string | null {
+  if (result.exitCode !== 0) return `exit ${String(result.exitCode)}`;
+  if (result.stderr.trim().length > 0) return 'stderr output';
+  if (report === null) return 'unparseable stdout';
+  return null;
+}
+
+async function detectViolations(binPath: string, cwd: string, files: string[]): Promise<Violation[]> {
+  const result = await runKnipProcess(binPath, cwd);
+  const report = parseReport(result.stdout);
+  const failure = isFailure(result, report);
+  if (failure !== null) {
+    warnFailure(cwd, failure, result.stderr);
+    return [];
+  }
+  return reportToViolations(report as KnipReport, cwd, files);
+}
+
+export interface KnipCheckOptions {
+  resolveBin?: () => string | null;
+}
+
+async function runWithBin(binPath: string | null, cwd: string, files: string[]): Promise<Violation[]> {
+  if (binPath === null) {
+    warnMissing(cwd);
+    return [];
+  }
+  return detectViolations(binPath, cwd, files);
+}
+
+export function createKnipCheck(options: KnipCheckOptions = {}): Check {
+  const resolveBin = options.resolveBin ?? resolveBundledKnip;
+  return {
+    id: 'knip',
+    async run(files, _rules, cwd) {
+      if (files.length === 0) return [];
+      const runCwd = cwd ?? process.cwd();
+      if (!hasPackageJson(runCwd)) return [];
+      return runWithBin(resolveBin(), runCwd, files);
+    },
+  };
+}
+
+export const knipCheck: Check = createKnipCheck();

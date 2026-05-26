@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { knipCheck } from './knip-check.js';
+import { createKnipCheck, knipCheck } from './knip-check.js';
 import type { Rule } from '../types.js';
 
 const RULE: Rule = {
@@ -58,5 +58,53 @@ describe('knipCheck', () => {
   it('returns empty when no files supplied', async () => {
     const violations = await knipCheck.run([], [RULE], dir);
     expect(violations).toEqual([]);
+  });
+
+  it('warns loudly and returns [] when knip exits 0 with stderr only', async () => {
+    const { main, foo } = writeProject(dir);
+    const stub = join(dir, 'stub-knip.js');
+    writeFileSync(
+      stub,
+      `#!/usr/bin/env node\nprocess.stderr.write('ERROR: Invalid issue type: classMembers\\n');\nprocess.exit(0);\n`,
+    );
+    chmodSync(stub, 0o755);
+    const check = createKnipCheck({ resolveBin: () => stub });
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const violations = await check.run([main, foo], [RULE], dir);
+      expect(violations).toEqual([]);
+      const warnings = spy.mock.calls
+        .map((c) => String(c[0]))
+        .filter((s) => s.includes('habit-hooks: knip:unused-class-members'));
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0]).toContain(dir);
+      expect(warnings[0]).toContain('ERROR: Invalid issue type: classMembers');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('warns loudly and returns [] when knip exits non-zero', async () => {
+    const { main, foo } = writeProject(dir);
+    const stub = join(dir, 'stub-knip.js');
+    writeFileSync(
+      stub,
+      `#!/usr/bin/env node\nprocess.stderr.write('boom: knip blew up\\n');\nprocess.exit(2);\n`,
+    );
+    chmodSync(stub, 0o755);
+    const check = createKnipCheck({ resolveBin: () => stub });
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const violations = await check.run([main, foo], [RULE], dir);
+      expect(violations).toEqual([]);
+      const warnings = spy.mock.calls
+        .map((c) => String(c[0]))
+        .filter((s) => s.includes('habit-hooks: knip:unused-class-members'));
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0]).toContain(dir);
+      expect(warnings[0]).toContain('boom: knip blew up');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
