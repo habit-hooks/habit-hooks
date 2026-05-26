@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
+import { run } from './runner.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageJsonPath = join(here, '..', 'package.json');
@@ -13,8 +14,14 @@ const program = new Command();
 program
   .name('habit-hooks')
   .option('--version', 'print version')
-  .action(() => {
-    process.stdout.write(`habit-hooks v${pkg.version}\n`);
+  .action(async () => {
+    if (program.opts().version === true) {
+      process.stdout.write(`habit-hooks v${pkg.version}\n`);
+      return;
+    }
+    const result = await run(process.cwd());
+    process.stdout.write(result.stdout);
+    process.exitCode = result.exitCode;
   });
 
-program.parse(process.argv);
+await program.parseAsync(process.argv);
