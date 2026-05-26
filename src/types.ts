@@ -15,6 +15,14 @@ export interface Rule {
   guidance?: string;
 }
 
+export interface CoachingPrompt {
+  id: string;
+  title: string;
+  description: string;
+  severity: Severity;
+  guidancePath: string;
+}
+
 export interface Violation {
   ruleId: string;
   file: string;

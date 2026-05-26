@@ -16,6 +16,7 @@ import type { Check, Rule, Violation } from './types.js';
 
 export interface RunResult {
   stdout: string;
+  stderr: string[];
   exitCode: number;
   violations: Violation[];
 }
@@ -174,5 +175,5 @@ export async function run(cwd: string, options: RunOptions = {}): Promise<RunRes
   const { ctx, rules } = await buildContext(cwd, options);
   const violations = await collectViolations(rules, ctx);
   const reported = report(violations, rules);
-  return { ...reported, violations };
+  return { ...reported, violations, stderr: [] };
 }

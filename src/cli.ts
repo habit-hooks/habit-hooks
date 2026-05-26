@@ -49,6 +49,7 @@ async function executeRun(opts: CliOptions): Promise<void> {
   const scopeFlags = toScopeFlags(opts);
   const result = await run(process.cwd(), { configPath, scopeFlags });
   process.stdout.write(result.stdout);
+  for (const line of result.stderr) process.stderr.write(`${line}\n`);
   process.exitCode = result.exitCode;
 }
 

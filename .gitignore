@@ -4,3 +4,6 @@ coverage
 .DS_Store
 .idea
 .claude-channel/
+*.tgz
+*.log
+.vscode/
