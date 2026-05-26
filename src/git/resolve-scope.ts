@@ -101,18 +101,19 @@ function resolveAutoBranch(scope: ScopeConfig, cwd: string): ResolvedScope | nul
   return tryGetBranchScope(cwd, scope.branchBase ?? DEFAULT_BRANCH_BASE);
 }
 
+function resolveFromConfig(scopeCfg: ScopeConfig, cwd: string): ResolvedScope {
+  if (scopeCfg.onlyChangedFiles === true) return resolveUncommitted(cwd);
+  if (scopeCfg.autoBranchOffMain === true) {
+    return resolveAutoBranch(scopeCfg, cwd) ?? allScope();
+  }
+  return allScope();
+}
+
 export function resolveScope(
   flags: ScopeFlags,
   scope: ScopeConfig | undefined,
   cwd: string,
 ): ResolvedScope {
   const scopeCfg = scope ?? {};
-  const fromFlags = resolveFromFlags(flags, scopeCfg, cwd);
-  if (fromFlags !== null) return fromFlags;
-  if (scopeCfg.onlyChangedFiles === true) return resolveUncommitted(cwd);
-  if (scopeCfg.autoBranchOffMain === true) {
-    const auto = resolveAutoBranch(scopeCfg, cwd);
-    if (auto !== null) return auto;
-  }
-  return allScope();
+  return resolveFromFlags(flags, scopeCfg, cwd) ?? resolveFromConfig(scopeCfg, cwd);
 }

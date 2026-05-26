@@ -43,17 +43,21 @@ async function collectViolatingFiles(cwd: string): Promise<string[]> {
   return [...out];
 }
 
+function tryAddSnoozeEntry(
+  files: Record<string, BaselineEntry>,
+  cwd: string,
+  relPath: string,
+): boolean {
+  const hash = lastCommitHash(cwd, relPath);
+  if (hash === null) return false;
+  files[relPath] = { snoozedAt: hash };
+  return true;
+}
+
 export async function baselineGenerate(cwd: string): Promise<CommandResult> {
   const violatingFiles = await collectViolatingFiles(cwd);
-  const baseline = loadBaseline(cwd);
-  const files = { ...baseline.files };
-  let added = 0;
-  for (const relPath of violatingFiles) {
-    const hash = lastCommitHash(cwd, relPath);
-    if (hash === null) continue;
-    files[relPath] = { snoozedAt: hash };
-    added += 1;
-  }
+  const files = { ...loadBaseline(cwd).files };
+  const added = violatingFiles.filter((p) => tryAddSnoozeEntry(files, cwd, p)).length;
   saveBaseline(cwd, { version: 1, files });
   return ok(`baseline generate: recorded ${String(added)} file(s)\n`);
 }
@@ -88,32 +92,27 @@ interface SnoozeValidation {
   hash: string;
 }
 
+function snoozeRejection(relPath: string, reason: string): SnoozeValidation {
+  return { error: `cannot snooze '${relPath}': ${reason}`, hash: '' };
+}
+
 function validateSnoozeTarget(cwd: string, relPath: string): SnoozeValidation {
-  const absPath = join(cwd, relPath);
-  if (!existsSync(absPath)) {
-    return { error: `cannot snooze '${relPath}': file does not exist`, hash: '' };
-  }
+  if (!existsSync(join(cwd, relPath))) return snoozeRejection(relPath, 'file does not exist');
   const hash = lastCommitHash(cwd, relPath);
-  if (hash === null) {
-    return {
-      error: `cannot snooze '${relPath}': file is untracked (commit it first)`,
-      hash: '',
-    };
-  }
+  if (hash === null) return snoozeRejection(relPath, 'file is untracked (commit it first)');
   return { error: null, hash };
 }
 
+function deleteEntry(files: Record<string, BaselineEntry>, key: string): boolean {
+  if (!(key in files)) return false;
+  delete files[key];
+  return true;
+}
+
 export function baselineForget(cwd: string, paths: string[]): CommandResult {
-  const baseline = loadBaseline(cwd);
+  const files = { ...loadBaseline(cwd).files };
   const targets = uniqueRelPaths(cwd, paths);
-  const files = { ...baseline.files };
-  let removed = 0;
-  for (const rel of targets) {
-    if (rel in files) {
-      delete files[rel];
-      removed += 1;
-    }
-  }
+  const removed = targets.filter((rel) => deleteEntry(files, rel)).length;
   if (removed > 0) saveBaseline(cwd, { version: 1, files });
   return ok(`baseline forget: removed ${String(removed)} entry/entries\n`);
 }
@@ -125,14 +124,12 @@ function shouldKeepEntry(cwd: string, relPath: string, violating: Set<string>): 
 
 export async function baselinePrune(cwd: string): Promise<CommandResult> {
   const baseline = loadBaseline(cwd);
-  const violatingFiles = await collectViolatingFiles(cwd);
-  const violating = new Set(violatingFiles);
-  const files: Record<string, BaselineEntry> = {};
-  let removed = 0;
-  for (const [rel, entry] of Object.entries(baseline.files)) {
-    if (shouldKeepEntry(cwd, rel, violating)) files[rel] = entry;
-    else removed += 1;
-  }
+  const violating = new Set(await collectViolatingFiles(cwd));
+  const kept = Object.entries(baseline.files).filter(([rel]) =>
+    shouldKeepEntry(cwd, rel, violating),
+  );
+  const files = Object.fromEntries(kept) as Record<string, BaselineEntry>;
+  const removed = Object.keys(baseline.files).length - kept.length;
   saveBaseline(cwd, { version: 1, files });
   return ok(`baseline prune: removed ${String(removed)} entry/entries\n`);
 }

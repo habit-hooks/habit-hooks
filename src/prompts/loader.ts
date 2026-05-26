@@ -5,15 +5,15 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 
 function slugify(ruleId: string): string {
-  return ruleId.replace(/:/g, '-');
+  return ruleId.replace(/[:/]/g, '-').replace(/@/g, '');
 }
 
+const PROBE_FILE = 'eslint-max-params.md';
+const SRC_PROMPTS_RELATIVE = join('..', '..', 'src', 'prompts');
+
 function resolvePackagedDir(): string {
-  // When compiled, `here` is .../dist/prompts and the source markdown lives at
-  // .../src/prompts. When running tests via vitest, `here` is .../src/prompts
-  // and the files sit alongside this loader.
-  if (existsSync(join(here, 'eslint-max-params.md'))) return here;
-  return join(here, '..', '..', 'src', 'prompts');
+  const alongsideLoader = existsSync(join(here, PROBE_FILE));
+  return alongsideLoader ? here : join(here, SRC_PROMPTS_RELATIVE);
 }
 
 function tryRead(path: string): string | null {

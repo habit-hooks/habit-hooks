@@ -26,19 +26,27 @@ function applyOverride(base: Rule, override: RuleOverride): Rule {
   return { ...base, ...pickDefined(stripMetaFields(override)) };
 }
 
-function buildCustomRule(id: string, def: RuleDefinition): Rule {
+function pickRuleCore(def: RuleDefinition): Pick<Rule, 'source' | 'sourceRuleId' | 'severity' | 'changedFilesOnly'> {
   return {
-    id,
     source: def.source,
     sourceRuleId: def.sourceRuleId,
     severity: def.severity ?? 'suggested',
     changedFilesOnly: def.changedFilesOnly ?? false,
+  };
+}
+
+function pickRuleDisplay(id: string, def: RuleDefinition): Pick<Rule, 'title' | 'description' | 'eslintOptions' | 'include' | 'exclude'> {
+  return {
     title: def.title ?? id,
     description: def.description ?? '',
     eslintOptions: def.eslintOptions,
     include: def.include,
     exclude: def.exclude,
   };
+}
+
+function buildCustomRule(id: string, def: RuleDefinition): Rule {
+  return { id, ...pickRuleCore(def), ...pickRuleDisplay(id, def) };
 }
 
 function mergeEntry(existing: MergedEntry | undefined, entry: MergedEntry): MergedEntry {

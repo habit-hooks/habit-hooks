@@ -12,15 +12,17 @@ function toAbsolute(cwd: string, files: string[]): string[] {
   return files.map((file) => resolve(cwd, file));
 }
 
+function extractTargetFromRenameOrCopy(rest: string): string {
+  const arrowIndex = rest.indexOf(' -> ');
+  return arrowIndex === -1 ? rest : rest.slice(arrowIndex + 4);
+}
+
 function parseStatusLine(line: string): string | null {
   if (line.length < 4) return null;
   const status = line.slice(0, 2);
   const rest = line.slice(3);
   if (status === '??') return rest;
-  // Rename/copy entries look like 'R  old -> new' or 'RM old -> new'
-  const arrowIndex = rest.indexOf(' -> ');
-  if (arrowIndex !== -1) return rest.slice(arrowIndex + 4);
-  return rest;
+  return extractTargetFromRenameOrCopy(rest);
 }
 
 export function getUncommittedFiles(cwd: string): string[] {

@@ -1,0 +1,1 @@
+`var` hoists to the enclosing function and has no block scope, which produces confusing closures and surprising temporal behaviour. Use `const` by default, `let` only when the binding genuinely needs to be reassigned.

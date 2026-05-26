@@ -52,18 +52,23 @@ function renderHeader(total: number): string {
   return `❌ Habit Hooks: ${total} ${noun}`;
 }
 
+function appendRuleSection(
+  acc: { sections: string[]; exitCode: 0 | 1 },
+  rule: Rule,
+  group: Violation[] | undefined,
+): void {
+  if (!group || group.length === 0) return;
+  acc.sections.push('');
+  acc.sections.push(renderGroup(rule, group));
+  if (rule.severity === 'enforced') acc.exitCode = 1;
+}
+
 export function report(violations: Violation[], rules: Rule[]): ReportResult {
   const groups = groupByRule(violations);
-  const sections: string[] = [renderHeader(violations.length)];
-  let exitCode: 0 | 1 = 0;
-
-  for (const rule of rules) {
-    const group = groups.get(rule.id);
-    if (!group || group.length === 0) continue;
-    sections.push('');
-    sections.push(renderGroup(rule, group));
-    if (rule.severity === 'enforced') exitCode = 1;
-  }
-
-  return { stdout: `${sections.join('\n')}\n`, exitCode };
+  const acc = {
+    sections: [renderHeader(violations.length)],
+    exitCode: 0 as 0 | 1,
+  };
+  for (const rule of rules) appendRuleSection(acc, rule, groups.get(rule.id));
+  return { stdout: `${acc.sections.join('\n')}\n`, exitCode: acc.exitCode };
 }

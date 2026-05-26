@@ -2,6 +2,7 @@ import { dirname, relative } from 'node:path';
 import fg from 'fast-glob';
 import picomatch from 'picomatch';
 import { eslintCheck } from './checks/eslint-check.js';
+import { commentCheck } from './checks/comment-check.js';
 import { loadConfig, loadConfigFromPath } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { report } from './reporter.js';
@@ -9,7 +10,7 @@ import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
 import type { HabitHooksConfig } from './config/schema.js';
-import type { Rule, Violation } from './types.js';
+import type { Check, Rule, Violation } from './types.js';
 
 export interface RunResult {
   stdout: string;
@@ -63,13 +64,13 @@ function filterFilesForRule(rule: Rule, files: string[], cwd: string): string[] 
 
 function applyScopeToRule(rule: Rule, files: string[], scope: ResolvedScope): string[] {
   if (!rule.changedFilesOnly) return files;
-  if (scope.changedFiles === null) return files;
-  return files.filter((file) => scope.changedFiles!.has(file));
+  const changed = scope.changedFiles;
+  if (changed === null) return files;
+  return files.filter((file) => changed.has(file));
 }
 
 function applyBaselineToRule(files: string[], ctx: RunContext): string[] {
   if (ctx.baseline === null) return files;
-  // TODO: surface ctx-level skipped list via a verbose flag when phase 6 adds it.
   return partitionBySnooze(files, ctx.baseline, ctx.cwd).active;
 }
 
@@ -98,15 +99,31 @@ function groupByFileSet(rules: Rule[], ctx: RunContext): FileSetGroup[] {
   return [...groups.values()];
 }
 
-async function runEslintRules(rules: Rule[], ctx: RunContext): Promise<Violation[]> {
-  const eslintRules = rules.filter((rule) => rule.source === 'eslint');
-  const groups = groupByFileSet(eslintRules, ctx);
+interface SourceCheck {
+  source: Rule['source'];
+  check: Check;
+}
+
+async function runGroups(
+  groups: FileSetGroup[],
+  ctx: RunContext,
+  check: Check,
+): Promise<Violation[]> {
   const violations: Violation[] = [];
   for (const group of groups) {
     if (group.files.length === 0) continue;
-    violations.push(...(await eslintCheck.run(group.files, group.rules, ctx.cwd)));
+    violations.push(...(await check.run(group.files, group.rules, ctx.cwd)));
   }
   return violations;
+}
+
+async function runCheckForSource(
+  rules: Rule[],
+  ctx: RunContext,
+  binding: SourceCheck,
+): Promise<Violation[]> {
+  const selected = rules.filter((rule) => rule.source === binding.source);
+  return runGroups(groupByFileSet(selected, ctx), ctx, binding.check);
 }
 
 async function resolveConfig(
@@ -127,13 +144,31 @@ function resolveBaseline(cwd: string, options: RunOptions): BaselineFile | null 
   return loadBaseline(cwd);
 }
 
-export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {
+async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: RunContext; rules: Rule[] }> {
   const { config, configDir } = await resolveConfig(cwd, options);
   const rules = buildRules(config, configDir);
   const files = await discoverFiles(cwd);
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
-  const violations = await runEslintRules(rules, { cwd, files, scope, baseline });
+  return { ctx: { cwd, files, scope, baseline }, rules };
+}
+
+const CHECK_BINDINGS: SourceCheck[] = [
+  { source: 'eslint', check: eslintCheck },
+  { source: 'custom', check: commentCheck },
+];
+
+async function collectViolations(rules: Rule[], ctx: RunContext): Promise<Violation[]> {
+  const violations: Violation[] = [];
+  for (const binding of CHECK_BINDINGS) {
+    violations.push(...(await runCheckForSource(rules, ctx, binding)));
+  }
+  return violations;
+}
+
+export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {
+  const { ctx, rules } = await buildContext(cwd, options);
+  const violations = await collectViolations(rules, ctx);
   const reported = report(violations, rules);
   return { ...reported, violations };
 }

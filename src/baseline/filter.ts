@@ -20,17 +20,24 @@ export interface SnoozePartition {
   skipped: string[];
 }
 
+function assignToPartition(
+  partition: SnoozePartition,
+  abs: string,
+  snoozed: boolean,
+): void {
+  if (snoozed) partition.skipped.push(abs);
+  else partition.active.push(abs);
+}
+
 export function partitionBySnooze(
   files: string[],
   baseline: BaselineFile,
   cwd: string,
 ): SnoozePartition {
-  const active: string[] = [];
-  const skipped: string[] = [];
+  const partition: SnoozePartition = { active: [], skipped: [] };
   for (const abs of files) {
     const rel = toRepoRelative(cwd, abs);
-    if (isSnoozed(rel, baseline, cwd)) skipped.push(abs);
-    else active.push(abs);
+    assignToPartition(partition, abs, isSnoozed(rel, baseline, cwd));
   }
-  return { active, skipped };
+  return partition;
 }

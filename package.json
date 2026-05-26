@@ -12,7 +12,8 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "src/prompts"
+    "src/prompts/*.md",
+    "!src/prompts/REVIEW.md"
   ],
   "scripts": {
     "build": "tsc -p . && chmod +x dist/cli.js",
@@ -36,6 +37,7 @@
     "fast-glob": "^3.3.3",
     "jiti": "^2.7.0",
     "picomatch": "^4.0.4",
+    "ts-morph": "^28.0.0",
     "typescript-eslint": "^8.60.0"
   }
 }

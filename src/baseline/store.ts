@@ -70,17 +70,18 @@ function validateFiles(value: unknown): Record<string, BaselineEntry> {
   return out;
 }
 
+function validateVersion(value: unknown): void {
+  if (typeof value !== 'number') {
+    throw new BaselineParseError(`'version' must be a number`);
+  }
+  if (value !== BASELINE_VERSION) throw new BaselineVersionError(value);
+}
+
 function validateBaseline(value: unknown): BaselineFile {
   if (!isPlainObject(value)) {
     throw new BaselineParseError(`root must be an object`);
   }
-  const version = value.version;
-  if (typeof version !== 'number') {
-    throw new BaselineParseError(`'version' must be a number`);
-  }
-  if (version !== BASELINE_VERSION) {
-    throw new BaselineVersionError(version);
-  }
+  validateVersion(value.version);
   return { version: BASELINE_VERSION, files: validateFiles(value.files) };
 }
 
