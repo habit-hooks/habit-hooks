@@ -68,3 +68,15 @@ get linted when you run `node dist/cli.js` against the repo root —
 that's why a smoke run on our own source shows fixture violations. The
 fix lives in a future phase (probably the `init` command or a config
 field like `discovery.exclude`).
+
+### Bumping pnpm 10 → 11 needs Corepack, not auto-switch
+
+pnpm 11 split its launcher: the main `pnpm` npm package owns
+`dist/pnpm.mjs`, while `@pnpm/macos-arm64` (and siblings) ship only the
+native loader. pnpm 10's `packageManager` auto-switch fetches only the
+platform package, producing a binary missing its JS bootstrap —
+`Cannot find module .../dist/pnpm.mjs`. Bootstrap pnpm 11 via Corepack
+(`corepack prepare pnpm@<v> --activate`) or the official installer
+instead. The standalone shim at `~/Library/pnpm/pnpm` is from the old
+installer; once Corepack is on PATH, remove the shim so it stops
+shadowing it.
