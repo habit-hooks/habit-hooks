@@ -7,12 +7,7 @@ import {
   baselineStatus,
   type CommandResult,
 } from '../baseline/commands.js';
-
-function emit(result: CommandResult): void {
-  if (result.stdout.length > 0) process.stdout.write(result.stdout);
-  if (result.stderr.length > 0) process.stderr.write(result.stderr);
-  process.exitCode = result.exitCode;
-}
+import { emit } from './emit.js';
 
 async function runAction(action: () => Promise<CommandResult> | CommandResult): Promise<void> {
   try {

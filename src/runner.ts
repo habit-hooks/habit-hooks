@@ -3,6 +3,8 @@ import fg from 'fast-glob';
 import picomatch from 'picomatch';
 import { eslintCheck } from './checks/eslint-check.js';
 import { commentCheck } from './checks/comment-check.js';
+import { jscpdCheck } from './checks/jscpd-check.js';
+import { knipCheck } from './checks/knip-check.js';
 import { loadConfig, loadConfigFromPath } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { report } from './reporter.js';
@@ -156,6 +158,8 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
 const CHECK_BINDINGS: SourceCheck[] = [
   { source: 'eslint', check: eslintCheck },
   { source: 'custom', check: commentCheck },
+  { source: 'jscpd', check: jscpdCheck },
+  { source: 'knip', check: knipCheck },
 ];
 
 async function collectViolations(rules: Rule[], ctx: RunContext): Promise<Violation[]> {

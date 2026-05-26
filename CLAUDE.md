@@ -31,6 +31,31 @@ have it. The probe result is cached per cwd.
 declaration, NOT `MultiLineCommentTrivia`. To find them, query both. See
 `src/checks/comment-check.ts`.
 
+### jscpd ESM build has a broken `colors/safe` import
+
+`jscpd@4.2.4`'s ESM output imports `"colors/safe"` without the `.js`
+extension, which Node's strict ESM resolver rejects. Load it via
+`createRequire` to get the CJS build instead — see `src/checks/jscpd-check.ts`.
+
+### knip's `exports` field omits the bin path
+
+`knip@5.88.1` exports only `.` and `./session`, so
+`require.resolve('knip/bin/knip.js')` fails. We resolve `'knip'` (main entry)
+and navigate up to `../bin/knip.js`. See `src/checks/knip-check.ts`.
+
+### knip needs `package.json` in cwd
+
+Running knip in a directory without `package.json` exits 2 with a help
+message. `knipCheck` skips silently when no `package.json` is present —
+the user's project always has one, but our internal test temp dirs
+often don't.
+
+### knip 6.x removed `classMembers` issue type
+
+We pin `knip@5.88.1` because v6 dropped detection of unused class members.
+If knip 6 ever re-introduces it (or if we move to a different unused-member
+strategy), revisit `src/checks/knip-check.ts` and the version pin.
+
 ### Runner file discovery doesn't honour project ignores
 
 `runner.discoverFiles` uses fast-glob with a hardcoded ignore set

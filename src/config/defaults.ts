@@ -147,18 +147,47 @@ const customRules: Rule[] = [
   },
 ];
 
+const jscpdRules: Rule[] = [
+  {
+    id: 'jscpd:duplication',
+    source: 'jscpd',
+    severity: 'suggested',
+    changedFilesOnly: true,
+    title: 'Duplicated code',
+    description: 'Repeated blocks usually want a shared abstraction, not a copy-paste.',
+    eslintOptions: { minTokens: 50, minLines: 5 },
+  },
+];
+
+const knipRules: Rule[] = [
+  {
+    id: 'knip:unused-class-members',
+    source: 'knip',
+    severity: 'enforced',
+    changedFilesOnly: false,
+    title: 'Unused class member',
+    description: 'Class methods or properties not referenced anywhere are dead weight.',
+  },
+];
+
 export const defaultRules: Rule[] = [
   ...tier1Rules,
   ...tier2Rules,
   ...tier3Rules,
   ...customRules,
+  ...jscpdRules,
+  ...knipRules,
 ];
 
 const TEST_FILE_EXCLUDE = ['**/*.test.ts', '**/*.spec.ts', 'tests/**'];
+
+const CONFIG_FILE_EXCLUDE = ['habit-hooks.config.*'];
 
 export const defaultConfig: HabitHooksConfig = {
   rules: {
     'eslint:max-lines-per-function': { exclude: TEST_FILE_EXCLUDE },
     'eslint:max-lines': { exclude: TEST_FILE_EXCLUDE },
+    'jscpd:duplication': { exclude: TEST_FILE_EXCLUDE },
+    'comment:non-essential': { exclude: CONFIG_FILE_EXCLUDE },
   },
 };

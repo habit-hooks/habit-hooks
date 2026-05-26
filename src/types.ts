@@ -1,5 +1,5 @@
 export type Severity = 'enforced' | 'suggested';
-export type RuleSource = 'eslint' | 'jscpd' | 'custom';
+export type RuleSource = 'eslint' | 'jscpd' | 'knip' | 'custom';
 
 export interface Rule {
   id: string;

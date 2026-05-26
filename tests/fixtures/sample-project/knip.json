@@ -1,0 +1,4 @@
+{
+  "entry": ["src/unused-member-main.ts"],
+  "project": ["src/unused-member.ts", "src/unused-member-main.ts"]
+}

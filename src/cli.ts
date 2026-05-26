@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { Command, CommanderError, Option } from 'commander';
 import { run } from './runner.js';
 import { registerBaselineCommands } from './cli/baseline-commands.js';
+import { registerInitCommand } from './cli/init-command.js';
 import type { ScopeFlags } from './git/resolve-scope.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -101,6 +102,7 @@ program
   });
 
 registerBaselineCommands(program);
+registerInitCommand(program);
 
 function handleCommanderError(error: CommanderError): void {
   if (error.code === 'commander.helpDisplayed' || error.code === 'commander.help') {

@@ -37,6 +37,8 @@
     "eslint": "^10.4.0",
     "fast-glob": "^3.3.3",
     "jiti": "^2.7.0",
+    "jscpd": "4.2.4",
+    "knip": "5.88.1",
     "picomatch": "^4.0.4",
     "ts-morph": "^28.0.0",
     "typescript-eslint": "^8.60.0"
