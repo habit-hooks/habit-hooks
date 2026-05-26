@@ -1,18 +1,30 @@
 # habit-hooks
 
-Automated quality checks that nudge AI coding agents toward better habits.
+Stop reciting software engineering literature to your AI agent.
 
-> The npm package is `habit-hooks`; the GitHub repository is `devill/habit-hooks-ts`. The `-ts` suffix marks this as the TypeScript implementation, leaving room for sibling implementations in other languages later.
+Turn best practice advice into AI habits. 
 
 ## What it is
 
-AI coding agents form habits the way people do — through deterministic cues paired with practiced responses. Show the same cue often enough alongside the same useful response, and the response becomes automatic. habit-hooks supplies both halves of that loop: it detects a structural smell in changed code (the cue) and prints a rich, refactor-bearing prompt that walks through how to fix it properly (the response). The cue keeps showing up wherever the smell appears; the response gets internalised through repetition.
+AI coding agents frequently ignore long rule documents. Asking them to hold on to an entire book's worth of 
+coding advice is at best futile, at worst makes the agent's performance worse by polluting the context window.
 
-The checks are intentionally opinionated. They lean toward smaller functions, fewer parameters, lower complexity, no dead code, no escape hatches like `any` or `!`, and code that explains itself without comments. Each rule ships with a prompt that names the underlying refactoring technique (extract method, replace conditional with polymorphism, tell-don't-ask, and so on) so the agent learns the move, not just the threshold. The prompts are adapted from the quality system in [refakts](https://github.com/devill/refakts), generalised to fit any TypeScript project.
+Humans don't need to hold the same information in their head because humans can form habits through repetition. 
+However, AI agents can't do this. 
 
-Style-checking alone is not enough. habit-hooks catches structural smells but cannot see correctness bugs, design issues, missed edge cases, or thin test coverage. When the tool reports clean, its output explicitly nudges the user to run a reviewer sub-agent — see `src/skills/habit-hooks-review/SKILL.md` for the skill that spawns one.
+Human habits form when an easy-to-detect cue triggers a complex sequence of actions with the desired effect. 
+This is the inspiration for habit hooks. 
 
-habit-hooks is built to live in the same place ESLint and Prettier live: a `package.json` script, run before declaring work done.
+Linters provide a deterministic metric, but Goodhart's law postulates that a metric ceases to be a good metric if 
+it becomes a target. AI agents are very good at gaming these metrics when they are only provided the metric.
+
+Habit hooks uses the linter to create the trigger, but instead of providing only the metric, it gives actionable 
+advice on how to fix the issue. This creates AI behaviour that looks like human habits, and has similar effects. 
+
+The use of habit hooks:
+- Increases code quality
+- Improves AI performance ensuring that the AI always starts with good code quality
+- Reduces token usage, since good quality code also means the AI doesn't need to read as much context to complete the task. 
 
 ## Install
 
@@ -34,7 +46,7 @@ npx habit-hooks init   # phase 7 — coming soon
 
 ## What it catches
 
-All default rules below ship with rich, refactor-technique-bearing prompts adapted from the refakts quality system.
+All default rules below ship with battle-tested prompts that lead to better code quality. The rules and prompts are configurable.
 
 **Tier 1 — architectural smells**
 
@@ -180,7 +192,7 @@ v1 in development. Phases 1–6 of 7 are complete: bootstrap, ESLint-backed rule
 
 ## Contributing
 
-Issues are welcome. For upcoming rule ideas and v2 scope, see `plans/v2-backlog.md`. The contribution loop is small: write a failing test, add the rule (or fix), keep `npm run typecheck && npm run lint && npm test && npm run build` at zero exit.
+PRs are welcome! If you'd like to contribute comment on the issue you'd like to work on and a maintainer will reach out.
 
 ## License
 
