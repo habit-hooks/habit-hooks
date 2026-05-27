@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { runTool, type ShellResult } from '../wrap/shell.js';
 import { detectTool } from '../detect/tool.js';
-import { lookupPrompt } from '../prompts/registry.js';
 import {
   absolutize,
   emptyOutcome,
@@ -112,21 +111,17 @@ interface IssueContext {
 }
 
 function buildViolation(ruleId: string, file: string, message: string, loc: KnipLocation): Violation {
-  const prompt = lookupPrompt(ruleId);
-  const title = prompt?.title ?? ruleId;
-  return { ruleId, file, line: loc.line ?? 1, column: loc.col, message: `${title}: ${message}` };
+  return { ruleId, file, line: loc.line ?? 1, column: loc.col, message };
 }
 
 function locationToViolation(ctx: IssueContext, loc: KnipLocation): Violation {
   const ruleId = `knip:${ctx.issueType}`;
-  const message = `${ctx.issueType}: ${loc.name}`;
-  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), message, loc);
+  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), loc.name, loc);
 }
 
 function memberToViolation(ctx: IssueContext, owner: string, loc: KnipLocation): Violation {
   const ruleId = `knip:${ctx.issueType}`;
-  const message = `${ctx.issueType}: ${owner}.${loc.name}`;
-  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), message, loc);
+  return buildViolation(ruleId, absolutize(ctx.cwd, ctx.issueFile), `${owner}.${loc.name}`, loc);
 }
 
 function flattenMemberMap(ctx: IssueContext, members: KnipMemberMap): Violation[] {
@@ -189,9 +184,7 @@ function issueToViolations(issue: KnipIssue, cwd: string): Violation[] {
 
 function fileEntryToViolation(cwd: string, file: string): Violation {
   const ruleId = 'knip:files';
-  const prompt = lookupPrompt(ruleId);
-  const title = prompt?.title ?? ruleId;
-  return { ruleId, file: absolutize(cwd, file), line: 1, message: `${title}: files: ${file}` };
+  return { ruleId, file: absolutize(cwd, file), line: 1, message: file };
 }
 
 function reportToViolations(report: KnipReport, cwd: string): Violation[] {

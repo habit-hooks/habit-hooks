@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { runTool, type ShellResult } from '../wrap/shell.js';
 import { detectTool } from '../detect/tool.js';
-import { lookupPrompt } from '../prompts/registry.js';
 import {
   absolutize,
   emptyOutcome,
@@ -91,14 +90,12 @@ function locationDescription(loc: JscpdLocation, cwd: string): string {
 }
 
 function buildViolation(self: JscpdLocation, partner: JscpdLocation, cwd: string): Violation {
-  const prompt = lookupPrompt(RULE_ID);
-  const title = prompt?.title ?? RULE_ID;
   return {
     ruleId: RULE_ID,
     file: absolutize(cwd, self.name),
     line: self.startLoc.line,
     column: self.startLoc.column,
-    message: `${title}: duplicates ${locationDescription(partner, cwd)}`,
+    message: `duplicates ${locationDescription(partner, cwd)}`,
   };
 }
 

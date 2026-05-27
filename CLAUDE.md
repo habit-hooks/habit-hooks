@@ -2,72 +2,47 @@
 
 ## Gotchas
 
-### ESLint v10 rejects files outside its `basePath`
-
-When running ESLint programmatically against fixtures or test repos that
-live outside the project root, you'll see "File ignored because outside of
-base path". Pass `cwd` explicitly to the `ESLint` constructor so its
-`basePath` matches where the files actually live. `eslintCheck.run` takes
-an optional `cwd` for this reason; the runner always supplies one.
-
-### Plugin scope in flat config
-
-When using ESLint flat config programmatically, a `plugins` block declared
-only on a `files`-scoped config object is NOT in scope for a separate `rules`
-block. To use `@typescript-eslint/...` rules in a rules block, declare the
-plugin on the same config object that defines the rules (or repeat it).
-
-### TS plugin probe — don't import statically
-
-`@typescript-eslint/eslint-plugin` must be loaded via dynamic `import()`
-after `require.resolve('@typescript-eslint/eslint-plugin', { paths: [cwd] })`
-succeeds. Importing statically pulls it into our hard dep tree; the probe
-keeps it optional and lets us fail open when the consumer's project doesn't
-have it. The probe result is cached per cwd.
-
 ### JSDoc nodes are not MultiLineCommentTrivia in ts-morph
 
 `/** ... */` blocks are `SyntaxKind.JSDoc` (321) when attached to a
 declaration, NOT `MultiLineCommentTrivia`. To find them, query both. See
 `src/checks/comment-check.ts`.
 
-### jscpd ESM build has a broken `colors/safe` import
-
-`jscpd@4.2.4`'s ESM output imports `"colors/safe"` without the `.js`
-extension, which Node's strict ESM resolver rejects. Load it via
-`createRequire` to get the CJS build instead — see `src/checks/jscpd-check.ts`.
-
 ### knip's `exports` field omits the bin path
 
-`knip@5.88.1` exports only `.` and `./session`, so
-`require.resolve('knip/bin/knip.js')` fails. We resolve `'knip'` (main entry)
-and navigate up to `../bin/knip.js`. See `src/checks/knip-check.ts`.
+`knip` exports only `.` and `./session`, so
+`require.resolve('knip/bin/knip.js')` fails. The bundled-fallback resolver
+in `src/checks/knip-wrap.ts` (`bundledKnipBin`) resolves `'knip'` (main
+entry) and navigates up to `../bin/knip.js` instead. Consumer-detected
+knip is found via `detectTool`, which walks `package.json#bin.knip` and
+does not hit this hazard.
 
 ### knip needs `package.json` in cwd
 
 Running knip in a directory without `package.json` exits 2 with a help
-message. `knipCheck` skips silently when no `package.json` is present —
+message. `knipWrap` skips silently when no `package.json` is present —
 the user's project always has one, but our internal test temp dirs
 often don't.
 
-### knip 6.x removed `classMembers` issue type
+### knip 5 vs 6 — issue type drift
 
-We pin `knip@5.88.1` because v6 dropped detection of unused class members.
-If knip 6 ever re-introduces it (or if we move to a different unused-member
-strategy), revisit `src/checks/knip-check.ts` and the version pin.
+We no longer pin knip; the consumer's installed version drives what
+fires. v5 emits `classMembers`; v6 dropped that key and surfaces unused
+exports via `files` / `exports` / `dependencies` instead. We ship
+coaching prompts for all four so either version is covered. If a future
+knip introduces a new top-level issue key, the wrap surfaces it as an
+uncoached violation (see `unknownKeysForIssue` in
+`src/checks/knip-wrap.ts`); add a prompt to coach it.
 
-We invoke our bundled knip (not the consumer's), because consumer knip 6
-silently breaks our args. `resolveBundledKnip` is intentionally not
-consumer-version-aware.
-
-### Runner file discovery doesn't honour project ignores
+### comment-check file discovery doesn't honour project ignores
 
 `runner.discoverFiles` uses fast-glob with a hardcoded ignore set
-(`node_modules`, `dist`, `coverage`). Fixtures under `tests/fixtures/**`
-get linted when you run `node dist/cli.js` against the repo root —
-that's why a smoke run on our own source shows fixture violations. The
-fix lives in a future phase (probably the `init` command or a config
-field like `discovery.exclude`).
+(`node_modules`, `dist`, `coverage`). Only `comment-check` consumes that
+list directly — the eslint, knip, and jscpd wraps delegate discovery to
+their respective tools. Fixtures under `tests/fixtures/**` therefore get
+swept by comment-check when you run `node dist/cli.js` against the repo
+root, which is why a smoke run on our own source shows comment
+violations from inside fixtures.
 
 ### Bumping pnpm 10 → 11 needs Corepack, not auto-switch
 
@@ -80,3 +55,39 @@ platform package, producing a binary missing its JS bootstrap —
 instead. The standalone shim at `~/Library/pnpm/pnpm` is from the old
 installer; once Corepack is on PATH, remove the shim so it stops
 shadowing it.
+
+### Wrap shell-out semantics — failures sit in `result.warnings`
+
+`src/wrap/shell.ts` never throws on spawn/timeout failure. A spawn
+failure surfaces as `exitCode === -1` with the cause in `warnings`; a
+non-zero exit from the tool itself comes back with the real `exitCode`
+and an empty `warnings`. The helpers `isSpawnFailure` and
+`spawnFailureWarning` in `src/wrap/notices.ts` separate the two so a
+crashed tool produces a stderr notice (and zero violations) instead of
+silently swallowing the run.
+
+### jscpd `-n` (noSymlinks) is baked in
+
+`jscpdWrap` always passes `-n`. A consumer with intentionally symlinked
+source directories (monorepo `src/shared -> ../shared-lib`) silently
+will not get duplication detection on the linked paths. Surface this if
+a user reports missing jscpd hits on a symlinked tree.
+
+### Bundled habit-hooks ESLint vs project-local ESLint disagree on type-position param names
+
+Our bundled config flags an unused parameter in a type-only function
+signature (e.g. `resolve: (_result: ShellResult) => void`); the
+project's flat config does not. Underscoring the param satisfies both.
+This bit us during Phase 1/2 — if a wrap introduces a new callback type
+and the build trips on `no-unused-vars` for a positional name, prefix
+with `_`.
+
+### Tool config filename lists live in `src/detect/tool.ts`
+
+`TOOL_CONFIG_FILENAMES` and `TOOL_PACKAGE_JSON_KEYS` are the single
+source for tool config discovery. When you add a new tool, a new config
+filename, or a new `package.json` key (e.g. `eslint.config.cjs`,
+`knip.jsonc`), update those tables only — `detectTool` and every
+caller flows through them. Individual wraps may keep their own narrower
+lists for internal "has-config" checks, but those should mirror the
+canonical set.

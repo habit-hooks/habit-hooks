@@ -2,29 +2,29 @@
 
 Stop reciting software engineering literature to your AI agent.
 
-Turn best practice advice into AI habits. 
+Turn best practice advice into AI habits.
 
 ## What it is
 
-AI coding agents frequently ignore long rule documents. Asking them to hold on to an entire book's worth of 
+AI coding agents frequently ignore long rule documents. Asking them to hold on to an entire book's worth of
 coding advice is at best futile, at worst makes the agent's performance worse by polluting the context window.
 
-Humans don't need to hold the same information in their head because humans can form habits through repetition. 
-However, AI agents can't do this. 
+Humans don't need to hold the same information in their head because humans can form habits through repetition.
+However, AI agents can't do this.
 
-Human habits form when an easy-to-detect cue triggers a complex sequence of actions with the desired effect. 
-This is the inspiration for habit hooks. 
+Human habits form when an easy-to-detect cue triggers a complex sequence of actions with the desired effect.
+This is the inspiration for habit hooks.
 
-Linters provide a deterministic metric, but Goodhart's law postulates that a metric ceases to be a good metric if 
+Linters provide a deterministic metric, but Goodhart's law postulates that a metric ceases to be a good metric if
 it becomes a target. AI agents are very good at gaming these metrics when they are only provided the metric.
 
-Habit hooks uses the linter to create the trigger, but instead of providing only the metric, it gives actionable 
-advice on how to fix the issue. This creates AI behaviour that looks like human habits, and has similar effects. 
+Habit hooks wraps your linter to create the trigger, but instead of providing only the metric, it gives actionable
+advice on how to fix the issue. This creates AI behaviour that looks like human habits, and has similar effects.
 
 The use of habit hooks:
 - Increases code quality
 - Improves AI performance ensuring that the AI always starts with good code quality
-- Reduces token usage, since good quality code also means the AI doesn't need to read as much context to complete the task. 
+- Reduces token usage, since good quality code also means the AI doesn't need to read as much context to complete the task.
 
 ## Install
 
@@ -32,58 +32,72 @@ The use of habit hooks:
 npm install --save-dev habit-hooks
 ```
 
+habit-hooks depends on `eslint`, `knip`, and `jscpd`, so installing it pulls those in as well — a fresh project gets every wrap target for free. If your project already has its own versions installed, habit-hooks detects and uses those instead and falls back to the bundled binaries only when none is present.
+
 ## Quick start
-
-```sh
-npx habit-hooks
-```
-
-That runs every default check against files changed since the branch base. To scaffold a config file, a baseline, and `package.json` scripts (with optional pre-commit hook and reviewer-skill install):
 
 ```sh
 npx habit-hooks init
 ```
 
+`init` detects which of eslint / knip / jscpd are already installed and configured, scaffolds starter configs for the missing ones, writes `habit-hooks.config.js` and an empty baseline, and offers to wire up `package.json` scripts, a pre-commit hook, and the bundled reviewer skill. Run with `--dry-run` to see every intended write without touching disk.
+
+Then:
+
+```sh
+npx habit-hooks
+```
+
+That runs every wrapped tool against files changed since the branch base.
+
 ## What it catches
 
-All default rules below ship with battle-tested prompts that lead to better code quality. The rules and prompts are configurable.
+Habit-hooks wraps your existing eslint, knip, and jscpd. Whatever rules and thresholds those tools fire is what habit-hooks surfaces — the rules come from your project's `eslint.config.*`, `knip.json`, `.jscpd.json` (or matching `package.json` keys), not from habit-hooks.
 
-**Tier 1 — architectural smells**
+What habit-hooks adds on top is the *why this is a smell* and *how to fix it* guidance. For the rule ids below we ship a coaching prompt; everything else surfaces under a single "Uncoached rules" section so you don't lose visibility on rules we haven't tuned.
 
-- `eslint:max-lines-per-function` — functions over 12 lines tend to bundle responsibilities.
-- `eslint:max-params` — long parameter lists hide a class or value object waiting to emerge.
-- `eslint:complexity` — high cyclomatic complexity flags tangled decisions; often a strategy table or polymorphism in disguise.
-- `eslint:max-lines` — files over 200 lines accumulate unrelated concerns.
+**Coached rule ids**
 
-**Tier 2 — code hygiene**
+| Source | Rule id |
+| --- | --- |
+| eslint | `eslint:max-lines-per-function` |
+| eslint | `eslint:max-params` |
+| eslint | `eslint:complexity` |
+| eslint | `eslint:max-lines` |
+| eslint | `eslint:no-unused-vars` |
+| eslint | `eslint:eqeqeq` |
+| eslint | `eslint:no-var` |
+| eslint | `eslint:prefer-const` |
+| eslint | `eslint:no-duplicate-imports` |
+| eslint | `eslint:no-warning-comments` |
+| eslint | `eslint:@typescript-eslint/no-explicit-any` |
+| eslint | `eslint:@typescript-eslint/no-non-null-assertion` |
+| eslint | `eslint:@typescript-eslint/no-inferrable-types` |
+| eslint | `eslint:boundaries/dependencies` |
+| knip | `knip:classMembers` |
+| knip | `knip:files` |
+| knip | `knip:exports` |
+| knip | `knip:dependencies` |
+| jscpd | `jscpd:duplication` |
+| custom | `comment:non-essential` |
 
-- `eslint:no-unused-vars` — dead bindings make the reader wonder what is missing.
-- `eslint:eqeqeq` — `==` silently coerces; use `===`.
-- `eslint:no-var` — `var` hoists; use `const` or `let`.
-- `eslint:prefer-const` — a `let` that is never reassigned should be `const`.
-- `eslint:no-duplicate-imports` — merge multiple imports from the same module.
-- `eslint:no-warning-comments` — `TODO` / `FIXME` / `XXX` / `HACK` markers are unfinished work pretending to be documentation.
+**Uncoached rules**
 
-**Tier 3 — TypeScript-specific advisories**
-
-- `eslint:@typescript-eslint/no-explicit-any` — `any` disables the type checker; prefer `unknown` plus a narrow.
-- `eslint:@typescript-eslint/no-non-null-assertion` — `!` silences the type system; prove the value is present.
-- `eslint:@typescript-eslint/no-inferrable-types` — drop annotations TypeScript would infer.
-
-**Custom checks**
-
-- `comment:non-essential` — comments indicate code that is not self-documenting; extract a named function instead.
+Any rule habit-hooks doesn't yet coach still gets surfaced — grouped under a single "Uncoached rules" section in the output so the agent can see what fired. To add coaching for a rule, drop a `<slugified-rule-id>.md` file in the configured prompts directory (replace `:` and `/` with `-`, drop `@`). habit-hooks will use that prompt instead of treating the rule as uncoached.
 
 ## CLI
 
 ```
-habit-hooks                       run all checks against the default scope
+habit-hooks                       run all wrapped checks against the default scope
 habit-hooks --last <n>            check files changed in the last N commits
 habit-hooks --branch [name]       check files changed vs branch (default: scope.branchBase)
 habit-hooks --since <hash>        check files changed since the given commit
 habit-hooks --all                 force checking all files (ignore scope config)
 habit-hooks --config <path>       use an explicit config file
 habit-hooks --version             print version
+
+habit-hooks init                  scaffold tool configs, habit-hooks config, scripts, hooks
+habit-hooks init --dry-run        show every intended write without touching disk
 
 habit-hooks baseline generate     write a fresh baseline snapshot
 habit-hooks baseline status       summarise current baseline contents
@@ -96,7 +110,7 @@ habit-hooks baseline prune        drop baseline entries whose files no longer ex
 
 ## Configuration
 
-habit-hooks looks for `habit-hooks.config.ts` (or `.js` / `.mjs`) in the project root. Override only what you need; everything else uses the defaults.
+habit-hooks looks for `habit-hooks.config.ts` (or `.js` / `.mjs`) in the project root. The config shape is intentionally small — all rule thresholds, plugin choices, and ignores live in your eslint / knip / jscpd configs, not here.
 
 ```ts
 // habit-hooks.config.ts
@@ -105,11 +119,8 @@ import type { HabitHooksConfig } from 'habit-hooks';
 const config: HabitHooksConfig = {
   prompts: './prompts',
   rules: {
-    'eslint:max-lines-per-function': {
-      sourceOptions: [{ max: 20 }],
-      exclude: ['**/*.test.ts', 'tests/**'],
-    },
     'comment:non-essential': { disabled: true },
+    'eslint:max-params': { exclude: ['**/*.test.ts', 'tests/**'] },
   },
   scope: {
     onlyChangedFiles: true,
@@ -120,7 +131,7 @@ const config: HabitHooksConfig = {
 export default config;
 ```
 
-The `prompts` directory lets you override any rule's guidance text — drop a `<rule-id>.md` file in there (slashes replaced with dashes) and habit-hooks will use it instead of the bundled prompt. See `src/config/schema.ts` for the full schema.
+What you can set per rule: `disabled`, `include`, `exclude`, `severity`. Everything else (e.g. `max-params: ['error', { max: 5 }]`) belongs in `eslint.config.*`. The `prompts` directory lets you override or add coaching text — drop a `<rule-id>.md` file in there (with `:` and `/` replaced by `-`, `@` dropped) and habit-hooks will use it instead of the bundled prompt. See `src/config/schema.ts` for the full schema.
 
 ## Baseline
 
@@ -150,30 +161,40 @@ Any output from `habit-hooks` is a direct user prompt with the highest priority.
 
 ## Sample output
 
-Run against a fixture with one violation of every default rule:
+Run against a project where eslint, knip, and jscpd are configured and the change set introduces a violation of each coached rule:
 
 ```
-❌ Habit Hooks: 14 violations
+❌ Habit Hooks: 17 violations
 
 ❌ Oversized function
 Functions over 12 lines tend to bundle multiple responsibilities.
-Functions over 12 lines almost always carry more than one responsibility, and that is the smell to chase — not the line count itself.
-
-Analyse responsibilities first: what distinct concerns does this function handle? Ask: (1) Are these separate responsibilities that belong in different methods? (2) Should this become a class with multiple methods? (3) Can you group cohesive data into objects to reduce local variables?
-
-Avoid mechanical extraction. Pulling out a `helperA` / `helperB` purely to satisfy the threshold often hides the smell behind worse names and leaves the real shape untouched. Find true responsibility boundaries.
-
-A concrete technique: write what the method does in one short sentence. Refactor until the code reads as close to that sentence as possible. If you cannot say what it does in one sentence, it almost certainly has more than one responsibility.
+[...coaching prompt...]
 
 Violations:
 - src/oversized-function.ts:1 - Function 'oversized' has too many lines (14). Maximum allowed is 12.
 
-❌ High cyclomatic complexity
-[…]
-Violations:
-- src/high-complexity.ts:1 - Arrow function has a complexity of 15. Maximum allowed is 10.
+❌ Duplicated code
+Repeated blocks usually want a shared abstraction, not a copy-paste.
+[...coaching prompt...]
 
-[…11 more rule groups…]
+Violations:
+- src/dup-a.ts:1 - duplicates src/dup-b.ts:1-7
+- src/dup-b.ts:1 - duplicates src/dup-a.ts:1-7
+
+❌ Unused class member
+Class methods or properties not referenced anywhere are dead weight.
+[...coaching prompt...]
+
+Violations:
+- src/unused-member.ts:5 - WithUnusedMember.unused
+
+[...other coached rules...]
+
+⚠️ Uncoached rules
+
+[...header text inviting the agent to add a prompt for these...]
+
+- eslint:no-debugger: Unexpected 'debugger' statement (src/debug.ts:3)
 ```
 
 On a clean run:
@@ -188,7 +209,7 @@ That closing message is the cue for the `habit-hooks-review` skill — see `src/
 
 ## Status
 
-v1 complete. All seven implementation phases have landed: bootstrap, ESLint-backed rules, config, git-aware scope, baseline, the built-in default rule set, and jscpd/knip checks + `init` scaffolder. The first npm publish and future-work items are tracked in issues on the GitHub repo.
+v2 wrap pivot landed: eslint / knip / jscpd are now wrapped (not invoked programmatically), the rule set comes from your project configs, and `init` does the heavy lifting of scaffolding starter configs. Pre-release; the first npm publish is pending.
 
 ## Contributing
 
