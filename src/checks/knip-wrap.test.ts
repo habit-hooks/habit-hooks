@@ -256,6 +256,56 @@ describe('knipWrap', () => {
     expect(reported.exitCode).toBe(0);
   });
 
+  it('emits a knip:files violation for per-issue files entries (knip 6 shape)', async () => {
+    const knipDir = join(cwd, 'node_modules', 'knip');
+    mkdirSync(knipDir, { recursive: true });
+    const payload = { files: [], issues: [{ file: 'src/walk.ts', files: [{ name: 'src/walk.ts' }] }] };
+    const stub = writeFile(
+      cwd,
+      'node_modules/knip/stub.js',
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(payload))});\nprocess.exit(0);\n`,
+    );
+    chmodSync(stub, 0o755);
+    writeFileSync(join(knipDir, 'package.json'), JSON.stringify({ bin: { knip: 'stub.js' } }));
+    writeFile(cwd, 'package.json', JSON.stringify({ name: 'fixture', version: '0.0.0', type: 'module' }));
+    writeFile(cwd, 'knip.json', JSON.stringify({ entry: ['src/walk.ts'], project: ['src/**/*.ts'] }));
+    const file = writeFile(cwd, 'src/walk.ts', 'export const a = 1;\n');
+
+    const outcome = await runWrap(cwd, [file]);
+
+    expect(outcome.violations).toHaveLength(1);
+    const v = outcome.violations[0]!;
+    expect(v.ruleId).toBe('knip:files');
+    expect(v.message).toContain('src/walk.ts');
+    expect(v.message).not.toContain('unrecognised');
+  });
+
+  it('emits knip:namespaceMembers violations for namespace member maps (knip 6 shape)', async () => {
+    const knipDir = join(cwd, 'node_modules', 'knip');
+    mkdirSync(knipDir, { recursive: true });
+    const payload = {
+      files: [],
+      issues: [{ file: 'src/foo.ts', namespaceMembers: { Mod: [{ name: 'unused', line: 2 }] } }],
+    };
+    const stub = writeFile(
+      cwd,
+      'node_modules/knip/stub.js',
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(payload))});\nprocess.exit(0);\n`,
+    );
+    chmodSync(stub, 0o755);
+    writeFileSync(join(knipDir, 'package.json'), JSON.stringify({ bin: { knip: 'stub.js' } }));
+    writeFile(cwd, 'package.json', JSON.stringify({ name: 'fixture', version: '0.0.0', type: 'module' }));
+    writeFile(cwd, 'knip.json', JSON.stringify({ entry: ['src/foo.ts'], project: ['src/**/*.ts'] }));
+    const file = writeFile(cwd, 'src/foo.ts', 'export const a = 1;\n');
+
+    const outcome = await runWrap(cwd, [file]);
+
+    expect(outcome.violations).toHaveLength(1);
+    const v = outcome.violations[0]!;
+    expect(v.ruleId).toBe('knip:namespaceMembers');
+    expect(v.message).toContain('Mod.unused');
+  });
+
   it('emits a spawn-failure stderr notice when the knip binary cannot be executed', async () => {
     const knipDir = join(cwd, 'node_modules', 'knip');
     mkdirSync(knipDir, { recursive: true });

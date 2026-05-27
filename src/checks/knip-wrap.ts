@@ -31,6 +31,7 @@ type KnipMemberMap = Record<string, KnipLocation[]>;
 
 interface KnipIssue {
   file: string;
+  files?: KnipLocation[];
   dependencies?: KnipLocation[];
   devDependencies?: KnipLocation[];
   optionalPeerDependencies?: KnipLocation[];
@@ -44,6 +45,7 @@ interface KnipIssue {
   duplicates?: KnipLocation[][];
   enumMembers?: KnipMemberMap;
   classMembers?: KnipMemberMap;
+  namespaceMembers?: KnipMemberMap;
   catalog?: KnipLocation[];
 }
 
@@ -53,6 +55,7 @@ interface KnipReport {
 }
 
 const LOCATION_KEYS: (keyof KnipIssue)[] = [
+  'files',
   'dependencies',
   'devDependencies',
   'optionalPeerDependencies',
@@ -66,7 +69,7 @@ const LOCATION_KEYS: (keyof KnipIssue)[] = [
   'catalog',
 ];
 
-const MEMBER_KEYS: (keyof KnipIssue)[] = ['enumMembers', 'classMembers'];
+const MEMBER_KEYS: (keyof KnipIssue)[] = ['enumMembers', 'classMembers', 'namespaceMembers'];
 
 const STRUCTURAL_KEYS = new Set<string>(['file']);
 const SPECIAL_KEYS = new Set<string>(['duplicates']);
