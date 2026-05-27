@@ -1,15 +1,17 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const HOOK_BODY = `#!/usr/bin/env sh
-npm run habit-hooks
-`;
+import { detectPackageManager, runScriptCommand } from './install-commands.js';
 
 export type HookAction = 'installed' | 'conflict' | 'no-git' | 'kept';
 
 export interface HookResult {
   action: HookAction;
   path?: string;
+}
+
+function hookBodyFor(cwd: string): string {
+  const command = runScriptCommand(detectPackageManager(cwd), 'habit-hooks');
+  return `#!/usr/bin/env sh\n${command}\n`;
 }
 
 function dependsOnHusky(cwd: string): boolean {
@@ -28,29 +30,28 @@ function nativeHookPath(cwd: string): string {
   return join(cwd, '.git', 'hooks', 'pre-commit');
 }
 
-function writeHook(path: string): HookResult {
-  writeFileSync(path, HOOK_BODY);
+function writeHook(path: string, body: string): HookResult {
+  writeFileSync(path, body);
   chmodSync(path, 0o755);
   return { action: 'installed', path };
 }
 
-function installAt(path: string, existingContentMatches: (s: string) => boolean): HookResult {
-  if (existsSync(path)) {
-    const existing = readFileSync(path, 'utf8');
-    if (existingContentMatches(existing)) return { action: 'kept', path };
-    return { action: 'conflict', path };
-  }
-  return writeHook(path);
+function bodyMatches(content: string): boolean {
+  return content.includes(' run habit-hooks');
 }
 
-function bodyMatches(content: string): boolean {
-  return content.includes('npm run habit-hooks');
+function installAt(path: string, body: string): HookResult {
+  if (existsSync(path)) {
+    const existing = readFileSync(path, 'utf8');
+    if (bodyMatches(existing)) return { action: 'kept', path };
+    return { action: 'conflict', path };
+  }
+  return writeHook(path, body);
 }
 
 export function installPreCommitHook(cwd: string): HookResult {
-  if (dependsOnHusky(cwd)) {
-    return installAt(huskyHookPath(cwd), bodyMatches);
-  }
+  const body = hookBodyFor(cwd);
+  if (dependsOnHusky(cwd)) return installAt(huskyHookPath(cwd), body);
   if (!existsSync(join(cwd, '.git'))) return { action: 'no-git' };
-  return installAt(nativeHookPath(cwd), bodyMatches);
+  return installAt(nativeHookPath(cwd), body);
 }

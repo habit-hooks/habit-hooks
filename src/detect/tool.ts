@@ -1,19 +1,21 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+export type ToolName = 'eslint' | 'knip' | 'jscpd';
+
 export interface ToolDetection {
   available: true;
   binPath: string;
   configPath: string | null;
 }
 
-const CONFIG_FILENAMES: Record<string, string[]> = {
+export const TOOL_CONFIG_FILENAMES: Record<ToolName, readonly string[]> = {
   eslint: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts', 'eslint.config.cjs'],
   knip: ['knip.json', 'knip.jsonc', 'knip.ts'],
   jscpd: ['.jscpd.json', 'jscpd.json'],
 };
 
-const PACKAGE_JSON_CONFIG_KEYS: Record<string, string> = {
+export const TOOL_PACKAGE_JSON_KEYS: Record<ToolName, string> = {
   eslint: 'eslintConfig',
   knip: 'knip',
   jscpd: 'jscpd',
@@ -49,14 +51,22 @@ function findBinPath(cwd: string, name: string): string | null {
   return null;
 }
 
+function filenamesFor(name: string): readonly string[] {
+  return TOOL_CONFIG_FILENAMES[name as ToolName] ?? [];
+}
+
+function packageJsonKeyFor(name: string): string | undefined {
+  return TOOL_PACKAGE_JSON_KEYS[name as ToolName];
+}
+
 function findConfigFile(cwd: string, name: string): string | null {
-  for (const filename of CONFIG_FILENAMES[name] ?? []) {
+  for (const filename of filenamesFor(name)) {
     const candidate = join(cwd, filename);
     if (existsSync(candidate)) return candidate;
   }
   const packageJsonPath = join(cwd, 'package.json');
   const pkg = readJson(packageJsonPath);
-  const key = PACKAGE_JSON_CONFIG_KEYS[name];
+  const key = packageJsonKeyFor(name);
   if (pkg !== null && key !== undefined && pkg[key] !== undefined) return packageJsonPath;
   return null;
 }

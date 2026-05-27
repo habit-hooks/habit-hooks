@@ -1,6 +1,5 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultRules } from '../../config/defaults.js';
 
 const CONFIG_FILENAMES = [
   'habit-hooks.config.ts',
@@ -9,7 +8,20 @@ const CONFIG_FILENAMES = [
   'habit-hooks.config.json',
 ];
 
-export const NEW_CONFIG_FILENAME = 'habit-hooks.config.ts';
+export const NEW_CONFIG_FILENAME = 'habit-hooks.config.js';
+
+export const CONFIG_TEMPLATE = `export default {
+  scope: {
+    onlyChangedFiles: true,
+    branchBase: 'main',
+  },
+};
+`;
+
+export interface ScaffoldResult {
+  path: string;
+  created: boolean;
+}
 
 function existingConfig(cwd: string): string | null {
   for (const name of CONFIG_FILENAMES) {
@@ -19,46 +31,10 @@ function existingConfig(cwd: string): string | null {
   return null;
 }
 
-function renderRuleEntry(id: string): string {
-  return `    // '${id}': { severity: 'enforced', changedFilesOnly: false },`;
-}
-
-const CONFIG_HEADER = [
-  `import type { HabitHooksConfig } from 'habit-hooks';`,
-  ``,
-  `const config: HabitHooksConfig = {`,
-  `  // Override any default rule by uncommenting and editing.`,
-  `  // Run \`habit-hooks --help\` for the full option list.`,
-  `  rules: {`,
-];
-
-const CONFIG_FOOTER = [
-  `  },`,
-  `  scope: {`,
-  `    onlyChangedFiles: false,`,
-  `    autoBranchOffMain: false,`,
-  `    mainBranch: 'main',`,
-  `  },`,
-  `};`,
-  ``,
-  `export default config;`,
-  ``,
-];
-
-function renderConfigBody(): string {
-  const ruleLines = defaultRules.map((r) => renderRuleEntry(r.id));
-  return [...CONFIG_HEADER, ...ruleLines, ...CONFIG_FOOTER].join('\n');
-}
-
-export interface ScaffoldResult {
-  path: string;
-  conflict: string | null;
-}
-
 export function scaffoldConfig(cwd: string): ScaffoldResult {
   const existing = existingConfig(cwd);
-  if (existing !== null) return { path: existing, conflict: existing };
+  if (existing !== null) return { path: existing, created: false };
   const path = join(cwd, NEW_CONFIG_FILENAME);
-  writeFileSync(path, renderConfigBody());
-  return { path, conflict: null };
+  writeFileSync(path, CONFIG_TEMPLATE);
+  return { path, created: true };
 }
