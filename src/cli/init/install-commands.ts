@@ -44,8 +44,6 @@ function pickNewest(hits: LockfileHit[]): LockfileHit {
 export function detectPackageManager(cwd: string): PackageManager {
   const hits = findAllLockfileHits(cwd);
   if (hits.length === 0) return 'npm';
-  const [only] = hits;
-  if (hits.length === 1 && only !== undefined) return only.pm;
   return pickNewest(hits).pm;
 }
 

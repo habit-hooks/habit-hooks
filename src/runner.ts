@@ -11,7 +11,7 @@ import { report } from './reporter.js';
 import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
-import { runEslintSource } from './runner-eslint.js';
+import { runEslintSource } from './eslint-runner.js';
 import type { HabitHooksConfig } from './config/schema.js';
 import type { Check, CheckOutcome, Rule, Violation } from './types.js';
 

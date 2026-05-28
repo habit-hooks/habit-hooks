@@ -160,7 +160,7 @@ describe('runInit', () => {
     expect(result.stdout).toContain('## Habit Hooks');
     expect(result.stdout).toContain('npm run ci');
     expect(result.stdout).toContain('habit-hooks-review');
-    expect(result.stdout).toContain('already present');
+    expect(result.stdout).toContain('**ASK** the user whether to restore');
   });
 
   it('--yes installs a pre-commit hook when .git exists', async () => {
