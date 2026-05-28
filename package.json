@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.3.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "bin": {
     "habit-hooks": "./dist/cli.js"
