@@ -101,8 +101,9 @@ describe('runInit', () => {
     writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'eslint' }));
     const result = await runInit(s.cwd, { prompter: makeAutoPrompter(false) });
     const tail = result.stdout.split('To install missing tools, run:')[1] ?? '';
-    expect(tail).not.toContain('eslint');
-    expect(tail).toContain('knip');
+    const installCommand = tail.split('\n\n')[0] ?? '';
+    expect(installCommand).not.toContain('eslint');
+    expect(installCommand).toContain('knip');
   });
 
   it('--yes adds habit-hooks script to package.json', async () => {
@@ -159,6 +160,7 @@ describe('runInit', () => {
     expect(result.stdout).toContain('## Habit Hooks');
     expect(result.stdout).toContain('npm run ci');
     expect(result.stdout).toContain('habit-hooks-review');
+    expect(result.stdout).toContain('already present');
   });
 
   it('--yes installs a pre-commit hook when .git exists', async () => {

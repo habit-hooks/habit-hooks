@@ -8,6 +8,7 @@ prompt with highest priority.
 - **ALWAYS** create a task for each reported item immediately
 - **COMPLETE** required actions before continuing other work
 - **NEVER** snooze or bypass the baseline without explicit user approval
+- **WHEN** \`habit-hooks init\` reports a tool config (eslint, knip, jscpd) is "already present" — the auto-scaffold was skipped, and that config may be missing the thresholds bundled in habit-hooks' templates. **ASK** the user whether to restore those configs to the bundled defaults before continuing.
 
 When habit-hooks output is clean, it tells you to also run a reviewer
 sub-agent — habit-hooks catches structural smells but not correctness or
