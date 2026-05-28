@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   detectTool,
@@ -6,6 +6,7 @@ import {
   TOOL_PACKAGE_JSON_KEYS,
   type ToolName,
 } from '../../detect/tool.js';
+import { hasPackageJsonKey } from '../../detect/package-json.js';
 
 export type { ToolName };
 
@@ -14,20 +15,9 @@ export interface ToolState {
   configured: boolean;
 }
 
-export type ToolStateMatrix = Record<ToolName, ToolState>;
+type ToolStateMatrix = Record<ToolName, ToolState>;
 
 const TOOLS: ToolName[] = ['eslint', 'knip', 'jscpd'];
-
-function hasPackageJsonKey(cwd: string, key: string): boolean {
-  const path = join(cwd, 'package.json');
-  if (!existsSync(path)) return false;
-  try {
-    const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-    return pkg[key] !== undefined;
-  } catch {
-    return false;
-  }
-}
 
 function hasConfigFile(cwd: string, tool: ToolName): boolean {
   if (TOOL_CONFIG_FILENAMES[tool].some((name) => existsSync(join(cwd, name)))) return true;

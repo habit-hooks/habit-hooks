@@ -21,7 +21,7 @@ function promptToRule(prompt: CoachingPrompt): Rule {
 const MAX_PER_GROUP = 10;
 const UNCOACHED_RULE_ID = 'uncoached';
 
-export interface ReportResult {
+interface ReportResult {
   stdout: string;
   exitCode: 0 | 1;
 }

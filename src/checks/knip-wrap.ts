@@ -1,18 +1,10 @@
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { runTool, type ShellResult } from '../wrap/shell.js';
 import { detectTool } from '../detect/tool.js';
-import {
-  absolutize,
-  emptyOutcome,
-  firstLine,
-  isSpawnFailure,
-  noticesFor,
-  spawnFailureWarning,
-  type BinResolution,
-} from '../wrap/notices.js';
-import { spawnTarget } from '../wrap/resolve.js';
+import { hasPackageJsonKey } from '../detect/package-json.js';
+import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
+import { isSpawnSkip, parseJsonStdout, spawnWrapped } from '../wrap/run.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 const require = createRequire(import.meta.url);
@@ -131,16 +123,6 @@ function exitFailureWarning(cwd: string, code: number, stderr: string): string {
   return `habit-hooks: knip skipped in ${cwd} (exit ${code})${suffix}`;
 }
 
-function tryParseReport(stdout: string): KnipReport | null {
-  const trimmed = stdout.trim();
-  if (trimmed.length === 0 || !trimmed.startsWith('{')) return null;
-  try {
-    return JSON.parse(trimmed) as KnipReport;
-  } catch {
-    return null;
-  }
-}
-
 interface IssueContext {
   cwd: string;
   issueType: string;
@@ -230,36 +212,19 @@ function reportToViolations(report: KnipReport, cwd: string): Violation[] {
   return [...filesViolations, ...issuesViolations];
 }
 
-async function executeKnip(resolution: BinResolution, cwd: string): Promise<ShellResult> {
-  const args = buildKnipArgs(resolution, cwd);
-  const target = spawnTarget(resolution.binPath, args);
-  return runTool({ bin: target.bin, args: target.args, cwd });
-}
-
 function hasPackageJson(cwd: string): boolean {
   return existsSync(join(cwd, 'package.json'));
 }
 
-function hasKnipPackageJsonKey(cwd: string): boolean {
-  const path = join(cwd, 'package.json');
-  if (!existsSync(path)) return false;
-  try {
-    const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-    return pkg.knip !== undefined;
-  } catch {
-    return false;
-  }
-}
-
 function hasKnipConfig(cwd: string): boolean {
   if (KNIP_CONFIG_FILES.some((name) => existsSync(join(cwd, name)))) return true;
-  return hasKnipPackageJsonKey(cwd);
+  return hasPackageJsonKey(cwd, 'knip');
 }
 
 async function runKnip(resolution: BinResolution, cwd: string, notices: string[]): Promise<CheckOutcome> {
-  const result = await executeKnip(resolution, cwd);
-  if (isSpawnFailure(result)) return emptyOutcome([...notices, spawnFailureWarning('knip', cwd, result.warnings)]);
-  const report = tryParseReport(result.stdout);
+  const result = await spawnWrapped('knip', resolution, cwd, buildKnipArgs(resolution, cwd));
+  if (isSpawnSkip(result)) return emptyOutcome([...notices, result.skipWarning]);
+  const report = parseJsonStdout<KnipReport>(result.stdout, '{');
   if (report === null) return emptyOutcome([...notices, exitFailureWarning(cwd, result.exitCode, result.stderr)]);
   return { violations: reportToViolations(report, cwd), stderr: notices };
 }

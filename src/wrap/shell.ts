@@ -7,7 +7,7 @@ export interface ShellResult {
   warnings: string[];
 }
 
-export interface RunToolOptions {
+interface RunToolOptions {
   bin: string;
   args: string[];
   cwd: string;

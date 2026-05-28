@@ -27,6 +27,11 @@ const supplementalSeeds: RuleSeed[] = [
     description: 'An export no consumer references — either internal-by-accident or undeclared public surface.',
   },
   {
+    id: 'knip:types',
+    title: 'Unused type export',
+    description: 'A type export no consumer references — either internal-by-accident or undeclared public surface.',
+  },
+  {
     id: 'knip:dependencies',
     title: 'Unused dependency',
     description: 'A package.json dependency with no detected import — uninstall, or teach knip about the config that loads it.',

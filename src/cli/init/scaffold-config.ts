@@ -8,9 +8,9 @@ const CONFIG_FILENAMES = [
   'habit-hooks.config.json',
 ];
 
-export const NEW_CONFIG_FILENAME = 'habit-hooks.config.js';
+const NEW_CONFIG_FILENAME = 'habit-hooks.config.js';
 
-export const CONFIG_TEMPLATE = `export default {
+const CONFIG_TEMPLATE = `export default {
   scope: {
     onlyChangedFiles: true,
     branchBase: 'main',
@@ -23,18 +23,27 @@ export interface ScaffoldResult {
   created: boolean;
 }
 
-function existingConfig(cwd: string): string | null {
-  for (const name of CONFIG_FILENAMES) {
+function findExisting(cwd: string, candidates: readonly string[]): string | null {
+  for (const name of candidates) {
     const candidate = join(cwd, name);
     if (existsSync(candidate)) return candidate;
   }
   return null;
 }
 
-export function scaffoldConfig(cwd: string): ScaffoldResult {
-  const existing = existingConfig(cwd);
+export function scaffoldFile(
+  cwd: string,
+  candidates: readonly string[],
+  defaultName: string,
+  template: string,
+): ScaffoldResult {
+  const existing = findExisting(cwd, candidates);
   if (existing !== null) return { path: existing, created: false };
-  const path = join(cwd, NEW_CONFIG_FILENAME);
-  writeFileSync(path, CONFIG_TEMPLATE);
+  const path = join(cwd, defaultName);
+  writeFileSync(path, template);
   return { path, created: true };
+}
+
+export function scaffoldConfig(cwd: string): ScaffoldResult {
+  return scaffoldFile(cwd, CONFIG_FILENAMES, NEW_CONFIG_FILENAME, CONFIG_TEMPLATE);
 }

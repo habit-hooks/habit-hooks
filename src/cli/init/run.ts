@@ -21,12 +21,12 @@ import { installReviewerSkill, type SkillResult } from './skill.js';
 import { AGENT_SNIPPET } from './snippet.js';
 import type { Prompter } from './prompts.js';
 
-export interface InitOptions {
+interface InitOptions {
   prompter: Prompter;
   dryRun?: boolean;
 }
 
-export interface InitResult {
+interface InitResult {
   stdout: string;
   stderr: string;
   exitCode: number;

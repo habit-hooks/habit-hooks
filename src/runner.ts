@@ -14,14 +14,14 @@ import { partitionBySnooze } from './baseline/filter.js';
 import type { HabitHooksConfig } from './config/schema.js';
 import type { Check, CheckOutcome, Rule, Violation } from './types.js';
 
-export interface RunResult {
+interface RunResult {
   stdout: string;
   stderr: string[];
   exitCode: number;
   violations: Violation[];
 }
 
-export interface RunOptions {
+interface RunOptions {
   configPath?: string;
   scopeFlags?: ScopeFlags;
   applyBaseline?: boolean;

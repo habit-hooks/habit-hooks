@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 export type ToolName = 'eslint' | 'knip' | 'jscpd';
 
-export interface ToolDetection {
+interface ToolDetection {
   available: true;
   binPath: string;
   configPath: string | null;

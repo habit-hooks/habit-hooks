@@ -2,18 +2,11 @@ import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { runTool, type ShellResult } from '../wrap/shell.js';
+import { type ShellResult } from '../wrap/shell.js';
 import { detectTool } from '../detect/tool.js';
-import {
-  absolutize,
-  emptyOutcome,
-  firstLine,
-  isSpawnFailure,
-  noticesFor,
-  spawnFailureWarning,
-  type BinResolution,
-} from '../wrap/notices.js';
-import { spawnTarget } from '../wrap/resolve.js';
+import { hasPackageJsonKey } from '../detect/package-json.js';
+import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
+import { isSpawnSkip, spawnWrapped } from '../wrap/run.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 const require = createRequire(import.meta.url);
@@ -47,7 +40,7 @@ function findPackageRoot(start: string): string {
   throw new Error(`Could not find package.json from ${start}`);
 }
 
-export function bundledJscpdBin(): string {
+function bundledJscpdBin(): string {
   const main = require.resolve('jscpd');
   const pkgRoot = findPackageRoot(dirname(main));
   const pkg = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8')) as { bin?: { jscpd?: string } | string };
@@ -132,11 +125,6 @@ function buildArgs(reportDir: string): string[] {
   return ['-r', 'json', '-o', reportDir, '--silent', '--noTips', '-n', '.'];
 }
 
-async function executeJscpd(resolution: BinResolution, cwd: string, reportDir: string): Promise<ShellResult> {
-  const target = spawnTarget(resolution.binPath, buildArgs(reportDir));
-  return runTool({ bin: target.bin, args: target.args, cwd });
-}
-
 function makeReportDir(): string {
   return mkdtempSync(join(tmpdir(), 'hh-jscpd-'));
 }
@@ -160,8 +148,8 @@ function missingReportOutcome(inputs: RunInputs, result: ShellResult): CheckOutc
 }
 
 async function runOnce(inputs: RunInputs, reportDir: string): Promise<CheckOutcome> {
-  const result = await executeJscpd(inputs.resolution, inputs.cwd, reportDir);
-  if (isSpawnFailure(result)) return emptyOutcome([...inputs.notices, spawnFailureWarning('jscpd', inputs.cwd, result.warnings)]);
+  const result = await spawnWrapped('jscpd', inputs.resolution, inputs.cwd, buildArgs(reportDir));
+  if (isSpawnSkip(result)) return emptyOutcome([...inputs.notices, result.skipWarning]);
   const report = tryReadReport(reportDir);
   if (report === null) return missingReportOutcome(inputs, result);
   return { violations: reportToViolations(report, inputs.scope, inputs.cwd), stderr: inputs.notices };
@@ -176,20 +164,9 @@ async function runJscpd(inputs: RunInputs): Promise<CheckOutcome> {
   }
 }
 
-function hasJscpdPackageJsonKey(cwd: string): boolean {
-  const path = join(cwd, 'package.json');
-  if (!existsSync(path)) return false;
-  try {
-    const pkg = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-    return pkg.jscpd !== undefined;
-  } catch {
-    return false;
-  }
-}
-
 function hasJscpdConfig(cwd: string): boolean {
   if (JSCPD_CONFIG_FILES.some((name) => existsSync(join(cwd, name)))) return true;
-  return hasJscpdPackageJsonKey(cwd);
+  return hasPackageJsonKey(cwd, 'jscpd');
 }
 
 function noConfigOutcome(cwd: string, notices: string[]): CheckOutcome {

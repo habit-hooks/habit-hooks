@@ -77,6 +77,7 @@ What habit-hooks adds on top is the *why this is a smell* and *how to fix it* gu
 | knip | `knip:classMembers` |
 | knip | `knip:files` |
 | knip | `knip:exports` |
+| knip | `knip:types` |
 | knip | `knip:dependencies` |
 | jscpd | `jscpd:duplication` |
 | custom | `comment:non-essential` |

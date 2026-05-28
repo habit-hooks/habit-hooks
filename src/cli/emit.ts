@@ -1,4 +1,4 @@
-export interface CommandOutput {
+interface CommandOutput {
   stdout: string;
   stderr: string;
   exitCode: number;

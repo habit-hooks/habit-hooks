@@ -15,7 +15,7 @@ function isSnoozed(relPath: string, baseline: BaselineFile, cwd: string): boolea
   return isWorkingTreeCleanFor(cwd, relPath);
 }
 
-export interface SnoozePartition {
+interface SnoozePartition {
   active: string[];
   skipped: string[];
 }

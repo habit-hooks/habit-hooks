@@ -12,7 +12,7 @@ const CONFIG_FILENAMES = [
   'habit-hooks.config.json',
 ];
 
-export interface LoadedConfig {
+interface LoadedConfig {
   config: HabitHooksConfig;
   sourcePath: string | null;
 }

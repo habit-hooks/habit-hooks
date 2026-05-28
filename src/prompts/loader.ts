@@ -10,7 +10,7 @@ function tryRead(path: string): string | null {
   return existsSync(path) ? readFileSync(path, 'utf8').trimEnd() : null;
 }
 
-export interface LoadGuidanceOptions {
+interface LoadGuidanceOptions {
   overrideDir?: string;
   packagedDir?: string;
 }

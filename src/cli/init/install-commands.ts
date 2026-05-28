@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type PackageManager = 'pnpm' | 'yarn' | 'bun' | 'npm';
+type PackageManager = 'pnpm' | 'yarn' | 'bun' | 'npm';
 
 type LockfilePm = Exclude<PackageManager, 'npm'>;
 

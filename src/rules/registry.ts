@@ -41,7 +41,3 @@ export function buildRules(config: HabitHooksConfig, configDir: string): Rule[] 
   const withGuidance = attachGuidance(merged, overrideDir);
   return attachCommentThresholds(withGuidance, config.commentCheck);
 }
-
-export function getRules(): Rule[] {
-  return buildRules({}, process.cwd());
-}

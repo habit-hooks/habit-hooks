@@ -1,0 +1,6 @@
+{
+  "path": ["src"],
+  "ignore": ["**/*.test.ts", "tests/fixtures/**", "dist/**", "node_modules/**"],
+  "threshold": 0,
+  "minLines": 5
+}

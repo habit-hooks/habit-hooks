@@ -1,13 +1,13 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const HABIT_HOOKS_SCRIPT = 'habit-hooks';
-export const HABIT_HOOKS_COMMAND = 'habit-hooks';
-export const CI_SCRIPT = 'ci';
+const HABIT_HOOKS_SCRIPT = 'habit-hooks';
+const HABIT_HOOKS_COMMAND = 'habit-hooks';
+const CI_SCRIPT = 'ci';
 
 const CI_CANDIDATES = ['lint', 'test', 'build', HABIT_HOOKS_SCRIPT];
 
-export interface PackageJson {
+interface PackageJson {
   scripts?: Record<string, string>;
   [key: string]: unknown;
 }

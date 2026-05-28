@@ -12,6 +12,7 @@ import {
   type BinResolution,
 } from '../wrap/notices.js';
 import { spawnTarget } from '../wrap/resolve.js';
+import { parseJsonStdout } from '../wrap/run.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 const require = createRequire(import.meta.url);
@@ -33,7 +34,7 @@ function bundledEslintBin(): string {
   return join(dirname(main), '..', 'bin', 'eslint.js');
 }
 
-export function resolveEslintBin(cwd: string): BinResolution {
+function resolveEslintBin(cwd: string): BinResolution {
   const detected = detectTool(cwd, 'eslint');
   if (detected !== null) return { binPath: detected.binPath, isFallback: false };
   return { binPath: bundledEslintBin(), isFallback: true };
@@ -45,13 +46,7 @@ function configWarning(cwd: string, detail: string): string {
 }
 
 function tryParseJson(stdout: string): EslintFileResult[] | null {
-  const trimmed = stdout.trim();
-  if (trimmed.length === 0 || !trimmed.startsWith('[')) return null;
-  try {
-    return JSON.parse(trimmed) as EslintFileResult[];
-  } catch {
-    return null;
-  }
+  return parseJsonStdout<EslintFileResult[]>(stdout, '[');
 }
 
 function isConfigError(result: ShellResult, parsed: EslintFileResult[] | null): boolean {
