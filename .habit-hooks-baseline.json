@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "files": {
+    "src/cli/init/run.e2e.test.ts": {
+      "snoozedAtCommit": "38f6ba67017663b58d871f0d3c7eafd59120f9aa"
+    }
+  }
+}
