@@ -17,31 +17,6 @@ const supplementalSeeds: RuleSeed[] = [
     description: 'ESLint could not analyze the file — a parse error, unresolvable config, or a plugin threw.',
     severity: 'enforced',
   },
-  {
-    id: 'eslint:boundaries/dependencies',
-    title: 'Architectural layering violated',
-    description: 'An upper layer reached into a lower one; restore the boundary at the seam.',
-  },
-  {
-    id: 'knip:files',
-    title: 'Unused file',
-    description: 'A file no consumer imports — either an entry point knip cannot see, or orphan code.',
-  },
-  {
-    id: 'knip:exports',
-    title: 'Unused export',
-    description: 'An export no consumer references — either internal-by-accident or undeclared public surface.',
-  },
-  {
-    id: 'knip:types',
-    title: 'Unused type export',
-    description: 'A type export no consumer references — either internal-by-accident or undeclared public surface.',
-  },
-  {
-    id: 'knip:dependencies',
-    title: 'Unused dependency',
-    description: 'A package.json dependency with no detected import — uninstall, or teach knip about the config that loads it.',
-  },
 ];
 
 function slugify(ruleId: string): string {

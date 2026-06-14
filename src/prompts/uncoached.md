@@ -1,3 +1,4 @@
-These rules fired in your project but habit-hooks does not ship a tuned coaching prompt for them yet. The violations above are the raw output from the underlying tool (ESLint, knip, jscpd) — read them as you would read any lint message.
-
-If a particular uncoached rule fires often and you have a clear stance on how to address it, write your own prompt: drop a markdown file named after the slugified rule id (e.g. `eslint-no-console.md`) into the prompts directory configured in `habit-hooks.config`. Habit Hooks will pick it up automatically and surface it the same way it does for built-in prompts.
+General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
+- Ask yourself why the rule exists in the first place. What is it telling you about the code?
+- Find a fix that improves maintainability, cuts cruft — doing the same with fewer statements where that lowers cognitive load — and/or improves security, scalability, and resilience.
+- AVOID AT ALL COST: any fix that is designed to appease the reporting tool, but goes against the spirit of the warning.

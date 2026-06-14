@@ -33,11 +33,15 @@ export function reportHookResult(result: HookResult, lines: Lines): void {
 }
 
 export function reportSkillResult(result: SkillResult, lines: Lines): void {
-  if (result.action === 'installed') lines.out.push(`installed reviewer skill at ${result.target}\n`);
-  else if (result.action === 'kept') lines.out.push(`reviewer skill already at ${result.target}\n`);
+  if (result.action === 'installed') lines.out.push(`installed ${result.name} at ${result.target}\n`);
+  else if (result.action === 'kept') lines.out.push(`${result.name} already at ${result.target}\n`);
   else if (result.action === 'conflict') {
-    lines.out.push(`reviewer skill already exists at ${result.target} — left untouched\n`);
+    lines.out.push(`${result.name} already exists at ${result.target} — left untouched\n`);
   } else if (result.action === 'source-missing') {
-    lines.err.push(`habit-hooks: could not find packaged SKILL.md — skipping\n`);
+    lines.err.push(`habit-hooks: could not find packaged SKILL.md for ${result.name} — skipping\n`);
   }
+}
+
+export function reportSkillResults(results: SkillResult[], lines: Lines): void {
+  for (const result of results) reportSkillResult(result, lines);
 }

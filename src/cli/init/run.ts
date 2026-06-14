@@ -13,12 +13,12 @@ import {
 } from './install-commands.js';
 import { addCiScript, addHabitHooksScript } from './package-scripts.js';
 import { installPreCommitHook } from './git-hook.js';
-import { installReviewerSkill } from './skill.js';
+import { installSkills } from './skill.js';
 import { AGENT_SNIPPET } from './snippet.js';
 import {
   reportHookResult,
   reportScriptResult,
-  reportSkillResult,
+  reportSkillResults,
   type Lines,
 } from './reporters.js';
 import type { Prompter } from './prompts.js';
@@ -158,11 +158,11 @@ async function maybeInstallHook(ctx: Ctx, prompter: Prompter): Promise<void> {
 async function maybeInstallSkill(ctx: Ctx, prompter: Prompter): Promise<void> {
   if (ctx.dryRun) return;
   const yes = await prompter.ask(
-    "Install the bundled 'habit-hooks-review' skill into ~/.claude/skills/?",
+    'Install the bundled habit-hooks skills into ~/.claude/skills/?',
     { defaultYes: false },
   );
   if (!yes) return;
-  reportSkillResult(installReviewerSkill(), ctx.lines);
+  reportSkillResults(installSkills(), ctx.lines);
 }
 
 function printSnippet(lines: Lines): void {

@@ -3,14 +3,18 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInit } from './run.js';
-import { makeAutoPrompter } from './prompts.js';
+import { makeAutoPrompter, type Prompter } from './prompts.js';
 
 interface Setup {
   cwd: string;
+  home: string;
 }
 
 function makeSetup(): Setup {
-  return { cwd: mkdtempSync(join(tmpdir(), 'hh-init-')) };
+  return {
+    cwd: mkdtempSync(join(tmpdir(), 'hh-init-')),
+    home: mkdtempSync(join(tmpdir(), 'hh-init-home-')),
+  };
 }
 
 function writePackageJson(cwd: string, data: Record<string, unknown>): void {
@@ -26,12 +30,18 @@ function readScripts(cwd: string): Record<string, string> | undefined {
 
 describe('runInit', () => {
   let s: Setup;
+  let originalHome: string | undefined;
 
   beforeEach(() => {
     s = makeSetup();
+    originalHome = process.env.HOME;
+    process.env.HOME = s.home;
   });
   afterEach(() => {
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
     rmSync(s.cwd, { recursive: true, force: true });
+    rmSync(s.home, { recursive: true, force: true });
   });
 
   it('scaffolds tool configs, habit-hooks config, and baseline on a fresh dir', async () => {
@@ -182,6 +192,29 @@ describe('runInit', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('left untouched');
     expect(readFileSync(hookPath, 'utf8')).toBe('#!/bin/sh\necho something\n');
+  });
+
+  it('installs both bundled skills behind a single prompt and reports each', async () => {
+    writePackageJson(s.cwd, { name: 'demo' });
+    const asked: string[] = [];
+    const prompter: Prompter = {
+      ask(question, opts) {
+        asked.push(question);
+        return Promise.resolve(question.includes('habit-hooks skills') ? true : opts.defaultYes);
+      },
+      close() {},
+    };
+    const result = await runInit(s.cwd, { prompter });
+    expect(result.exitCode).toBe(0);
+    expect(asked).toContain('Install the bundled habit-hooks skills into ~/.claude/skills/?');
+    expect(result.stdout).toContain('installed habit-hooks-review at');
+    expect(result.stdout).toContain('installed habit-hooks-prompting at');
+    expect(existsSync(join(s.home, '.claude', 'skills', 'habit-hooks-review', 'SKILL.md'))).toBe(
+      true,
+    );
+    expect(
+      existsSync(join(s.home, '.claude', 'skills', 'habit-hooks-prompting', 'SKILL.md')),
+    ).toBe(true);
   });
 
   it('--dry-run does not write any files', async () => {

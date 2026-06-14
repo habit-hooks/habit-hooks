@@ -34,15 +34,18 @@ function actualSlugs(): Set<string> {
 }
 
 describe('prompts coverage', () => {
-  it('every default rule has a corresponding markdown file', () => {
+  it('every default rule either has a tuned markdown file or falls back to uncoached', () => {
+    expect(loadGuidance(UNCOACHED_SLUG), 'uncoached fallback missing').not.toBeNull();
     for (const rule of defaultRules) {
-      expect(loadGuidance(rule.id), `missing prompt for ${rule.id}`).not.toBeNull();
+      const guidance = loadGuidance(rule.id) ?? loadGuidance(UNCOACHED_SLUG);
+      expect(guidance, `no guidance resolvable for ${rule.id}`).not.toBeNull();
     }
   });
 
-  it('every registered prompt (including supplemental) has a markdown file', () => {
+  it('every registered prompt resolves guidance (tuned file or uncoached fallback)', () => {
     for (const prompt of listPrompts()) {
-      expect(loadGuidance(prompt.id), `missing prompt for ${prompt.id}`).not.toBeNull();
+      const guidance = loadGuidance(prompt.id) ?? loadGuidance(UNCOACHED_SLUG);
+      expect(guidance, `no guidance resolvable for ${prompt.id}`).not.toBeNull();
     }
   });
 

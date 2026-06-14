@@ -16,9 +16,9 @@ describe('lookupPrompt', () => {
   });
 
   it('preserves plugin-namespaced ids verbatim', () => {
-    const prompt = lookupPrompt('eslint:@typescript-eslint/no-explicit-any');
-    expect(prompt?.id).toBe('eslint:@typescript-eslint/no-explicit-any');
-    expect(prompt?.guidancePath).toMatch(/eslint-typescript-eslint-no-explicit-any\.md$/);
+    const prompt = lookupPrompt('eslint:@typescript-eslint/no-non-null-assertion');
+    expect(prompt?.id).toBe('eslint:@typescript-eslint/no-non-null-assertion');
+    expect(prompt?.guidancePath).toMatch(/eslint-typescript-eslint-no-non-null-assertion\.md$/);
   });
 
   it('returns null for an unknown rule id', () => {
@@ -30,18 +30,23 @@ describe('lookupPrompt', () => {
     expect(prompt?.severity).toBe('suggested');
   });
 
-  it('registers supplemental prompts for common consumer rules not in defaultRules', () => {
-    const supplemental = [
+  it('registers the eslint:fatal supplemental prompt with a tuned markdown file', () => {
+    const prompt = lookupPrompt('eslint:fatal');
+    expect(prompt, 'missing supplemental prompt eslint:fatal').not.toBeNull();
+    expect(existsSync(prompt?.guidancePath ?? '')).toBe(true);
+    expect(prompt?.severity).toBe('enforced');
+  });
+
+  it('does not register demoted supplemental prompts (they fall through to uncoached)', () => {
+    const demoted = [
       'eslint:boundaries/dependencies',
       'knip:files',
       'knip:exports',
+      'knip:types',
       'knip:dependencies',
     ];
-    for (const id of supplemental) {
-      const prompt = lookupPrompt(id);
-      expect(prompt, `missing supplemental prompt ${id}`).not.toBeNull();
-      expect(existsSync(prompt?.guidancePath ?? '')).toBe(true);
-      expect(prompt?.severity).toBe('suggested');
+    for (const id of demoted) {
+      expect(lookupPrompt(id), `unexpected supplemental prompt ${id}`).toBeNull();
     }
   });
 });

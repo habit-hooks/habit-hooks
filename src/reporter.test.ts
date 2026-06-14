@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { report } from './reporter.js';
+import { loadGuidance } from './prompts/loader.js';
 import type { Rule, Violation } from './types.js';
 
 const enforcedRule: Rule = {
@@ -101,10 +102,27 @@ describe('report', () => {
   });
 
   it('coaches a violation whose rule id has a supplemental prompt but no Rule entry', () => {
-    const v = makeViolation('knip:files', 1);
+    const v = makeViolation('eslint:fatal', 1);
     const result = report([v], []);
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('Unused file');
+    expect(result.stdout).toContain('ESLint fatal parse/config error');
+    expect(result.stdout).not.toContain('Uncoached rules');
+  });
+
+  it('falls back to the uncoached prompt text for a known rule with no tuned markdown', () => {
+    const demotedRule: Rule = {
+      id: 'eslint:no-var',
+      source: 'eslint',
+      sourceRuleId: 'no-var',
+      severity: 'enforced',
+      changedFilesOnly: false,
+      title: 'var declaration',
+      description: 'Use let or const; var hoists in surprising ways.',
+    };
+    const uncoachedText = loadGuidance('uncoached');
+    if (uncoachedText === null) throw new Error('expected uncoached guidance to exist');
+    const result = report([makeViolation('eslint:no-var', 5)], [demotedRule]);
+    expect(result.stdout).toContain('var declaration');
+    expect(result.stdout).toContain(uncoachedText);
     expect(result.stdout).not.toContain('Uncoached rules');
   });
 
@@ -119,24 +137,23 @@ describe('report', () => {
 
   it('promotes supplemental prompts alongside enforced rules and isolates the truly uncoached', () => {
     const enforced = makeViolation('eslint:max-params', 4);
-    const supplemental = makeViolation('knip:files', 1);
+    const supplemental = makeViolation('eslint:fatal', 1);
     const uncoached = makeViolation('eslint:no-console', 9);
 
     const result = report([enforced, supplemental, uncoached], rules);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('Too many parameters');
-    expect(result.stdout).toContain('Unused file');
-    expect(result.stdout).toContain('A file no consumer imports');
+    expect(result.stdout).toContain('ESLint fatal parse/config error');
     expect(result.stdout).toContain('Uncoached rules');
     expect(result.stdout).toContain('eslint:no-console');
 
     const uncoachedIdx = result.stdout.indexOf('Uncoached rules');
-    const supplementalIdx = result.stdout.indexOf('Unused file');
+    const supplementalIdx = result.stdout.indexOf('ESLint fatal parse/config error');
     expect(supplementalIdx).toBeGreaterThan(-1);
     expect(supplementalIdx).toBeLessThan(uncoachedIdx);
 
     const uncoachedTail = result.stdout.slice(uncoachedIdx);
-    expect(uncoachedTail).not.toContain('knip:files');
+    expect(uncoachedTail).not.toContain('eslint:fatal');
   });
 });

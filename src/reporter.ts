@@ -4,7 +4,7 @@ import type { CoachingPrompt, Rule, Violation } from './types.js';
 
 function ruleGuidance(rule: Rule): string | null {
   if (rule.guidance !== undefined) return rule.guidance;
-  return loadGuidance(rule.id);
+  return loadGuidance(rule.id) ?? loadGuidance('uncoached');
 }
 
 function promptToRule(prompt: CoachingPrompt): Rule {
