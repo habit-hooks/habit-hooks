@@ -98,9 +98,11 @@ smell key must never name a tool; it may name a language-specific concept.
 One npm package, three stages behind clean internal seams so they can split
 into separate packages later.
 
-## Combinations (long term)
+## Combinations
 
-Routing on co-occurring smells (e.g. `oversized-file` + `duplicated-code` →
-extract a module) belongs in the sensor layer, not the mapper: a **composite
-sensor** subscribes to other sensors' issues and emits a derived smell. The
-mapper stays a pure single-smell function. Out of scope for v1.
+Co-occurring smells (e.g. `oversized-file` + `duplicated-code` → extract a
+module) are handled in the sensor layer, not the mapper: a **multi sensor**
+depends on other smells, receives their issues from the
+[sensor runner](sensors.md), and emits a derived smell. The mapper stays a
+pure single-smell function. Which combination smells we ship is a content
+decision, layered on later.
