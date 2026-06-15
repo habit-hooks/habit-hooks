@@ -1,19 +1,18 @@
 import { dirname, relative } from 'node:path';
 import fg from 'fast-glob';
 import picomatch from 'picomatch';
-import { eslintWrap } from './checks/eslint-wrap.js';
-import { commentCheck } from './checks/comment-check.js';
-import { jscpdWrap } from './checks/jscpd-wrap.js';
-import { knipWrap } from './checks/knip-wrap.js';
 import { loadConfig, loadConfigFromPath } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { report } from './reporter.js';
 import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
-import { runEslintSource } from './eslint-runner.js';
+import { SensorRunner } from './sensors/runner.js';
+import { buildPresetSensors, issueToViolation } from './sensors/preset.js';
 import type { HabitHooksConfig } from './config/schema.js';
-import type { Check, CheckOutcome, Rule, Violation } from './types.js';
+import type { Rule, Violation } from './types.js';
+
+const COMMENT_SMELL = 'non-essential-comment';
 
 interface RunResult {
   stdout: string;
@@ -33,11 +32,6 @@ interface RunContext {
   files: string[];
   scope: ResolvedScope;
   baseline: BaselineFile | null;
-}
-
-interface FileSetGroup {
-  rules: Rule[];
-  files: string[];
 }
 
 async function discoverFiles(cwd: string): Promise<string[]> {
@@ -84,66 +78,6 @@ function resolveFilesForRule(rule: Rule, ctx: RunContext): string[] {
   return applyBaselineToRule(scoped, ctx);
 }
 
-function addRuleToGroup(
-  groups: Map<string, FileSetGroup>,
-  rule: Rule,
-  files: string[],
-): void {
-  const key = files.join('\0');
-  const existing = groups.get(key);
-  if (existing) existing.rules.push(rule);
-  else groups.set(key, { rules: [rule], files });
-}
-
-function groupByFileSet(rules: Rule[], ctx: RunContext): FileSetGroup[] {
-  const groups = new Map<string, FileSetGroup>();
-  for (const rule of rules) {
-    addRuleToGroup(groups, rule, resolveFilesForRule(rule, ctx));
-  }
-  return [...groups.values()];
-}
-
-interface SourceCheck {
-  source: Rule['source'];
-  check: Check;
-}
-
-function normalizeOutcome(result: Violation[] | CheckOutcome): CheckOutcome {
-  if (Array.isArray(result)) return { violations: result };
-  return result;
-}
-
-async function runGroup(check: Check, group: FileSetGroup, ctx: RunContext): Promise<CheckOutcome> {
-  const raw = await check.run(group.files, group.rules, ctx.cwd);
-  return normalizeOutcome(raw);
-}
-
-async function runGroups(groups: FileSetGroup[], ctx: RunContext, check: Check): Promise<CheckOutcome> {
-  const stderr: string[] = [];
-  const violations: Violation[] = [];
-  for (const group of groups) {
-    if (group.files.length === 0) continue;
-    const outcome = await runGroup(check, group, ctx);
-    violations.push(...outcome.violations);
-    if (outcome.stderr) stderr.push(...outcome.stderr);
-  }
-  return { violations, stderr };
-}
-
-function eslintFilterCtx(ctx: RunContext): { resolveFilesForRule: (_rule: Rule) => string[]; cwd: string } {
-  return { resolveFilesForRule: (rule) => resolveFilesForRule(rule, ctx), cwd: ctx.cwd };
-}
-
-async function runCheckForSource(
-  rules: Rule[],
-  ctx: RunContext,
-  binding: SourceCheck,
-): Promise<CheckOutcome> {
-  if (binding.source === 'eslint') return runEslintSource(rules, eslintFilterCtx(ctx), binding.check);
-  const selected = rules.filter((rule) => rule.source === binding.source);
-  return runGroups(groupByFileSet(selected, ctx), ctx, binding.check);
-}
-
 async function resolveConfig(
   cwd: string,
   options: RunOptions,
@@ -171,27 +105,38 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   return { ctx: { cwd, files, scope, baseline }, rules };
 }
 
-const CHECK_BINDINGS: SourceCheck[] = [
-  { source: 'eslint', check: eslintWrap },
-  { source: 'custom', check: commentCheck },
-  { source: 'jscpd', check: jscpdWrap },
-  { source: 'knip', check: knipWrap },
-];
+// Detection runs every preset sensor over the full discovered file set and
+// merges their issues; rule-scoped file filtering is applied afterwards so the
+// sensor stage stays a pure smell detector (docs/sensors.md).
+async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Violation[]; notices: string[] }> {
+  const notices: string[] = [];
+  const commentRule = rules.find((r) => r.id === COMMENT_SMELL);
+  const runner = new SensorRunner(buildPresetSensors({ notices, commentRule }));
+  const issues = await runner.run({ files: ctx.files, cwd: ctx.cwd });
+  return { violations: issues.map(issueToViolation), notices };
+}
 
-async function collectOutcomes(rules: Rule[], ctx: RunContext): Promise<CheckOutcome> {
-  const violations: Violation[] = [];
-  const stderr: string[] = [];
-  for (const binding of CHECK_BINDINGS) {
-    const outcome = await runCheckForSource(rules, ctx, binding);
-    violations.push(...outcome.violations);
-    if (outcome.stderr) stderr.push(...outcome.stderr);
-  }
-  return { violations, stderr };
+function allowedFilesBySmell(rules: Rule[], ctx: RunContext): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const rule of rules) map.set(rule.id, new Set(resolveFilesForRule(rule, ctx)));
+  return map;
+}
+
+// A violation whose smell has a configured rule is kept only when its file is in
+// that rule's resolved set; an uncoached smell (no rule) is never file-filtered,
+// matching the legacy per-source dispatch.
+function filterViolations(violations: Violation[], rules: Rule[], ctx: RunContext): Violation[] {
+  const allowed = allowedFilesBySmell(rules, ctx);
+  return violations.filter((v) => {
+    const set = allowed.get(v.ruleId);
+    return set === undefined ? true : set.has(v.file);
+  });
 }
 
 export async function run(cwd: string, options: RunOptions = {}): Promise<RunResult> {
   const { ctx, rules } = await buildContext(cwd, options);
-  const outcome = await collectOutcomes(rules, ctx);
-  const reported = report(outcome.violations, rules);
-  return { ...reported, violations: outcome.violations, stderr: outcome.stderr ?? [] };
+  const detected = await detect(ctx, rules);
+  const violations = filterViolations(detected.violations, rules, ctx);
+  const reported = report(violations, rules);
+  return { ...reported, violations, stderr: detected.notices };
 }

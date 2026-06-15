@@ -47,3 +47,21 @@ Each is labelled _agent decision_ per the working agreement.
   construction (startup error), per docs/sensors.md. Leaf-only is exercised by the
   preset; multi-sensor ordering/`ctx.deps` is implemented and tested with fakes but
   no multi sensor ships (out of scope).
+
+- **2b integration: detect over all files, filter per smell afterwards.**
+  *(agent decision)* `run()` runs every preset sensor over the full discovered
+  file set via `SensorRunner`, then `filterViolations` keeps a violation only if
+  its smell's rule allows the file (uncoached smells with no rule are never
+  file-filtered). This replaces the old per-source dispatch (eslint union +
+  `filterEslintViolations`, group-by-file-set for the rest) and lets the sensor
+  stage stay a pure detector — the rule-scoped filtering is the seam the Phase 3
+  mapper will own. Verified parity: CLI golden output byte-identical, full suite
+  green. `src/eslint-runner.ts` deleted (its union/post-filter folded in).
+
+- **Known, accepted divergence: knip findings are now baseline-filtered.**
+  *(agent decision)* The old code never file-filtered knip output (knip runs
+  whole-project); the new uniform filter drops a knip finding for a
+  baseline-snoozed file (the `unused-class-member` rule has `changedFilesOnly:
+  false`, so scope is unaffected; only baseline can drop it). This is unreachable
+  by any existing test and not promised by the docs; treating a snoozed file as
+  snoozed for every sensor is the more consistent behaviour, so it is accepted.
