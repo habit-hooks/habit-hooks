@@ -85,3 +85,14 @@ Each is labelled _agent decision_ per the working agreement.
   keyed an override under the old `comment:non-essential`, which now matches no
   rule and would throw (`missing 'source'`) if habit-hooks ran on itself. Migrated
   it to `smells: { 'non-essential-comment': ... }`.
+
+- **3b: the mapper is a standalone, tested module (`src/mapper/mapper.ts`),
+  integrated in Phase 4.** *(agent decision)* `mapIssues` groups the bag by smell
+  and resolves each group to one `GuideAction` (severity + a `Fix`), with leftover
+  smells in an uncoached bucket. `resolveFix` implements the chain — explicit
+  `fix` setting, then `<smell>.md` (prompt), then a `<smell>` script (command),
+  else uncoached — looking up override dir before packaged, and throwing a config
+  error when an explicit `fix` names a missing file. Like the Phase 2a runner, it
+  ships tested-but-unwired; Phase 4 builds the Nunjucks guide that consumes
+  `GuideAction[]` and retires the reporter. (knip flags the output types as unused
+  until then — expected.)
