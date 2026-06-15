@@ -1,6 +1,6 @@
 export default {
-  rules: {
-    'comment:non-essential': {
+  smells: {
+    'non-essential-comment': {
       exclude: ['tests/fixtures/**', 'habit-hooks.config.*'],
     },
   },

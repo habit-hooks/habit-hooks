@@ -35,12 +35,16 @@ function pickRuleCore(def: RuleDefinition): Pick<Rule, 'source' | 'sourceRuleId'
   };
 }
 
-function pickRuleDisplay(id: string, def: RuleDefinition): Pick<Rule, 'title' | 'description' | 'include' | 'exclude'> {
+function pickRuleDisplay(
+  id: string,
+  def: RuleDefinition,
+): Pick<Rule, 'title' | 'description' | 'include' | 'exclude' | 'fix'> {
   return {
     title: def.title ?? id,
     description: def.description ?? '',
     include: def.include,
     exclude: def.exclude,
+    fix: def.fix,
   };
 }
 

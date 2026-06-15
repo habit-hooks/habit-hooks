@@ -78,6 +78,21 @@ describe('loadConfig', () => {
     );
   });
 
+  it('validates and round-trips the smells field', async () => {
+    const cfg = { smells: { 'too-many-parameters': { severity: 'suggested', fix: 'shared/style.md' } } };
+    writeFileSync(join(workDir, 'habit-hooks.config.json'), JSON.stringify(cfg));
+    const loaded = await loadConfig(workDir);
+    expect(loaded.config.smells?.['too-many-parameters']).toEqual({ severity: 'suggested', fix: 'shared/style.md' });
+  });
+
+  it('throws naming the smells field path on a bad severity', async () => {
+    const bad = { smells: { 'too-many-parameters': { severity: 'wrong' } } };
+    writeFileSync(join(workDir, 'habit-hooks.config.json'), JSON.stringify(bad));
+    await expect(loadConfig(workDir)).rejects.toThrow(
+      /smells\.too-many-parameters\.severity must be 'enforced' or 'suggested'/,
+    );
+  });
+
   it('throws when rules is not an object', async () => {
     writeFileSync(join(workDir, 'habit-hooks.config.json'), JSON.stringify({ rules: [] }));
     await expect(loadConfig(workDir)).rejects.toThrow(/rules must be an object/);

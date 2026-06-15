@@ -70,3 +70,18 @@ Each is labelled _agent decision_ per the working agreement.
   can). Unreachable by any existing test and not promised by the docs; treating a
   snoozed file as snoozed for every sensor is the more consistent behaviour
   (arguably a latent bugfix), so it is accepted.
+
+## Phase 3 — Mapper smells config + fix resolution
+
+- **3a: `smells` is the canonical config field; `rules` kept as a transitional
+  alias.** *(agent decision)* The config now reads `smells` (smell-keyed, per
+  docs/mapper.md) and still accepts `rules`; both merge with `smells` last so it
+  wins on conflict. Default and canonical configs use `smells`. This introduces
+  the canonical field without a sweeping rename of every test fixture; removing
+  the `rules` alias is a later cleanup. Added the `fix` field to the schema/`Rule`
+  and threaded it through merge so the Phase 3b mapper can resolve it.
+
+- **Fixed a latent Phase-1 miss: the repo's own `habit-hooks.config.js`** still
+  keyed an override under the old `comment:non-essential`, which now matches no
+  rule and would throw (`missing 'source'`) if habit-hooks ran on itself. Migrated
+  it to `smells: { 'non-essential-comment': ... }`.

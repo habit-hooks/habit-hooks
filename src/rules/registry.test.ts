@@ -28,4 +28,19 @@ describe('buildRules', () => {
       maxBlockChars: DEFAULT_COMMENT_CHECK_THRESHOLDS.maxBlockChars,
     });
   });
+
+  it('applies a smells override and carries the fix field onto the rule', () => {
+    const config = { smells: { 'too-many-parameters': { severity: 'suggested' as const, fix: 'shared/style.md' } } };
+    const rule = buildRules(config, process.cwd()).find((r) => r.id === 'too-many-parameters');
+    expect(rule?.severity).toBe('suggested');
+    expect(rule?.fix).toBe('shared/style.md');
+  });
+
+  it('lets smells take precedence over the rules alias for the same key', () => {
+    const config = {
+      rules: { 'too-many-parameters': { severity: 'suggested' as const } },
+      smells: { 'too-many-parameters': { severity: 'enforced' as const } },
+    };
+    expect(buildRules(config, process.cwd()).find((r) => r.id === 'too-many-parameters')?.severity).toBe('enforced');
+  });
 });

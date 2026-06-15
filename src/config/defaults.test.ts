@@ -27,12 +27,12 @@ describe('defaults', () => {
   });
 
   it('survives the merge with an empty user config', () => {
-    const merged = mergeRules(defaultRules, defaultConfig.rules, {});
+    const merged = mergeRules(defaultRules, defaultConfig.smells, {});
     expect(merged.length).toBe(defaultRules.length);
   });
 
   it('applies the test-file exclude from defaultConfig', () => {
-    const merged = mergeRules(defaultRules, defaultConfig.rules);
+    const merged = mergeRules(defaultRules, defaultConfig.smells);
     const fnRule = merged.find((r) => r.id === 'oversized-function');
     expect(fnRule?.exclude).toEqual(['**/*.test.ts', '**/*.spec.ts', 'tests/**']);
   });

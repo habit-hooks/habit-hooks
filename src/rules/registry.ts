@@ -36,7 +36,7 @@ function attachCommentThresholds(rules: Rule[], config: CommentCheckConfig | und
 }
 
 export function buildRules(config: HabitHooksConfig, configDir: string): Rule[] {
-  const merged = mergeRules(defaultRules, defaultConfig.rules, config.rules);
+  const merged = mergeRules(defaultRules, defaultConfig.smells, config.rules, config.smells);
   const overrideDir = resolvePromptsDir(config, configDir);
   const withGuidance = attachGuidance(merged, overrideDir);
   return attachCommentThresholds(withGuidance, config.commentCheck);

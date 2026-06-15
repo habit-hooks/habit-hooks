@@ -16,6 +16,7 @@ export interface Rule {
   description: string;
   include?: string[];
   exclude?: string[];
+  fix?: string;
   guidance?: string;
   commentCheck?: CommentCheckThresholds;
 }

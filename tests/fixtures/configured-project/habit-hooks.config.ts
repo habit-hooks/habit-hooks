@@ -2,7 +2,7 @@ import type { HabitHooksConfig } from '../../../src/config/schema.js';
 
 const config: HabitHooksConfig = {
   prompts: './prompts',
-  rules: {
+  smells: {
     'high-complexity': { disabled: true },
   },
 };

@@ -58,6 +58,7 @@ function validateRuleOverrideFields(entry: Record<string, unknown>, base: string
   validateOptionalBoolean(entry.disabled, `${base}.disabled`);
   validateOptionalStringArray(entry.include, `${base}.include`);
   validateOptionalStringArray(entry.exclude, `${base}.exclude`);
+  validateOptionalString(entry.fix, `${base}.fix`);
 }
 
 function validateRuleDefinitionFields(
@@ -79,12 +80,12 @@ function validateRuleEntry(value: unknown, base: string): RuleOverride | RuleDef
   return entry as RuleOverride | RuleDefinition;
 }
 
-function validateRules(value: unknown): HabitHooksConfig['rules'] {
+function validateEntryMap(value: unknown, field: string): HabitHooksConfig['rules'] {
   if (value === undefined) return undefined;
-  if (!isPlainObject(value)) fail('rules', 'an object keyed by rule id');
+  if (!isPlainObject(value)) fail(field, 'an object keyed by smell key');
   const result: Record<string, RuleOverride | RuleDefinition> = {};
   for (const [key, entry] of Object.entries(value)) {
-    result[key] = validateRuleEntry(entry, `rules.${key}`);
+    result[key] = validateRuleEntry(entry, `${field}.${key}`);
   }
   return result;
 }
@@ -116,6 +117,7 @@ function validateCommentCheck(value: unknown): CommentCheckConfig | undefined {
 
 interface ValidatedParts {
   prompts?: string;
+  smells: HabitHooksConfig['smells'];
   rules: HabitHooksConfig['rules'];
   scope: ScopeConfig | undefined;
   commentCheck: CommentCheckConfig | undefined;
@@ -124,6 +126,7 @@ interface ValidatedParts {
 function assembleConfig(parts: ValidatedParts): HabitHooksConfig {
   const config: HabitHooksConfig = {};
   if (parts.prompts !== undefined) config.prompts = parts.prompts;
+  if (parts.smells !== undefined) config.smells = parts.smells;
   if (parts.rules !== undefined) config.rules = parts.rules;
   if (parts.scope !== undefined) config.scope = parts.scope;
   if (parts.commentCheck !== undefined) config.commentCheck = parts.commentCheck;
@@ -135,7 +138,8 @@ export function validateConfig(value: unknown): HabitHooksConfig {
   validateOptionalString(value.prompts, 'prompts');
   return assembleConfig({
     prompts: typeof value.prompts === 'string' ? value.prompts : undefined,
-    rules: validateRules(value.rules),
+    smells: validateEntryMap(value.smells, 'smells'),
+    rules: validateEntryMap(value.rules, 'rules'),
     scope: validateScope(value.scope),
     commentCheck: validateCommentCheck(value.commentCheck),
   });

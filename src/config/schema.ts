@@ -8,6 +8,7 @@ export interface RuleOverride {
   disabled?: boolean;
   include?: string[];
   exclude?: string[];
+  fix?: string;
 }
 
 export interface RuleDefinition extends RuleOverride {
@@ -30,6 +31,9 @@ export interface CommentCheckConfig {
 
 export interface HabitHooksConfig {
   prompts?: string;
+  // `smells` is the canonical smell-keyed mapping (docs/mapper.md); `rules` is a
+  // transitional alias accepted for back-compat. Both merge, smells last.
+  smells?: Record<string, RuleOverride | RuleDefinition>;
   rules?: Record<string, RuleOverride | RuleDefinition>;
   scope?: ScopeConfig;
   commentCheck?: CommentCheckConfig;
