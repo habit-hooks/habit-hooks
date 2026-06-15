@@ -42,7 +42,11 @@ exits 0. The mapper config can override it per project.
 | `unused-file`               | Unused file                           | enforced         |
 | `unused-export`             | Unused export                         | enforced         |
 | `unused-dependency`         | Unused dependency                     | enforced         |
+| `unused-import`             | Unused import                         | enforced         |
 | `parse-error`               | Parse / config error                  | enforced         |
+
+`unused-import` was added as a general smell (agent decision) so ruff `F401`
+has a canonical home; see `DECISIONS.md`.
 
 ## TypeScript/JavaScript preset translation
 
@@ -71,6 +75,25 @@ to.
 | `knip:exports`                                    | `unused-export`             |
 | `knip:dependencies`                               | `unused-dependency`         |
 | `eslint:fatal`                                    | `parse-error`               |
+
+## Python preset translation
+
+The raw rule IDs the Python preset sensors emit, and the smell key each maps
+to (the rest of the catalogue is shared — only the sensor layer differs).
+
+| Raw key (tool:rule) | Smell key             |
+|---------------------|-----------------------|
+| `ruff:C901`         | `high-complexity`     |
+| `ruff:PLR0913`      | `too-many-parameters` |
+| `ruff:PLR0915`      | `oversized-function`  |
+| `ruff:F841`         | `unused-variable`     |
+| `ruff:F401`         | `unused-import`       |
+| `jscpd:duplication` | `duplicated-code`     |
+| `deptry:DEP002`     | `unused-dependency`   |
+
+TS-only smells (`explicit-any`, `var-declaration`, …) simply do not appear in
+the Python preset. `oversized-file` has no clean ruff rule and is deferred (see
+`DECISIONS.md`).
 
 ## Uncoached smells
 

@@ -9,7 +9,7 @@ import type {
 } from './schema.js';
 
 const SEVERITIES: readonly Severity[] = ['enforced', 'suggested'];
-const SOURCES: readonly RuleSource[] = ['eslint', 'jscpd', 'custom'];
+const SOURCES: readonly RuleSource[] = ['eslint', 'jscpd', 'knip', 'custom'];
 const LANGUAGES = ['typescript', 'python'] as const;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -48,7 +48,7 @@ function validateSeverity(value: unknown, path: string): void {
 
 function validateSource(value: unknown, path: string): void {
   if (typeof value !== 'string' || !SOURCES.includes(value as RuleSource)) {
-    fail(path, `one of 'eslint', 'jscpd', 'custom'`);
+    fail(path, `one of 'eslint', 'jscpd', 'knip', 'custom'`);
   }
 }
 
