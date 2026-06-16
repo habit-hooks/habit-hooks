@@ -44,12 +44,12 @@ describe('CLI output — clean-run banner + violation-run output', () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout.startsWith(CLEAN_BANNER)).toBe(true);
-  }, 30_000);
+  });
 
   it.skipIf(!RUFF)('python violation run prints the count header and a coached section (exit 1)', async () => {
     const result = await run(join(fixtures, 'python-project'));
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toMatch(/^❌ Habit Hooks: \d+ violations/);
     expect(result.stdout).toContain('❌ Too many parameters');
-  }, 30_000);
+  });
 });
