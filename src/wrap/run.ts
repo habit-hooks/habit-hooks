@@ -1,9 +1,16 @@
 import { runTool, type ShellResult } from './shell.js';
-import { isSpawnFailure, spawnFailureWarning, type BinResolution } from './notices.js';
+import { isSpawnFailure, spawnFailureOutcome, spawnFailureWarning, type BinResolution } from './notices.js';
 import { spawnTarget } from './resolve.js';
+import type { CheckOutcome } from '../types.js';
 
 interface SpawnSkip {
   skipWarning: string;
+}
+
+// A spawn/timeout skip becomes a failing outcome: shown to the user and recorded
+// as a failure so the run fails (exit 1), per docs/sensors.md.
+export function skipOutcome(skip: SpawnSkip, notices: string[]): CheckOutcome {
+  return spawnFailureOutcome(notices, skip.skipWarning);
 }
 
 interface SpawnWrappedArgs {

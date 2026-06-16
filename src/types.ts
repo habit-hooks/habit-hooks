@@ -41,6 +41,9 @@ export interface Violation {
 export interface CheckOutcome {
   violations: Violation[];
   stderr?: string[];
+  // Spawn/timeout failure messages: a sensor that could not run at all. These
+  // fail the run (exit 1), distinct from benign stderr notices.
+  failures?: string[];
 }
 
 export interface Check {
