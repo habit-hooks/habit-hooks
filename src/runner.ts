@@ -8,6 +8,7 @@ import { resolvePackagedDir } from './prompts/packaged-dir.js';
 import { resolveScope, type ResolvedScope, type ScopeFlags } from './git/resolve-scope.js';
 import { loadBaseline, type BaselineFile } from './baseline/store.js';
 import { partitionBySnooze } from './baseline/filter.js';
+import { createSnoozeIndex, type SnoozeIndex } from './baseline/snooze-index.js';
 import { SensorRunner } from './sensors/runner.js';
 import { buildPresetSensors, issueToViolation, violationToIssue } from './sensors/preset.js';
 import { buildPythonPresetSensors } from './sensors/python-preset.js';
@@ -37,6 +38,7 @@ interface RunContext {
   files: string[];
   scope: ResolvedScope;
   baseline: BaselineFile | null;
+  snoozeIndex: SnoozeIndex;
   language: Language;
   promptsDir?: string;
   configWarnings: string[];
@@ -82,7 +84,7 @@ function applyScopeToRule(rule: Rule, files: string[], scope: ResolvedScope): st
 
 function applyBaselineToRule(files: string[], ctx: RunContext): string[] {
   if (ctx.baseline === null) return files;
-  return partitionBySnooze(files, ctx.baseline, ctx.cwd).active;
+  return partitionBySnooze(files, ctx.baseline, ctx.snoozeIndex).active;
 }
 
 function resolveFilesForRule(rule: Rule, ctx: RunContext): string[] {
@@ -123,7 +125,8 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   const baseline = resolveBaseline(cwd, options);
   const promptsDir = resolvePromptsDir(config, configDir);
   const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
-  return { ctx: { cwd, files, scope, baseline, language, promptsDir, configWarnings }, rules };
+  const snoozeIndex = createSnoozeIndex(cwd);
+  return { ctx: { cwd, files, scope, baseline, snoozeIndex, language, promptsDir, configWarnings }, rules };
 }
 
 // A sensor runs only when at least one smell it produces has an active rule

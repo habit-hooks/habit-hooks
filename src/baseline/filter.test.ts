@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createGitRepo, type GitRepo } from '../../tests/helpers/git.js';
 import { lastCommitHash } from './file-hash.js';
 import { partitionBySnooze } from './filter.js';
+import { createSnoozeIndex } from './snooze-index.js';
 import type { BaselineFile } from './store.js';
 
 function baselineWith(files: Record<string, string>): BaselineFile {
@@ -29,7 +30,7 @@ describe('partitionBySnooze (four-quadrant)', () => {
     const baseline = baselineWith({ 'a.ts': hash ?? '' });
     const abs = join(repo.cwd, 'a.ts');
 
-    const { active, skipped } = partitionBySnooze([abs], baseline, repo.cwd);
+    const { active, skipped } = partitionBySnooze([abs], baseline, createSnoozeIndex(repo.cwd));
 
     expect(skipped).toEqual([abs]);
     expect(active).toEqual([]);
@@ -44,7 +45,7 @@ describe('partitionBySnooze (four-quadrant)', () => {
     const baseline = baselineWith({ 'a.ts': hash ?? '' });
     const abs = join(repo.cwd, 'a.ts');
 
-    const { active, skipped } = partitionBySnooze([abs], baseline, repo.cwd);
+    const { active, skipped } = partitionBySnooze([abs], baseline, createSnoozeIndex(repo.cwd));
 
     expect(active).toEqual([abs]);
     expect(skipped).toEqual([]);
@@ -60,7 +61,7 @@ describe('partitionBySnooze (four-quadrant)', () => {
     const baseline = baselineWith({ 'a.ts': oldHash ?? '' });
     const abs = join(repo.cwd, 'a.ts');
 
-    const { active, skipped } = partitionBySnooze([abs], baseline, repo.cwd);
+    const { active, skipped } = partitionBySnooze([abs], baseline, createSnoozeIndex(repo.cwd));
 
     expect(active).toEqual([abs]);
     expect(skipped).toEqual([]);
@@ -73,7 +74,7 @@ describe('partitionBySnooze (four-quadrant)', () => {
     const baseline = baselineWith({});
     const abs = join(repo.cwd, 'a.ts');
 
-    const { active, skipped } = partitionBySnooze([abs], baseline, repo.cwd);
+    const { active, skipped } = partitionBySnooze([abs], baseline, createSnoozeIndex(repo.cwd));
 
     expect(active).toEqual([abs]);
     expect(skipped).toEqual([]);
@@ -99,7 +100,7 @@ describe('partitionBySnooze (four-quadrant)', () => {
       join(repo.cwd, 'not-snoozed.ts'),
     ];
 
-    const { active, skipped } = partitionBySnooze(inputs, baseline, repo.cwd);
+    const { active, skipped } = partitionBySnooze(inputs, baseline, createSnoozeIndex(repo.cwd));
 
     expect(skipped).toEqual([join(repo.cwd, 'snoozed-clean.ts')]);
     expect(active.sort()).toEqual(

@@ -1,18 +1,9 @@
 import { relative, sep } from 'node:path';
-import { isWorkingTreeCleanFor, lastCommitHash } from './file-hash.js';
+import type { SnoozeIndex } from './snooze-index.js';
 import type { BaselineFile } from './store.js';
 
 export function toRepoRelative(cwd: string, absPath: string): string {
   return relative(cwd, absPath).split(sep).join('/');
-}
-
-function isSnoozed(relPath: string, baseline: BaselineFile, cwd: string): boolean {
-  const entry = baseline.files[relPath];
-  if (entry === undefined) return false;
-  const currentHash = lastCommitHash(cwd, relPath);
-  if (currentHash === null) return false;
-  if (currentHash !== entry.snoozedAtCommit) return false;
-  return isWorkingTreeCleanFor(cwd, relPath);
 }
 
 interface SnoozePartition {
@@ -32,12 +23,11 @@ function assignToPartition(
 export function partitionBySnooze(
   files: string[],
   baseline: BaselineFile,
-  cwd: string,
+  index: SnoozeIndex,
 ): SnoozePartition {
   const partition: SnoozePartition = { active: [], skipped: [] };
   for (const abs of files) {
-    const rel = toRepoRelative(cwd, abs);
-    assignToPartition(partition, abs, isSnoozed(rel, baseline, cwd));
+    assignToPartition(partition, abs, index.isSnoozed(abs, baseline));
   }
   return partition;
 }
