@@ -6,8 +6,9 @@ import type { GuideAction, MapperDirs, MapResult } from '../mapper/mapper.js';
 import type { Issue } from '../sensors/types.js';
 
 // The guide coaches the fix and signals pass/fail (docs/guide.md). It composes
-// each smell's section — header (title/description) + the rendered prompt
-// template + the issue list — lists the uncoached bucket, and computes the exit
+// each smell's section — the title header + a body (the rendered prompt
+// template, or the rule description as a fallback when a smell ships no tuned
+// prompt) + the issue list — lists the uncoached bucket, and computes the exit
 // code. A smell may ship a `<smell>.issues.njk` partial to group its issues its
 // own way; otherwise a flat default list is rendered. Everything renders through
 // Nunjucks (a static template is the degenerate case).
@@ -57,7 +58,9 @@ function renderProse(env: Environment, action: GuideAction): string {
 
 function composeSection(env: Environment, action: GuideAction, dirs: MapperDirs): string {
   const prose = renderProse(env, action);
-  return `❌ ${action.title}\n${action.description}\n${prose}\n\n${renderIssues(env, action, dirs)}`;
+  const body = prose.length > 0 ? prose : action.description;
+  const head = [`❌ ${action.title}`, body].filter((part) => part.length > 0).join('\n\n');
+  return `${head}\n\n${renderIssues(env, action, dirs)}`;
 }
 
 function totalIssues(result: MapResult): number {
@@ -92,5 +95,5 @@ export function guide(input: GuideInput): GuideResult {
     ...result.actions.map((action) => composeSection(env, action, dirs)),
     renderUncoached(result.uncoached),
   ];
-  return { stdout: `${sections.filter((s) => s.length > 0).join('\n\n')}\n`, exitCode: exitFor(result.actions) };
+  return { stdout: `${sections.filter((s) => s.length > 0).join('\n\n\n\n')}\n\n`, exitCode: exitFor(result.actions) };
 }

@@ -30,6 +30,17 @@ function promptAction(spec: ActionSpec): GuideAction {
   };
 }
 
+function commandAction(spec: ActionSpec): GuideAction {
+  return {
+    smell: spec.smell,
+    severity: spec.severity,
+    title: spec.title ?? spec.smell,
+    description: spec.description ?? '',
+    issues: spec.issues,
+    action: { kind: 'command', scriptPath: spec.path },
+  };
+}
+
 describe('guide', () => {
   let dir: string;
 
@@ -57,7 +68,7 @@ describe('guide', () => {
     expect(out.stdout).toContain('reviewer sub-agent');
   });
 
-  it('composes a section: title, description, prose, and the default issue list', () => {
+  it('composes a section: title, prose (not the description), and the default issue list', () => {
     const path = template('too-many-parameters.md', 'Prose for {{ smell }}.');
     const action = promptAction({
       smell: 'too-many-parameters',
@@ -72,11 +83,71 @@ describe('guide', () => {
 
     expect(out.stdout).toContain('Habit Hooks: 1 violation');
     expect(out.stdout).toContain('❌ Too many parameters');
-    expect(out.stdout).toContain('Functions with many parameters violate single responsibility.');
+    expect(out.stdout).toContain('❌ Too many parameters\n\nProse for too-many-parameters.');
     expect(out.stdout).toContain('Prose for too-many-parameters.');
+    expect(out.stdout).not.toContain('Functions with many parameters violate single responsibility.');
     expect(out.stdout).toContain('Violations:');
     expect(out.stdout).toContain('/a.ts:4 - issue at 4');
+    expect(out.stdout.endsWith('\n\n')).toBe(true);
     expect(out.exitCode).toBe(1);
+  });
+
+  it('falls back to the description as the body for a promptless command action', () => {
+    const path = template('fix-it.sh', '#!/bin/sh\n');
+    const action = commandAction({
+      smell: 'broken-config',
+      severity: 'enforced',
+      path,
+      issues: [issue('broken-config', '/a.ts', 2)],
+      title: 'Broken config',
+      description: 'Run the fixer script to repair the config.',
+    });
+
+    const out = run({ actions: [action], uncoached: [] });
+
+    expect(out.stdout).toContain('❌ Broken config');
+    expect(out.stdout).toContain('Run the fixer script to repair the config.');
+    expect(out.stdout).toContain('/a.ts:2 - issue at 2');
+  });
+
+  it('emits no stray blank line when the body is empty', () => {
+    const path = template('empty-body.sh', '#!/bin/sh\n');
+    const action = commandAction({
+      smell: 'empty-body',
+      severity: 'enforced',
+      path,
+      issues: [issue('empty-body', '/a.ts', 1)],
+      title: 'Empty body',
+      description: '',
+    });
+
+    const out = run({ actions: [action], uncoached: [] });
+
+    expect(out.stdout).toContain('❌ Empty body\n\nViolations:');
+    expect(out.stdout).not.toContain('❌ Empty body\n\n\n');
+  });
+
+  it('separates top-level sections with three blank lines', () => {
+    const path = template('first.md', 'First prose.');
+    const second = template('second.md', 'Second prose.');
+    const actionA = promptAction({
+      smell: 'first',
+      severity: 'enforced',
+      path,
+      issues: [issue('first', '/a.ts', 1)],
+      title: 'First',
+    });
+    const actionB = promptAction({
+      smell: 'second',
+      severity: 'enforced',
+      path: second,
+      issues: [issue('second', '/b.ts', 2)],
+      title: 'Second',
+    });
+
+    const out = run({ actions: [actionA, actionB], uncoached: [] });
+
+    expect(out.stdout).toContain('/a.ts:1 - issue at 1\n\n\n\n❌ Second');
   });
 
   it('exits 0 when only suggested smells fired', () => {
