@@ -6,11 +6,15 @@ const FILE_GLOBS: Record<Language, string[]> = {
   python: ['**/*.py'],
 };
 
-export async function discoverFiles(cwd: string, language: Language): Promise<string[]> {
+export async function discoverFiles(
+  cwd: string,
+  language: Language,
+  exclude: string[] = [],
+): Promise<string[]> {
   return fg(FILE_GLOBS[language], {
     cwd,
     absolute: true,
-    ignore: ['**/node_modules/**', '**/dist/**', '**/coverage/**'],
+    ignore: ['**/node_modules/**', '**/dist/**', '**/coverage/**', ...exclude],
     dot: false,
   });
 }

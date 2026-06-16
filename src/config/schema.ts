@@ -22,6 +22,7 @@ export interface ScopeConfig {
   autoBranchOffMain?: boolean;
   branchBase?: string;
   mainBranch?: string;
+  exclude?: string[];
 }
 
 export interface CommentCheckConfig {

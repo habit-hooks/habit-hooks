@@ -99,6 +99,7 @@ function validateScope(value: unknown): ScopeConfig | undefined {
   validateOptionalBoolean(value.autoBranchOffMain, 'scope.autoBranchOffMain');
   validateOptionalString(value.branchBase, 'scope.branchBase');
   validateOptionalString(value.mainBranch, 'scope.mainBranch');
+  validateOptionalStringArray(value.exclude, 'scope.exclude');
   return value as ScopeConfig;
 }
 
