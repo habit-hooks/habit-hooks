@@ -278,3 +278,9 @@ phases (PR #13). Each call below is an _agent decision_.
   only remaining `rules` usages are the tests that intentionally cover the alias
   and its precedence. **Scheduled follow-up:** a later issue removes the `rules`
   field from the schema/merge entirely (the hard removal).
+
+- **File discovery lives in its own module.** _(agent decision, #8)_ `FILE_GLOBS`
+  and `discoverFiles` moved out of `runner.ts` into `src/discover.ts`. `runner.ts`
+  sat exactly at the `max-lines: 200` limit, and discovery is a distinct
+  responsibility from orchestration; the move keeps runner under the cap and gives
+  the `scope.exclude` knob a focused home. Reversible — it could be inlined back.
