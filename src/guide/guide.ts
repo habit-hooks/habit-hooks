@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Environment } from 'nunjucks';
 import { createEnv, renderTemplate } from './render.js';
+import { runFixCommand, type CommandRun } from './command.js';
 import type { GuideAction, MapperDirs, MapResult } from '../mapper/mapper.js';
 import type { Issue } from '../sensors/types.js';
 
@@ -21,6 +22,12 @@ export interface GuideResult {
 export interface GuideInput {
   result: MapResult;
   dirs: MapperDirs;
+  cwd: string;
+}
+
+interface PreparedAction {
+  action: GuideAction;
+  command: CommandRun | null;
 }
 
 const CLEAN_BANNER =
@@ -56,11 +63,13 @@ function renderProse(env: Environment, action: GuideAction): string {
   return renderTemplate(env, action.action.templatePath, { smell: action.smell, issues: action.issues });
 }
 
-function composeSection(env: Environment, action: GuideAction, dirs: MapperDirs): string {
+function composeSection(env: Environment, prepared: PreparedAction, dirs: MapperDirs): string {
+  const { action, command } = prepared;
   const prose = renderProse(env, action);
   const body = prose.length > 0 ? prose : action.description;
   const head = [`❌ ${action.title}`, body].filter((part) => part.length > 0).join('\n\n');
-  return `${head}\n\n${renderIssues(env, action, dirs)}`;
+  const base = `${head}\n\n${renderIssues(env, action, dirs)}`;
+  return command !== null && command.output.length > 0 ? `${base}\n\n${command.output}` : base;
 }
 
 function totalIssues(result: MapResult): number {
@@ -81,19 +90,32 @@ function renderUncoached(issues: Issue[]): string {
   return `⚠️ Uncoached smells\n\n${issues.map(uncoachedLine).join('\n')}`;
 }
 
-function exitFor(actions: GuideAction[]): 0 | 1 {
-  return actions.some((a) => a.severity === 'enforced' && a.issues.length > 0) ? 1 : 0;
+function actionBlocks(prepared: PreparedAction): boolean {
+  const { action, command } = prepared;
+  if (command !== null) return command.blocks;
+  return action.severity === 'enforced' && action.issues.length > 0;
 }
 
-export function guide(input: GuideInput): GuideResult {
-  const { result, dirs } = input;
+function exitFor(prepared: PreparedAction[]): 0 | 1 {
+  return prepared.some(actionBlocks) ? 1 : 0;
+}
+
+function prepareAction(action: GuideAction, cwd: string): Promise<PreparedAction> {
+  const fix = action.action;
+  if (fix.kind !== 'command' || action.issues.length === 0) {
+    return Promise.resolve({ action, command: null });
+  }
+  return runFixCommand(action, fix.scriptPath, cwd).then((command) => ({ action, command }));
+}
+
+export async function guide(input: GuideInput): Promise<GuideResult> {
+  const { result, dirs, cwd } = input;
   const total = totalIssues(result);
   if (total === 0) return { stdout: `${CLEAN_BANNER}\n\n`, exitCode: 0 };
   const env = createEnv(searchPathsFor(dirs));
-  const sections = [
-    header(total),
-    ...result.actions.map((action) => composeSection(env, action, dirs)),
-    renderUncoached(result.uncoached),
-  ];
-  return { stdout: `${sections.filter((s) => s.length > 0).join('\n\n\n\n')}\n\n`, exitCode: exitFor(result.actions) };
+  const prepared = await Promise.all(result.actions.map((action) => prepareAction(action, cwd)));
+  const bodies = prepared.map((p) => composeSection(env, p, dirs));
+  const sections = [header(total), ...bodies, renderUncoached(result.uncoached)];
+  const stdout = `${sections.filter((s) => s.length > 0).join('\n\n\n\n')}\n\n`;
+  return { stdout, exitCode: exitFor(prepared) };
 }

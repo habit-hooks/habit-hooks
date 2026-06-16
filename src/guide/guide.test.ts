@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { guide } from './guide.js';
@@ -57,19 +57,25 @@ describe('guide', () => {
     return path;
   }
 
-  function run(result: MapResult): { stdout: string; exitCode: number } {
-    return guide({ result, dirs: { packagedDir: dir } });
+  function script(name: string, body: string): string {
+    const path = template(name, body);
+    chmodSync(path, 0o755);
+    return path;
   }
 
-  it('prints the clean banner and exit 0 when there is nothing to coach', () => {
-    const out = run({ actions: [], uncoached: [] });
+  function run(result: MapResult): Promise<{ stdout: string; exitCode: number }> {
+    return guide({ result, dirs: { packagedDir: dir }, cwd: dir });
+  }
+
+  it('prints the clean banner and exit 0 when there is nothing to coach', async () => {
+    const out = await run({ actions: [], uncoached: [] });
     expect(out.exitCode).toBe(0);
     expect(out.stdout).toContain('automated checks passed.');
     expect(out.stdout).toContain('reviewer sub-agent');
     expect(out.stdout.endsWith('\n\n')).toBe(true);
   });
 
-  it('composes a section: title, prose (not the description), and the default issue list', () => {
+  it('composes a section: title, prose (not the description), and the default issue list', async () => {
     const path = template('too-many-parameters.md', 'Prose for {{ smell }}.');
     const action = promptAction({
       smell: 'too-many-parameters',
@@ -80,7 +86,7 @@ describe('guide', () => {
       description: 'Functions with many parameters violate single responsibility.',
     });
 
-    const out = run({ actions: [action], uncoached: [] });
+    const out = await run({ actions: [action], uncoached: [] });
 
     expect(out.stdout).toContain('Habit Hooks: 1 violation');
     expect(out.stdout).toContain('❌ Too many parameters');
@@ -93,8 +99,8 @@ describe('guide', () => {
     expect(out.exitCode).toBe(1);
   });
 
-  it('falls back to the description as the body for a promptless command action', () => {
-    const path = template('fix-it.sh', '#!/bin/sh\n');
+  it('runs a command fix, streams its output to the agent, and exit 0 does not block an enforced smell', async () => {
+    const path = script('broken-config', '#!/usr/bin/env bash\necho "ran the fixer"\nexit 0\n');
     const action = commandAction({
       smell: 'broken-config',
       severity: 'enforced',
@@ -104,15 +110,43 @@ describe('guide', () => {
       description: 'Run the fixer script to repair the config.',
     });
 
-    const out = run({ actions: [action], uncoached: [] });
+    const out = await run({ actions: [action], uncoached: [] });
 
     expect(out.stdout).toContain('❌ Broken config');
     expect(out.stdout).toContain('Run the fixer script to repair the config.');
     expect(out.stdout).toContain('/a.ts:2 - issue at 2');
+    expect(out.stdout).toContain('ran the fixer');
+    expect(out.exitCode).toBe(0);
   });
 
-  it('emits no stray blank line when the body is empty', () => {
-    const path = template('empty-body.sh', '#!/bin/sh\n');
+  it('lets a non-zero command fix block an enforced smell (exit 1)', async () => {
+    const path = script('broken-config', '#!/usr/bin/env bash\nexit 1\n');
+    const action = commandAction({
+      smell: 'broken-config',
+      severity: 'enforced',
+      path,
+      issues: [issue('broken-config', '/a.ts', 2)],
+    });
+
+    expect((await run({ actions: [action], uncoached: [] })).exitCode).toBe(1);
+  });
+
+  it('hard-fails the run (exit 1) with a notice when the fix command cannot spawn', async () => {
+    const action = commandAction({
+      smell: 'broken-config',
+      severity: 'suggested',
+      path: join(dir, 'missing-script'),
+      issues: [issue('broken-config', '/a.ts', 2)],
+    });
+
+    const out = await run({ actions: [action], uncoached: [] });
+
+    expect(out.exitCode).toBe(1);
+    expect(out.stdout).toContain('could not run');
+  });
+
+  it('emits no stray blank line when the body is empty', async () => {
+    const path = script('empty-body', '#!/usr/bin/env bash\nexit 0\n');
     const action = commandAction({
       smell: 'empty-body',
       severity: 'enforced',
@@ -122,13 +156,13 @@ describe('guide', () => {
       description: '',
     });
 
-    const out = run({ actions: [action], uncoached: [] });
+    const out = await run({ actions: [action], uncoached: [] });
 
     expect(out.stdout).toContain('❌ Empty body\n\nViolations:');
     expect(out.stdout).not.toContain('❌ Empty body\n\n\n');
   });
 
-  it('separates top-level sections with three blank lines', () => {
+  it('separates top-level sections with three blank lines', async () => {
     const path = template('first.md', 'First prose.');
     const second = template('second.md', 'Second prose.');
     const actionA = promptAction({
@@ -146,12 +180,12 @@ describe('guide', () => {
       title: 'Second',
     });
 
-    const out = run({ actions: [actionA, actionB], uncoached: [] });
+    const out = await run({ actions: [actionA, actionB], uncoached: [] });
 
     expect(out.stdout).toContain('/a.ts:1 - issue at 1\n\n\n\n❌ Second');
   });
 
-  it('exits 0 when only suggested smells fired', () => {
+  it('exits 0 when only suggested smells fired', async () => {
     const path = template('warning-comment.md', 'prose');
     const action = promptAction({
       smell: 'warning-comment',
@@ -159,10 +193,10 @@ describe('guide', () => {
       path,
       issues: [issue('warning-comment', '/a.ts', 2)],
     });
-    expect(run({ actions: [action], uncoached: [] }).exitCode).toBe(0);
+    expect((await run({ actions: [action], uncoached: [] })).exitCode).toBe(0);
   });
 
-  it('uses a per-smell <smell>.issues.njk to group issues by file', () => {
+  it('uses a per-smell <smell>.issues.njk to group issues by file', async () => {
     const path = template('oversized-function.md', 'prose');
     template(
       'oversized-function.issues.njk',
@@ -175,18 +209,18 @@ describe('guide', () => {
     ];
     const action = promptAction({ smell: 'oversized-function', severity: 'enforced', path, issues });
 
-    const out = run({ actions: [action], uncoached: [] });
+    const out = await run({ actions: [action], uncoached: [] });
 
     expect(out.stdout).toContain('/a.ts: 2');
     expect(out.stdout).toContain('/b.ts: 1');
     expect(out.stdout).not.toContain('Violations:');
   });
 
-  it('lists the uncoached bucket with provenance and does not escalate the exit code', () => {
+  it('lists the uncoached bucket with provenance and does not escalate the exit code', async () => {
     const uncoached: Issue[] = [
       { smell: 'no-console', details: { file: '/a.ts', line: 3, message: 'x', source: 'eslint:no-console' } },
     ];
-    const out = run({ actions: [], uncoached });
+    const out = await run({ actions: [], uncoached });
     expect(out.stdout).toContain('Uncoached smells');
     expect(out.stdout).toContain('eslint:no-console');
     expect(out.stdout).toContain('/a.ts:3');

@@ -179,7 +179,7 @@ export async function run(cwd: string, options: RunOptions = {}): Promise<RunRes
   const violations = filterViolations(detected.violations, rules, ctx);
   const dirs: MapperDirs = { overrideDir: ctx.promptsDir, packagedDir: resolvePackagedDir() };
   const mapped = mapIssues(violations.map(violationToIssue), buildRouting(rules), dirs);
-  const rendered = guide({ result: mapped, dirs });
+  const rendered = await guide({ result: mapped, dirs, cwd });
   const stderr = [...ctx.configWarnings, ...detected.notices];
   return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr };
 }
