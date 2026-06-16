@@ -106,7 +106,7 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   const { config, configDir } = await resolveConfig(cwd, options);
   const rules = buildRules(config, configDir);
   const language: Language = config.language ?? 'typescript';
-  const files = await discoverFiles(cwd, language);
+  const files = await discoverFiles(cwd, language, config.scope?.exclude);
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
   const promptsDir = resolvePromptsDir(config, configDir);
