@@ -12,6 +12,7 @@ interface RunToolOptions {
   args: string[];
   cwd: string;
   timeoutMs?: number;
+  stdin?: string;
 }
 
 interface StreamBuffers {
@@ -36,6 +37,12 @@ function collectStreams(child: ChildProcessWithoutNullStreams): StreamBuffers {
   child.stdout.on('data', (chunk: Buffer) => buffers.stdout.push(chunk));
   child.stderr.on('data', (chunk: Buffer) => buffers.stderr.push(chunk));
   return buffers;
+}
+
+function writeStdin(child: ChildProcessWithoutNullStreams, stdin: string | undefined): void {
+  if (stdin === undefined) return;
+  child.stdin.on('error', () => undefined);
+  child.stdin.end(stdin);
 }
 
 function settleOnce(settler: Settler, result: ShellResult): void {
@@ -71,9 +78,9 @@ export function runTool(opts: RunToolOptions): Promise<ShellResult> {
   return new Promise((resolve) => {
     const child = spawn(opts.bin, opts.args, { cwd: opts.cwd });
     const buffers = collectStreams(child);
-    const done = { value: false };
+    writeStdin(child, opts.stdin);
     const timer = startKillTimer(child, () => settleOnce(settler, emptyFailure(`${opts.bin} timed out after ${timeoutMs}ms`)), timeoutMs);
-    const settler: Settler = { resolve, done, clearTimer: () => clearTimeout(timer) };
+    const settler: Settler = { resolve, done: { value: false }, clearTimer: () => clearTimeout(timer) };
     child.on('error', (e) => settleOnce(settler, emptyFailure(`${opts.bin} failed to spawn: ${e.message}`)));
     child.on('close', (code, signal) => settleOnce(settler, closeResult({ buffers, bin: opts.bin, code, signal })));
   });
