@@ -32,6 +32,25 @@ export function emptyOutcome(stderr: string[]): CheckOutcome {
   return { violations: [], stderr };
 }
 
+// A run-wide collector for sensor diagnostics. `notices` is shown to the user;
+// `failures` records sensors that could not run (spawn/timeout) and fails the
+// run (exit 1), per docs/sensors.md.
+export interface SensorSink {
+  notices: string[];
+  failures: string[];
+}
+
+// A sensor that could not spawn or timed out: the message is shown (stderr) and
+// recorded as a failure so the run fails (exit 1), per docs/sensors.md.
+export function spawnFailureOutcome(notices: string[], message: string): CheckOutcome {
+  return { violations: [], stderr: [...notices, message], failures: [message] };
+}
+
+export function recordSpawnFailure(sink: SensorSink, message: string): void {
+  sink.notices.push(message);
+  sink.failures.push(message);
+}
+
 export function noticesFor(tool: string, resolution: BinResolution, cwd: string): string[] {
   return resolution.isFallback ? [fallbackNotice(tool, cwd)] : [];
 }
