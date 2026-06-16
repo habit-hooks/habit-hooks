@@ -50,8 +50,12 @@ async function runWrap(cwd: string, files: string[]): Promise<CheckOutcome> {
   return asOutcome(await jscpdWrap.run(files, RULES, cwd));
 }
 
-function tmpEntriesBefore(): Set<string> {
-  return new Set(readdirSync(tmpdir()).filter((n) => n.startsWith('hh-jscpd-')));
+async function runWrapWithTmpRoot(cwd: string, files: string[], tmpRoot: string): Promise<CheckOutcome> {
+  return runJscpdWrap(files, cwd, { resolution: resolveJscpdBin(cwd), tmpRoot });
+}
+
+function jscpdEntries(dir: string): string[] {
+  return readdirSync(dir).filter((n) => n.startsWith('hh-jscpd-'));
 }
 
 describe('jscpdWrap', () => {
@@ -127,13 +131,12 @@ describe('jscpdWrap', () => {
     writeJscpdConfig(cwd);
     const a = writeFile(cwd, 'a.ts', DUPLICATE);
     const b = writeFile(cwd, 'b.ts', DUPLICATE);
-    const before = tmpEntriesBefore();
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'hh-jscpd-root-'));
 
-    await runWrap(cwd, [a, b]);
+    await runWrapWithTmpRoot(cwd, [a, b], tmpRoot);
 
-    const after = readdirSync(tmpdir()).filter((n) => n.startsWith('hh-jscpd-'));
-    const leftover = after.filter((n) => !before.has(n));
-    expect(leftover).toEqual([]);
+    expect(jscpdEntries(tmpRoot)).toEqual([]);
+    rmSync(tmpRoot, { recursive: true, force: true });
   }, 30_000);
 
   it('cleans up the tmpdir even when the report is missing', async () => {
@@ -143,13 +146,12 @@ describe('jscpdWrap', () => {
     const stub = writeFile(cwd, 'node_modules/jscpd/stub.js', '#!/usr/bin/env node\nprocess.exit(0);\n');
     chmodSync(stub, 0o755);
     writeFileSync(join(jscpdDir, 'package.json'), JSON.stringify({ bin: { jscpd: 'stub.js' } }));
-    const before = tmpEntriesBefore();
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'hh-jscpd-root-'));
 
-    await runWrap(cwd, [writeFile(cwd, 'a.ts', 'x')]);
+    await runWrapWithTmpRoot(cwd, [writeFile(cwd, 'a.ts', 'x')], tmpRoot);
 
-    const after = readdirSync(tmpdir()).filter((n) => n.startsWith('hh-jscpd-'));
-    const leftover = after.filter((n) => !before.has(n));
-    expect(leftover).toEqual([]);
+    expect(jscpdEntries(tmpRoot)).toEqual([]);
+    rmSync(tmpRoot, { recursive: true, force: true });
   });
 
   it('emits a spawn-failure stderr notice when the jscpd binary cannot be executed', async () => {
@@ -209,7 +211,7 @@ describe('jscpdWrap', () => {
   it('runJscpdWrap returns a notice and zero violations when no bin can be resolved', async () => {
     const file = writeFile(cwd, 'a.ts', 'export const a = 1;\n');
 
-    const outcome = await runJscpdWrap([file], cwd, null);
+    const outcome = await runJscpdWrap([file], cwd, { resolution: null });
 
     expect(outcome.violations).toEqual([]);
     expect(outcome.stderr?.some((s) => s.includes('could not locate bundled bin'))).toBe(true);

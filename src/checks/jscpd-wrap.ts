@@ -126,8 +126,8 @@ function buildArgs(reportDir: string): string[] {
   return ['-r', 'json', '-o', reportDir, '--silent', '--noTips', '-n', '.'];
 }
 
-function makeReportDir(): string {
-  return mkdtempSync(join(tmpdir(), 'hh-jscpd-'));
+function makeReportDir(tmpRoot: string = tmpdir()): string {
+  return mkdtempSync(join(tmpRoot, 'hh-jscpd-'));
 }
 
 function removeReportDir(reportDir: string): void {
@@ -157,8 +157,8 @@ async function runOnce(inputs: RunInputs, reportDir: string): Promise<CheckOutco
   return { violations: reportToViolations(report, inputs.scope, inputs.cwd), stderr: inputs.notices };
 }
 
-async function runJscpd(inputs: RunInputs): Promise<CheckOutcome> {
-  const reportDir = makeReportDir();
+async function runJscpd(inputs: RunInputs, tmpRoot?: string): Promise<CheckOutcome> {
+  const reportDir = makeReportDir(tmpRoot);
   try {
     return await runOnce(inputs, reportDir);
   } finally {
@@ -182,19 +182,19 @@ function noBinOutcome(cwd: string): CheckOutcome {
 export async function runJscpdWrap(
   files: string[],
   cwd: string,
-  resolution: BinResolution | null,
+  { resolution, tmpRoot }: { resolution: BinResolution | null; tmpRoot?: string },
 ): Promise<CheckOutcome> {
   if (files.length === 0) return { violations: [], stderr: [] };
   if (resolution === null) return noBinOutcome(cwd);
   const notices = noticesFor('jscpd', resolution, cwd);
   if (!hasJscpdConfig(cwd)) return noConfigOutcome(cwd, notices);
-  return runJscpd({ resolution, cwd, scope: new Set(files), notices });
+  return runJscpd({ resolution, cwd, scope: new Set(files), notices }, tmpRoot);
 }
 
 export const jscpdWrap: Check = {
   id: 'jscpd',
   async run(files, _rules, cwd) {
     const runCwd = cwd ?? process.cwd();
-    return runJscpdWrap(files, runCwd, resolveJscpdBin(runCwd));
+    return runJscpdWrap(files, runCwd, { resolution: resolveJscpdBin(runCwd) });
   },
 };
