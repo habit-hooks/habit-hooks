@@ -16,11 +16,10 @@ import { buildPythonPresetSensors } from './sensors/python-preset.js';
 import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
 import { guide } from './guide/guide.js';
 import type { SensorSink } from './wrap/notices.js';
+import { COMMENT_SMELL } from './config/tool-smells.js';
 import type { Sensor } from './sensors/types.js';
 import type { HabitHooksConfig, Language } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
-
-const COMMENT_SMELL = 'non-essential-comment';
 
 export interface RunResult {
   stdout: string;
@@ -89,6 +88,24 @@ function resolvePromptsDir(config: HabitHooksConfig, configDir: string): string 
   return isAbsolute(config.prompts) ? config.prompts : resolve(configDir, config.prompts);
 }
 
+interface ResolvedInputs {
+  cwd: string;
+  config: HabitHooksConfig;
+  configDir: string;
+  files: string[];
+  scope: ResolvedScope;
+  baseline: BaselineFile | null;
+}
+
+function buildRunContext(inputs: ResolvedInputs): RunContext {
+  const { cwd, config, configDir, files, scope, baseline } = inputs;
+  const promptsDir = resolvePromptsDir(config, configDir);
+  const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
+  const snoozeIndex = createSnoozeIndex(cwd);
+  const needsExtractionReplace = config.needsExtraction?.replace === true;
+  return { cwd, files, scope, baseline, snoozeIndex, language: config.language ?? 'typescript', promptsDir, configWarnings, needsExtractionReplace };
+}
+
 async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: RunContext; rules: Rule[] }> {
   const { config, configDir } = await resolveConfig(cwd, options);
   const rules = buildRules(config, configDir);
@@ -96,11 +113,7 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   const files = await discoverFiles(cwd, language, config.scope?.exclude);
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
-  const promptsDir = resolvePromptsDir(config, configDir);
-  const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
-  const snoozeIndex = createSnoozeIndex(cwd);
-  const needsExtractionReplace = config.needsExtraction?.replace === true;
-  return { ctx: { cwd, files, scope, baseline, snoozeIndex, language, promptsDir, configWarnings, needsExtractionReplace }, rules };
+  return { ctx: buildRunContext({ cwd, config, configDir, files, scope, baseline }), rules };
 }
 
 // A sensor runs only when at least one smell it produces has an active rule
@@ -147,8 +160,8 @@ function filterViolations(violations: Violation[], rules: Rule[], ctx: RunContex
 }
 
 // Routing for the mapper: the merged smell config wins; otherwise the catalogue
-// (prompt registry) supplies severity/title for supplemental smells such as
-// `parse-error`, so its `enforced` severity survives. Unknown smells -> uncoached.
+// (prompt registry) supplies severity/title for supplemental smells, so their
+// enforced severity survives. Unknown smells -> uncoached.
 function buildRouting(rules: Rule[]): RoutingLookup {
   const byId = new Map(rules.map((r) => [r.id, r] as const));
   return (smell) => {

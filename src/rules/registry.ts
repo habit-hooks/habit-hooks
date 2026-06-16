@@ -3,10 +3,9 @@ import type { CommentCheckThresholds, Rule } from '../types.js';
 import { DEFAULT_COMMENT_CHECK_THRESHOLDS } from '../checks/comment-check.js';
 import { defaultConfig, defaultRules } from '../config/defaults.js';
 import { mergeRules } from '../config/merge.js';
+import { COMMENT_SMELL } from '../config/tool-smells.js';
 import type { CommentCheckConfig, HabitHooksConfig } from '../config/schema.js';
 import { loadGuidance } from '../prompts/loader.js';
-
-const COMMENT_RULE_ID = 'non-essential-comment';
 
 function resolvePromptsDir(config: HabitHooksConfig, configDir: string): string | undefined {
   if (config.prompts === undefined) return undefined;
@@ -32,7 +31,7 @@ function resolveCommentThresholds(config: CommentCheckConfig | undefined): Comme
 
 function attachCommentThresholds(rules: Rule[], config: CommentCheckConfig | undefined): Rule[] {
   const thresholds = resolveCommentThresholds(config);
-  return rules.map((rule) => (rule.id === COMMENT_RULE_ID ? { ...rule, commentCheck: thresholds } : rule));
+  return rules.map((rule) => (rule.id === COMMENT_SMELL ? { ...rule, commentCheck: thresholds } : rule));
 }
 
 export function buildRules(config: HabitHooksConfig, configDir: string): Rule[] {

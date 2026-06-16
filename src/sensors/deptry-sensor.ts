@@ -3,20 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runTool } from '../wrap/shell.js';
 import { isSpawnFailure, recordSpawnFailure, spawnFailureWarning, type SensorSink } from '../wrap/notices.js';
-import { extractIssues, type AdapterSpec } from './adapter.js';
+import { DEPTRY_PRODUCES, DEPTRY_SPEC } from '../config/tool-smells.js';
+import { extractIssues } from './adapter.js';
 import type { Issue, Sensor } from './types.js';
 
 // deptry analyses the whole project and reports unused dependencies. Its
 // `--json-output` must target a real file (writing to /dev/stdout yields nothing
 // when stdout is a pipe), so deptry uses the temp-report pattern rather than the
 // stdout declarative adapter — but reuses the adapter's extractIssues to map.
-const DEPTRY_SPEC: AdapterSpec = {
-  id: 'deptry',
-  command: 'deptry . --json-output <report>',
-  items: '[]',
-  fields: { smell: 'error.code', file: 'location.file', line: 'location.line', message: 'error.message' },
-  map: { DEP002: 'unused-dependency' },
-};
 
 function parseReport(path: string): Issue[] {
   if (!existsSync(path)) return [];
@@ -47,5 +41,5 @@ async function runDeptry(cwd: string, sink: SensorSink): Promise<Issue[]> {
 }
 
 export function deptrySensor(sink: SensorSink): Sensor {
-  return { id: 'deptry', produces: ['unused-dependency'], run: (ctx) => runDeptry(ctx.cwd, sink) };
+  return { id: 'deptry', produces: DEPTRY_PRODUCES, run: (ctx) => runDeptry(ctx.cwd, sink) };
 }

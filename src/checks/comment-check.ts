@@ -1,4 +1,5 @@
 import { Project, SyntaxKind, type Node, type SourceFile } from 'ts-morph';
+import { COMMENT_SMELL } from '../config/tool-smells.js';
 import type { Check, CommentCheckThresholds, Rule, Violation } from '../types.js';
 
 export const DEFAULT_COMMENT_CHECK_THRESHOLDS: CommentCheckThresholds = {
@@ -31,7 +32,7 @@ function truncate(text: string): string {
 
 function makeViolation(file: string, comment: Node, kind: CommentKind): Violation {
   return {
-    ruleId: 'non-essential-comment',
+    ruleId: COMMENT_SMELL,
     source: 'comment:non-essential',
     file,
     line: comment.getStartLineNumber(),
@@ -80,7 +81,7 @@ function buildProject(files: string[]): Project {
 }
 
 function resolveThresholds(rules: Rule[]): CommentCheckThresholds {
-  const rule = rules.find((r) => r.id === 'non-essential-comment');
+  const rule = rules.find((r) => r.id === COMMENT_SMELL);
   return rule?.commentCheck ?? DEFAULT_COMMENT_CHECK_THRESHOLDS;
 }
 

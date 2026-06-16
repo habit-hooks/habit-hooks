@@ -1,7 +1,8 @@
+import { JSCPD_SMELL } from '../config/tool-smells.js';
 import type { Issue, Sensor } from './types.js';
 
 const SMELL = 'needs-extraction';
-const INPUT_SMELLS = ['oversized-file', 'duplicated-code'] as const;
+const INPUT_SMELLS = ['oversized-file', JSCPD_SMELL] as const;
 
 function fileOf(issue: Issue): string | null {
   const file = issue.details.file;
@@ -32,7 +33,7 @@ function needsExtractionIssue(file: string): Issue {
 }
 
 function combine(deps: Issue[]): Issue[] {
-  const duplicated = filesWith(deps, 'duplicated-code');
+  const duplicated = filesWith(deps, JSCPD_SMELL);
   return [...filesWith(deps, 'oversized-file')].filter((file) => duplicated.has(file)).map(needsExtractionIssue);
 }
 

@@ -33,3 +33,20 @@ describe('tool-smells derivation', () => {
     expect(COMMENT_SMELL).toBe(defaultRules.find((r) => r.source === 'custom')?.id);
   });
 });
+
+// Concrete value pins: a catalogue rename or typo fails the suite immediately.
+// Keep alongside the derivation tests above so both the derivation logic AND
+// the actual string values are guarded.
+describe('tool-smells concrete values', () => {
+  it('JSCPD_SMELL is duplicated-code', () => {
+    expect(JSCPD_SMELL).toBe('duplicated-code');
+  });
+
+  it('COMMENT_SMELL is non-essential-comment', () => {
+    expect(COMMENT_SMELL).toBe('non-essential-comment');
+  });
+
+  it('PARSE_ERROR_SMELL is parse-error', () => {
+    expect(PARSE_ERROR_SMELL).toBe('parse-error');
+  });
+});
