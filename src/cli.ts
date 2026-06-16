@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { Command, CommanderError, Option } from 'commander';
-import { run } from './runner.js';
+import { runWithAutoPrune } from './baseline/auto-prune.js';
 import { registerBaselineCommands } from './cli/baseline-commands.js';
 import { registerInitCommand } from './cli/init-command.js';
 import type { ScopeFlags } from './git/resolve-scope.js';
@@ -47,7 +47,7 @@ function toScopeFlags(opts: CliOptions): ScopeFlags {
 async function executeRun(opts: CliOptions): Promise<void> {
   const configPath = opts.config !== undefined ? resolve(process.cwd(), opts.config) : undefined;
   const scopeFlags = toScopeFlags(opts);
-  const result = await run(process.cwd(), { configPath, scopeFlags });
+  const result = await runWithAutoPrune(process.cwd(), { configPath, scopeFlags });
   process.stdout.write(result.stdout);
   for (const line of result.stderr) process.stderr.write(`${line}\n`);
   process.exitCode = result.exitCode;

@@ -284,3 +284,14 @@ phases (PR #13). Each call below is an _agent decision_.
   sat exactly at the `max-lines: 200` limit, and discovery is a distinct
   responsibility from orchestration; the move keeps runner under the cap and gives
   the `scope.exclude` knob a focused home. Reversible — it could be inlined back.
+
+- **Auto-prune is a CLI side effect, not part of `run()`.** _(agent decision,
+  #11)_ Auto-pruning fixed baseline entries mutates a checked-in file, so it
+  lives outside `run()` (which stays a pure evaluator) in `runWithAutoPrune`,
+  alongside the other baseline mutations in the command layer. It fires only when
+  `run()` reports `scopeMode === 'all'` (a full-repo run); scoped runs are a
+  guaranteed no-op. It runs a **baseline-free** full scan (a second `run()` with
+  `applyBaseline: false`) so a sensor gated off by the baseline can't make a
+  snoozed file look falsely clean, and shares one reaper (`reapBaseline`) with
+  manual `baseline prune`. The pruned set is printed so the mutation is never
+  silent. Reversible — auto-prune could move into `run()` or behind a flag.
