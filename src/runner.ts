@@ -14,6 +14,7 @@ import { buildPresetSensors, issueToViolation, violationToIssue } from './sensor
 import { buildPythonPresetSensors } from './sensors/python-preset.js';
 import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
 import { guide } from './guide/guide.js';
+import type { SensorSink } from './wrap/notices.js';
 import type { Sensor } from './sensors/types.js';
 import type { HabitHooksConfig, Language } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
@@ -111,21 +112,21 @@ function sensorActive(sensor: Sensor, rulesById: Map<string, Rule>, ctx: RunCont
   });
 }
 
+function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, sink: SensorSink): Sensor[] {
+  if (ctx.language === 'python') return buildPythonPresetSensors({ sink, cwd: ctx.cwd });
+  return buildPresetSensors({ sink, commentRule: rulesById.get(COMMENT_SMELL) });
+}
+
 // Active sensors detect over the full discovered file set and their issues are
 // merged; rule-scoped file filtering is applied afterwards so the sensor stage
 // stays a pure smell detector (docs/sensors.md).
-function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, notices: string[]): Sensor[] {
-  if (ctx.language === 'python') return buildPythonPresetSensors({ notices, cwd: ctx.cwd });
-  return buildPresetSensors({ notices, commentRule: rulesById.get(COMMENT_SMELL) });
-}
-
-async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Violation[]; notices: string[] }> {
-  const notices: string[] = [];
+async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Violation[]; sink: SensorSink }> {
+  const sink: SensorSink = { notices: [], failures: [] };
   const rulesById = new Map(rules.map((r) => [r.id, r] as const));
-  const all = presetSensors(ctx, rulesById, notices);
+  const all = presetSensors(ctx, rulesById, sink);
   const active = all.filter((sensor) => sensorActive(sensor, rulesById, ctx));
   const issues = await new SensorRunner(active).run({ files: ctx.files, cwd: ctx.cwd });
-  return { violations: issues.map(issueToViolation), notices };
+  return { violations: issues.map(issueToViolation), sink };
 }
 
 // Keep a violation when its smell has no rule (uncoached), or its file is not a
@@ -164,6 +165,7 @@ export async function run(cwd: string, options: RunOptions = {}): Promise<RunRes
   const dirs: MapperDirs = { overrideDir: ctx.promptsDir, packagedDir: resolvePackagedDir() };
   const mapped = mapIssues(violations.map(violationToIssue), buildRouting(rules), dirs);
   const rendered = await guide({ result: mapped, dirs, cwd });
-  const stderr = [...ctx.configWarnings, ...detected.notices];
-  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr, scopeMode: ctx.scope.mode };
+  const exitCode = detected.sink.failures.length > 0 ? 1 : rendered.exitCode;
+  const stderr = [...ctx.configWarnings, ...detected.sink.notices];
+  return { stdout: rendered.stdout, exitCode, violations, stderr, scopeMode: ctx.scope.mode };
 }

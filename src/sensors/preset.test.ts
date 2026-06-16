@@ -48,7 +48,7 @@ describe('issueToViolation', () => {
 
 describe('buildPresetSensors', () => {
   it('registers the four TS preset sensors with their smell keys', () => {
-    const sensors = buildPresetSensors({ notices: [] });
+    const sensors = buildPresetSensors({ sink: { notices: [], failures: [] } });
     expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip']);
     const eslint = sensors.find((s) => s.id === 'eslint');
     expect(eslint?.produces).toContain('too-many-parameters');

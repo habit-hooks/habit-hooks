@@ -1,5 +1,5 @@
 import { runTool } from '../wrap/shell.js';
-import { isSpawnFailure } from '../wrap/notices.js';
+import { isSpawnFailure, recordSpawnFailure, spawnFailureWarning, type SensorSink } from '../wrap/notices.js';
 import type { Issue, Sensor, SensorContext } from './types.js';
 
 // The declarative adapter (docs/sensors.md): when a tool already emits JSON, a
@@ -86,19 +86,20 @@ function parseJson(stdout: string): Json {
   }
 }
 
-async function runDeclarative(spec: DeclarativeSensorSpec, ctx: SensorContext, notices: string[]): Promise<Issue[]> {
+async function runDeclarative(spec: DeclarativeSensorSpec, ctx: SensorContext, sink: SensorSink): Promise<Issue[]> {
   if (ctx.files.length === 0) return [];
   const { bin, args } = buildArgv(spec.command, ctx.files);
   const result = await runTool({ bin, args, cwd: ctx.cwd });
   if (isSpawnFailure(result)) {
-    notices.push(`habit-hooks: ${spec.id} skipped in ${ctx.cwd} (${result.warnings[0] ?? 'spawn failure'})`);
+    recordSpawnFailure(sink, spawnFailureWarning(spec.id, ctx.cwd, result.warnings));
     return [];
   }
   return extractIssues(parseJson(result.stdout), spec);
 }
 
-// Wrap a JSON-emitting tool as a leaf sensor via the declarative spec. Spawn
-// failures surface as a stderr notice and zero issues, never a lost run.
-export function declarativeSensor(spec: DeclarativeSensorSpec, notices: string[]): Sensor {
-  return { id: spec.id, produces: spec.produces, run: (ctx) => runDeclarative(spec, ctx, notices) };
+// Wrap a JSON-emitting tool as a leaf sensor via the declarative spec. A spawn
+// or timeout failure fails the run (docs/sensors.md): the message is shown and
+// recorded as a failure, with zero issues for that tool.
+export function declarativeSensor(spec: DeclarativeSensorSpec, sink: SensorSink): Sensor {
+  return { id: spec.id, produces: spec.produces, run: (ctx) => runDeclarative(spec, ctx, sink) };
 }

@@ -35,8 +35,12 @@ structure suits them.
 Sensors are **additive** (each appends to the bag) and **deterministic**
 (detection is mechanical, no judgement).
 
-A sensor must never throw on tool spawn/timeout failure: failures surface as
-a stderr notice and zero issues, never a lost run.
+A sensor must never throw on tool spawn/timeout failure. Instead the failure
+surfaces as a stderr notice with zero issues for that tool, and **fails the run
+(exit 1)** — a broken tool is a failed run, not a false-clean. Every other
+sensor that ran successfully still contributes its full output; only the overall
+exit code reflects the failure (independent of whether any violations were
+found).
 
 ## Sensor runner
 

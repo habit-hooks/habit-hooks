@@ -309,3 +309,12 @@ phases (PR #13). Each call below is an _agent decision_.
   to `RUFF_RECOMMENDED`/the init scaffold, because recommending the key inside a
   ruff table would break ruff. Reversible — a future ruff C0302 (or a TOML
   parser) could relocate the threshold.
+
+- **Sensor failures travel on a `SensorSink`.** _(agent decision, #25)_ A
+  spawn/timeout failure now **fails the run (exit 1)** instead of being a
+  false-clean. Rather than thread two parallel arrays, sensors share a
+  `SensorSink { notices; failures }` (`src/wrap/notices.ts`); `failures` records
+  any sensor that could not run, and `run()` forces exit 1 when it is non-empty
+  while every successful sensor's output still renders. The failure message stays
+  in `notices` too, so display is unchanged. Reversible — the sink could collapse
+  back to a bare notices array if the policy were reverted.

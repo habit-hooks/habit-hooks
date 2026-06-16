@@ -2,6 +2,7 @@ import { eslintWrap } from '../checks/eslint-wrap.js';
 import { commentCheck } from '../checks/comment-check.js';
 import { jscpdWrap } from '../checks/jscpd-wrap.js';
 import { knipWrap } from '../checks/knip-wrap.js';
+import type { SensorSink } from '../wrap/notices.js';
 import type { Check, CheckOutcome, Rule, Violation } from '../types.js';
 import type { Issue, Sensor } from './types.js';
 
@@ -47,7 +48,7 @@ function normalizeOutcome(result: Violation[] | CheckOutcome): CheckOutcome {
 export interface LeafSpec {
   check: Check;
   produces: string[];
-  notices: string[];
+  sink: SensorSink;
   rules?: Rule[];
 }
 
@@ -57,31 +58,32 @@ export function checkLeafSensor(spec: LeafSpec): Sensor {
     produces: spec.produces,
     async run(ctx) {
       const outcome = normalizeOutcome(await spec.check.run(ctx.files, spec.rules ?? [], ctx.cwd));
-      if (outcome.stderr) spec.notices.push(...outcome.stderr);
+      if (outcome.stderr) spec.sink.notices.push(...outcome.stderr);
+      if (outcome.failures) spec.sink.failures.push(...outcome.failures);
       return outcome.violations.map(violationToIssue);
     },
   };
 }
 
 export interface PresetInput {
-  notices: string[];
+  sink: SensorSink;
   commentRule?: Rule;
 }
 
 // commentRule carries the resolved comment thresholds the ts-morph scan needs.
 function commentSensor(input: PresetInput): Sensor {
   const rules = input.commentRule ? [input.commentRule] : [];
-  return checkLeafSensor({ check: commentCheck, produces: ['non-essential-comment'], notices: input.notices, rules });
+  return checkLeafSensor({ check: commentCheck, produces: ['non-essential-comment'], sink: input.sink, rules });
 }
 
 // The TypeScript/JavaScript preset: four leaf sensors over eslint, ts-morph
 // comments, jscpd, and knip.
 export function buildPresetSensors(input: PresetInput): Sensor[] {
-  const { notices } = input;
+  const { sink } = input;
   return [
-    checkLeafSensor({ check: eslintWrap, produces: ESLINT_PRODUCES, notices }),
+    checkLeafSensor({ check: eslintWrap, produces: ESLINT_PRODUCES, sink }),
     commentSensor(input),
-    checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], notices }),
-    checkLeafSensor({ check: knipWrap, produces: KNIP_PRODUCES, notices }),
+    checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], sink }),
+    checkLeafSensor({ check: knipWrap, produces: KNIP_PRODUCES, sink }),
   ];
 }

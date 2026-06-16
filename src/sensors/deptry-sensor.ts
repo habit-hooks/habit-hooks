@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runTool } from '../wrap/shell.js';
-import { isSpawnFailure } from '../wrap/notices.js';
+import { isSpawnFailure, recordSpawnFailure, spawnFailureWarning, type SensorSink } from '../wrap/notices.js';
 import { extractIssues, type AdapterSpec } from './adapter.js';
 import type { Issue, Sensor } from './types.js';
 
@@ -27,25 +27,25 @@ function parseReport(path: string): Issue[] {
   }
 }
 
-async function runReport(cwd: string, out: string, notices: string[]): Promise<boolean> {
+async function runReport(cwd: string, out: string, sink: SensorSink): Promise<boolean> {
   const result = await runTool({ bin: 'deptry', args: ['.', '--json-output', out], cwd });
   if (isSpawnFailure(result)) {
-    notices.push(`habit-hooks: deptry skipped in ${cwd} (${result.warnings[0] ?? 'spawn failure'})`);
+    recordSpawnFailure(sink, spawnFailureWarning('deptry', cwd, result.warnings));
     return false;
   }
   return true;
 }
 
-async function runDeptry(cwd: string, notices: string[]): Promise<Issue[]> {
+async function runDeptry(cwd: string, sink: SensorSink): Promise<Issue[]> {
   const dir = mkdtempSync(join(tmpdir(), 'hh-deptry-'));
   try {
     const out = join(dir, 'deptry.json');
-    return (await runReport(cwd, out, notices)) ? parseReport(out) : [];
+    return (await runReport(cwd, out, sink)) ? parseReport(out) : [];
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-export function deptrySensor(notices: string[]): Sensor {
-  return { id: 'deptry', produces: ['unused-dependency'], run: (ctx) => runDeptry(ctx.cwd, notices) };
+export function deptrySensor(sink: SensorSink): Sensor {
+  return { id: 'deptry', produces: ['unused-dependency'], run: (ctx) => runDeptry(ctx.cwd, sink) };
 }

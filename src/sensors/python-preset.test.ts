@@ -25,7 +25,7 @@ describe('python preset', () => {
   });
 
   it('registers ruff, jscpd, deptry, and line-count sensors with their smell keys', () => {
-    const sensors = buildPythonPresetSensors({ notices: [], cwd: dir });
+    const sensors = buildPythonPresetSensors({ sink: { notices: [], failures: [] }, cwd: dir });
     expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry', 'line-count']);
     expect(sensors[0]?.produces).toContain('too-many-parameters');
     expect(sensors[2]?.produces).toEqual(['unused-dependency']);
@@ -35,7 +35,7 @@ describe('python preset', () => {
   it.skipIf(!RUFF_AVAILABLE)('runs ruff and maps PLR0913/F841 to canonical smells with provenance', async () => {
     const file = join(dir, 'sample.py');
     writeFileSync(file, SAMPLE);
-    const ruff = buildPythonPresetSensors({ notices: [], cwd: dir })[0];
+    const ruff = buildPythonPresetSensors({ sink: { notices: [], failures: [] }, cwd: dir })[0];
     if (ruff === undefined) throw new Error('expected ruff sensor');
 
     const issues = await ruff.run({ files: [file], cwd: dir, deps: [] });
@@ -48,9 +48,9 @@ describe('python preset', () => {
     expect(params?.details.file).toBe(file);
   }, 30_000);
 
-  it('emits a stderr notice and zero issues when ruff is not on PATH', async () => {
-    const notices: string[] = [];
-    const ruff = buildPythonPresetSensors({ notices, cwd: dir })[0];
+  it('records a failure and a notice (zero issues) when ruff cannot spawn', async () => {
+    const sink = { notices: [] as string[], failures: [] as string[] };
+    const ruff = buildPythonPresetSensors({ sink, cwd: dir })[0];
     if (ruff === undefined) throw new Error('expected ruff sensor');
     const file = join(dir, 'a.py');
     writeFileSync(file, 'x = 1\n');
@@ -58,5 +58,8 @@ describe('python preset', () => {
     const issues = await ruff.run({ files: [file], cwd: '/nonexistent-path-xyz', deps: [] });
 
     expect(issues).toEqual([]);
+    expect(sink.failures).toHaveLength(1);
+    expect(sink.failures[0]).toContain('ruff');
+    expect(sink.notices).toContain(sink.failures[0]);
   }, 30_000);
 });

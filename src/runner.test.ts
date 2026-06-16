@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { run } from './runner.js';
 import { lastCommitHash } from './baseline/file-hash.js';
@@ -167,6 +167,33 @@ describe('runner.run with scope', () => {
     const result = await run(repo.cwd, { scopeFlags: { all: true } });
 
     expect(result.stdout).toContain('committed-bad.ts');
+  });
+});
+
+describe('runner.run sensor failure', () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  // A directory where the eslint bin is expected forces a spawn failure (EACCES)
+  // without depending on the host toolchain.
+  function breakEslintBin(cwd: string): void {
+    mkdirSync(join(cwd, 'node_modules', '.bin', 'eslint'), { recursive: true });
+  }
+
+  it('fails the run (exit 1) on a sensor spawn failure, still rendering other sensors', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'hh-sensorfail-'));
+    writeFileSync(join(dir, 'eslint.config.js'), 'export default [];\n');
+    writeFileSync(join(dir, 'app.ts'), '// a flagged explanatory comment\nexport const a = 1;\n');
+    breakEslintBin(dir);
+
+    const result = await run(dir, { applyBaseline: false });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.join('\n')).toContain('eslint');
+    expect(result.stdout).toContain('app.ts');
   });
 });
 

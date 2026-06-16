@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { jscpdWrap } from '../checks/jscpd-wrap.js';
 import { TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
+import type { SensorSink } from '../wrap/notices.js';
 import { declarativeSensor, type DeclarativeSensorSpec } from './adapter.js';
 import { checkLeafSensor } from './preset.js';
 import { deptrySensor } from './deptry-sensor.js';
@@ -28,7 +29,7 @@ const RUFF_SPEC: DeclarativeSensorSpec = {
 };
 
 export interface PythonPresetInput {
-  notices: string[];
+  sink: SensorSink;
   cwd: string;
 }
 
@@ -48,11 +49,11 @@ function readTextOrEmpty(path: string): string {
 }
 
 export function buildPythonPresetSensors(input: PythonPresetInput): Sensor[] {
-  const { notices, cwd } = input;
+  const { sink, cwd } = input;
   return [
-    declarativeSensor(RUFF_SPEC, notices),
-    checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], notices }),
-    deptrySensor(notices),
+    declarativeSensor(RUFF_SPEC, sink),
+    checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], sink }),
+    deptrySensor(sink),
     lineCountSensor(readMaxModuleLines(cwd)),
   ];
 }
