@@ -201,3 +201,69 @@ Each is labelled _agent decision_ per the working agreement.
   exit 1 (skips without ruff+deptry). The fixture's `pyproject.toml` configures
   ruff `mccabe.max-complexity` (like the TS fixture configures ESLint) so `C901`
   fires — preset thresholds come from the consumer's tool config.
+
+## Init onboarding & language-aware setup (post-GOAL hardening)
+
+Follow-up work after the GOAL phases: a flaky-test fix plus a language-aware
+`init` that actually onboards a Python project. Delivered as six reviewed
+phases (PR #13). Each call below is an _agent decision_.
+
+- **jscpd cleanup test asserts on an injected tmp-root, not global `/tmp`.**
+  _(agent decision)_ `runJscpdWrap` takes an optional `tmpRoot` (default
+  `os.tmpdir()`); the cleanup tests pass an isolated root and assert on it. The
+  old test snapshotted the shared `os.tmpdir()` for `hh-jscpd-*` entries, so a
+  concurrent jscpd run from another parallel test file leaked in and failed it —
+  surfaced once the Python tests (which also shell out to jscpd) run with the
+  toolchain installed. Production behaviour unchanged.
+
+- **`init [language]`; report-only when the language is omitted.** _(agent
+  decision)_ With no argument, `init` detects the language and prints a
+  report-only message telling the user to re-run with it specified — it writes
+  nothing. An explicit language is threaded through (no re-detect). We chose a
+  positional arg + report-only over an interactive prompt deliberately: agents
+  struggle with TTY prompts, and an explicit language keeps the choice
+  deliberate. An unsupported language exits 2 before any side effect.
+
+- **Python tools detected on `PATH`; install commands span two ecosystems.**
+  _(agent decision)_ `ToolName` gains `ruff`/`deptry`; they're pip-installed so
+  they're detected via a `PATH` scan (`isOnPath`), while eslint/knip/jscpd keep
+  node_modules detection (a `DETECTION_KIND` map selects). ruff is "configured"
+  via a ruff config file or a `[tool.ruff...]` section in `pyproject.toml`;
+  deptry via `pyproject.toml` presence. `installCommandsFor` groups missing
+  tools into a `pip install …` line and a `<pm> add -D …` line.
+
+- **Recommended thresholds mirror across languages, from one source.** _(agent
+  decision)_ The scaffolded `ruff.toml` sets `mccabe.max-complexity = 10` and
+  `pylint.max-args = 3` to match the TS ESLint template (`complexity 10`,
+  `max-params 3`), so "too complex" / "too many params" mean the same in both
+  languages. `pylint.max-statements = 50` is the ruff-only analog for PLR0915.
+  The templates _derive_ these from the same `RUFF_RECOMMENDED`/`JSCPD_RECOMMENDED`
+  constants the drift checks use, and a test pins that a freshly-scaffolded
+  config satisfies `missingKeys() === []` — templates and recommendations can't
+  silently diverge.
+
+- **Python onboarding skips npm-only steps.** _(agent decision)_ `init python`
+  scaffolds `ruff.toml` + a Python-flavoured `.jscpd.json` (deptry needs no
+  config — guidance only), skips the `package.json` script prompts (a Python
+  project may have none), installs a pre-commit hook that runs `habit-hooks`
+  directly (vs `<pm> run habit-hooks`), and pastes a language-aware agent
+  snippet naming the language's tools.
+
+- **Drift detection is additive; eslint stays advisory.** _(agent decision)_
+  The completion report flags a recommended value only when its key is **absent**
+  (a value the user intentionally tuned is never flagged). Checks are cheap — JSON
+  parse for `.jscpd.json`, a text scan for ruff thresholds — with no TOML parser.
+  ESLint's flat `.js` config can't be cheaply parsed, so it's surfaced as a soft
+  advisory `Note:` that never flips "✅ Setup complete" to "incomplete" (otherwise
+  every configured TS repo would read incomplete forever).
+
+- **`--accept-recommendations` only auto-applies the mechanically-safe fixes.**
+  _(agent decision)_ Instruct by default. The flag runs the install commands
+  (via an injectable `CommandRunner` so tests never shell out) and **additively**
+  merges absent recommended keys into Habit-Hooks-owned `.jscpd.json` (never
+  overwriting a user value). It deliberately does **not** edit user-owned
+  `ruff.toml`/`pyproject.toml` thresholds or eslint config — safe in-place
+  TOML/JS editing needs a real parser, so those stay reported as manual steps
+  even with the flag. A failed install is reported and never aborts the rest or
+  changes the exit code. Lifting the ruff.toml boundary (needs a TOML library)
+  is a deferred follow-up.
