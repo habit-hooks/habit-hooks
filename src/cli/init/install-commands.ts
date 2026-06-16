@@ -1,5 +1,6 @@
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import type { ToolName } from '../../detect/tool.js';
 
 type PackageManager = 'pnpm' | 'yarn' | 'bun' | 'npm';
 
@@ -64,7 +65,39 @@ export function runScriptCommand(pm: PackageManager, script: string): string {
 
 const ESLINT_PACKAGES = ['eslint', '@eslint/js', 'typescript-eslint'];
 
-export function packagesFor(tool: 'eslint' | 'knip' | 'jscpd'): string[] {
+export function packagesFor(tool: ToolName): string[] {
   if (tool === 'eslint') return ESLINT_PACKAGES;
   return [tool];
+}
+
+type Ecosystem = 'node' | 'pip';
+
+const ECOSYSTEM: Record<ToolName, Ecosystem> = {
+  eslint: 'node',
+  knip: 'node',
+  jscpd: 'node',
+  ruff: 'pip',
+  deptry: 'pip',
+};
+
+function toolsInEcosystem(tools: ToolName[], ecosystem: Ecosystem): ToolName[] {
+  return tools.filter((tool) => ECOSYSTEM[tool] === ecosystem);
+}
+
+function nodeInstallCommand(cwd: string, tools: ToolName[]): string | null {
+  if (tools.length === 0) return null;
+  const packages = tools.flatMap((tool) => packagesFor(tool));
+  return buildInstallCommand(detectPackageManager(cwd), packages);
+}
+
+function pipInstallCommand(tools: ToolName[]): string | null {
+  if (tools.length === 0) return null;
+  const packages = tools.flatMap((tool) => packagesFor(tool));
+  return `pip install ${packages.join(' ')}`;
+}
+
+export function installCommandsFor(cwd: string, missingTools: ToolName[]): string[] {
+  const node = nodeInstallCommand(cwd, toolsInEcosystem(missingTools, 'node'));
+  const pip = pipInstallCommand(toolsInEcosystem(missingTools, 'pip'));
+  return [node, pip].filter((command): command is string => command !== null);
 }

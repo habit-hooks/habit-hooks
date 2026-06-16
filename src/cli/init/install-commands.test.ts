@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   buildInstallCommand,
   detectPackageManager,
+  installCommandsFor,
   packagesFor,
   runScriptCommand,
 } from './install-commands.js';
@@ -95,5 +96,42 @@ describe('packagesFor', () => {
   it('returns just the tool name for knip and jscpd', () => {
     expect(packagesFor('knip')).toEqual(['knip']);
     expect(packagesFor('jscpd')).toEqual(['jscpd']);
+  });
+
+  it('returns just the tool name for ruff and deptry', () => {
+    expect(packagesFor('ruff')).toEqual(['ruff']);
+    expect(packagesFor('deptry')).toEqual(['deptry']);
+  });
+});
+
+describe('installCommandsFor', () => {
+  let cwd: string;
+
+  beforeEach(() => {
+    cwd = makeTempDir();
+    writeFileSync(join(cwd, 'pnpm-lock.yaml'), '');
+  });
+
+  afterEach(() => {
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it('returns an empty array when nothing is missing', () => {
+    expect(installCommandsFor(cwd, [])).toEqual([]);
+  });
+
+  it('returns a pip command for ruff and deptry', () => {
+    expect(installCommandsFor(cwd, ['ruff', 'deptry'])).toEqual(['pip install ruff deptry']);
+  });
+
+  it('returns a node command for jscpd', () => {
+    expect(installCommandsFor(cwd, ['jscpd'])).toEqual(['pnpm add -D jscpd']);
+  });
+
+  it('returns both node and pip commands when the missing set spans ecosystems', () => {
+    expect(installCommandsFor(cwd, ['jscpd', 'ruff'])).toEqual([
+      'pnpm add -D jscpd',
+      'pip install ruff',
+    ]);
   });
 });

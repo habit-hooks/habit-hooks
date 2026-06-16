@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type ToolName = 'eslint' | 'knip' | 'jscpd';
+export type ToolName = 'eslint' | 'knip' | 'jscpd' | 'ruff' | 'deptry';
 
 interface ToolDetection {
   available: true;
@@ -13,9 +13,11 @@ export const TOOL_CONFIG_FILENAMES: Record<ToolName, readonly string[]> = {
   eslint: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts', 'eslint.config.cjs'],
   knip: ['knip.json', 'knip.jsonc', 'knip.ts'],
   jscpd: ['.jscpd.json', 'jscpd.json'],
+  ruff: ['ruff.toml', '.ruff.toml'],
+  deptry: [],
 };
 
-export const TOOL_PACKAGE_JSON_KEYS: Record<ToolName, string> = {
+export const TOOL_PACKAGE_JSON_KEYS: Partial<Record<ToolName, string>> = {
   eslint: 'eslintConfig',
   knip: 'knip',
   jscpd: 'jscpd',

@@ -6,17 +6,21 @@ import { buildInstallCommand, detectPackageManager, packagesFor } from './instal
 import { dryRunPath, noteScaffold, type Ctx } from './ctx.js';
 import type { ScaffoldResult } from './scaffold-config.js';
 
-const SCAFFOLDERS: Record<ToolName, (_cwd: string) => ScaffoldResult> = {
+const SCAFFOLDERS: Partial<Record<ToolName, (_cwd: string) => ScaffoldResult>> = {
   eslint: scaffoldEslintConfig,
   knip: scaffoldKnipConfig,
   jscpd: scaffoldJscpdConfig,
 };
 
-const DEFAULT_FILENAMES: Record<ToolName, string> = {
+const DEFAULT_FILENAMES: Partial<Record<ToolName, string>> = {
   eslint: 'eslint.config.js',
   knip: 'knip.json',
   jscpd: '.jscpd.json',
 };
+
+function hasScaffolder(tool: ToolName): boolean {
+  return SCAFFOLDERS[tool] !== undefined;
+}
 
 const KNIP_STARTER_NOTE =
   'knip.json written with starter entry points. Edit `entry` in knip.json to match your project.\n';
@@ -26,11 +30,14 @@ function noteKnipStarter(ctx: Ctx, result: ScaffoldResult): void {
 }
 
 function scaffoldFor(ctx: Ctx, tool: ToolName): void {
+  const scaffolder = SCAFFOLDERS[tool];
+  const filename = DEFAULT_FILENAMES[tool];
+  if (scaffolder === undefined || filename === undefined) return;
   if (ctx.dryRun) {
-    dryRunPath(ctx, DEFAULT_FILENAMES[tool], `${tool} config`);
+    dryRunPath(ctx, filename, `${tool} config`);
     return;
   }
-  const result = SCAFFOLDERS[tool](ctx.cwd);
+  const result = scaffolder(ctx.cwd);
   noteScaffold(ctx, result, `${tool} config`);
   if (tool === 'knip') noteKnipStarter(ctx, result);
 }
@@ -56,8 +63,12 @@ function printInstallCommand(ctx: Ctx, missing: ToolName[]): void {
 }
 
 export function runToolSteps(ctx: Ctx): void {
-  const tools = toolsForLanguage(ctx.language);
-  if (tools.length === 0) return;
+  const tools = toolsForLanguage(ctx.language).filter(hasScaffolder);
+  // TODO(phase-3b): remove the python short-circuit — Python scaffolding +
+  // completion guidance wires in here. jscpd has a scaffolder and is in the
+  // python tool set, so this language check (not tools.length) is what keeps
+  // .jscpd.json from being written into a Python project today.
+  if (ctx.language === 'python' || tools.length === 0) return;
   const matrix = detectToolStates(ctx.cwd);
   for (const tool of tools) handleTool(ctx, tool, matrix[tool]);
   printInstallCommand(ctx, collectMissingTools(tools, matrix));
