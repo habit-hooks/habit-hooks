@@ -1,6 +1,6 @@
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
-import fg from 'fast-glob';
 import picomatch from 'picomatch';
+import { discoverFiles } from './discover.js';
 import { loadConfig, loadConfigFromPath, RULES_DEPRECATION } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { lookupPrompt } from './prompts/registry.js';
@@ -42,20 +42,6 @@ interface RunContext {
   language: Language;
   promptsDir?: string;
   configWarnings: string[];
-}
-
-const FILE_GLOBS: Record<Language, string[]> = {
-  typescript: ['**/*.{ts,tsx,js,mjs,cjs}'],
-  python: ['**/*.py'],
-};
-
-async function discoverFiles(cwd: string, language: Language): Promise<string[]> {
-  return fg(FILE_GLOBS[language], {
-    cwd,
-    absolute: true,
-    ignore: ['**/node_modules/**', '**/dist/**', '**/coverage/**'],
-    dot: false,
-  });
 }
 
 function buildMatcher(patterns: string[] | undefined): ((_path: string) => boolean) | null {
