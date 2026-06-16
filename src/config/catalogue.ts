@@ -65,7 +65,7 @@ const tier2Rules: Rule[] = [
     source: 'eslint',
     sourceRuleId: 'no-var',
     severity: 'enforced',
-    title: 'var declaration',
+    title: '`var` declaration',
     description: 'Use let or const; var hoists in surprising ways.',
   },
   {
@@ -89,7 +89,7 @@ const tier2Rules: Rule[] = [
     source: 'eslint',
     sourceRuleId: 'no-warning-comments',
     severity: 'suggested',
-    title: 'Warning comment',
+    title: 'Warning comment (TODO/FIXME/…)',
     description: 'TODO / FIXME / XXX / HACK markers are unfinished work in the codebase.',
   },
 ];
@@ -101,7 +101,7 @@ const tier3Rules: Rule[] = [
     sourceRuleId: '@typescript-eslint/no-explicit-any',
     severity: 'suggested',
     changedFilesOnly: true,
-    title: 'Explicit any',
+    title: 'Explicit `any`',
     description: 'any disables the type checker; prefer a precise type or unknown plus a narrow.',
   },
   {
@@ -129,7 +129,7 @@ const customRules: Rule[] = [
     source: 'custom',
     severity: 'suggested',
     changedFilesOnly: true,
-    title: 'Comment found',
+    title: 'Non-essential comment',
     description: 'Comments indicate code that is not self-documenting.',
   },
 ];
