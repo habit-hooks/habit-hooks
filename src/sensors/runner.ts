@@ -34,6 +34,18 @@ function dependencyKeys(sensor: Sensor): string[] {
   return sensor.dependsOn ?? [];
 }
 
+// Drop a multi sensor whose depended-on smells are not produced by any other
+// sensor in the set — e.g. a composite whose inputs were gated out by config.
+// This keeps SensorRunner construction (which throws on unproduced deps) from
+// crashing a run when a dependency producer is simply inactive.
+export function satisfiableSensors(sensors: Sensor[]): Sensor[] {
+  return sensors.filter((sensor) => {
+    const others = sensors.filter((other) => other.id !== sensor.id);
+    const produced = new Set(others.flatMap((other) => other.produces));
+    return dependencyKeys(sensor).every((smell) => produced.has(smell));
+  });
+}
+
 function assertSatisfiable(sensor: Sensor, producers: Map<string, Sensor[]>): void {
   for (const smell of dependencyKeys(sensor)) {
     const others = (producers.get(smell) ?? []).filter((p) => p.id !== sensor.id);
