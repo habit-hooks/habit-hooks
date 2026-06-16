@@ -17,6 +17,9 @@ interface LoadedConfig {
   sourcePath: string | null;
 }
 
+export const RULES_DEPRECATION =
+  "habit-hooks: config field 'rules' is deprecated — rename it to 'smells'. Support for 'rules' will be removed in a future release.";
+
 function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_FILENAMES) {
     const candidate = join(cwd, name);

@@ -267,3 +267,14 @@ phases (PR #13). Each call below is an _agent decision_.
   even with the flag. A failed install is reported and never aborts the rest or
   changes the exit code. Lifting the ruff.toml boundary (needs a TOML library)
   is a deferred follow-up.
+
+## Issue-wrapup loop (GOAL #27)
+
+- **The `rules` config alias is deprecated, not yet removed.** _(agent decision,
+  #21)_ Per the one-release migration plan, `rules` is still accepted and folded
+  (with `smells` winning on conflict), but a run whose config uses `rules` now
+  emits `RULES_DEPRECATION` on stderr (detected in `buildContext`, surfaced via
+  `RunResult.stderr`). All internal test configs were migrated to `smells`; the
+  only remaining `rules` usages are the tests that intentionally cover the alias
+  and its precedence. **Scheduled follow-up:** a later issue removes the `rules`
+  field from the schema/merge entirely (the hard removal).

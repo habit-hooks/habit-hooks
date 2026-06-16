@@ -1,7 +1,7 @@
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import fg from 'fast-glob';
 import picomatch from 'picomatch';
-import { loadConfig, loadConfigFromPath } from './config/load.js';
+import { loadConfig, loadConfigFromPath, RULES_DEPRECATION } from './config/load.js';
 import { buildRules } from './rules/registry.js';
 import { lookupPrompt } from './prompts/registry.js';
 import { resolvePackagedDir } from './prompts/packaged-dir.js';
@@ -39,6 +39,7 @@ interface RunContext {
   baseline: BaselineFile | null;
   language: Language;
   promptsDir?: string;
+  configWarnings: string[];
 }
 
 const FILE_GLOBS: Record<Language, string[]> = {
@@ -121,7 +122,8 @@ async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: Ru
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
   const promptsDir = resolvePromptsDir(config, configDir);
-  return { ctx: { cwd, files, scope, baseline, language, promptsDir }, rules };
+  const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
+  return { ctx: { cwd, files, scope, baseline, language, promptsDir, configWarnings }, rules };
 }
 
 // A sensor runs only when at least one smell it produces has an active rule
@@ -154,9 +156,7 @@ async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Vio
 }
 
 function allowedFilesBySmell(rules: Rule[], ctx: RunContext): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const rule of rules) map.set(rule.id, new Set(resolveFilesForRule(rule, ctx)));
-  return map;
+  return new Map(rules.map((rule) => [rule.id, new Set(resolveFilesForRule(rule, ctx))] as const));
 }
 
 // Keep a violation when its smell has no rule (uncoached), or its file is not a
@@ -195,5 +195,6 @@ export async function run(cwd: string, options: RunOptions = {}): Promise<RunRes
   const dirs: MapperDirs = { overrideDir: ctx.promptsDir, packagedDir: resolvePackagedDir() };
   const mapped = mapIssues(violations.map(violationToIssue), buildRouting(rules), dirs);
   const rendered = guide({ result: mapped, dirs });
-  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr: detected.notices };
+  const stderr = [...ctx.configWarnings, ...detected.notices];
+  return { stdout: rendered.stdout, exitCode: rendered.exitCode, violations, stderr };
 }
