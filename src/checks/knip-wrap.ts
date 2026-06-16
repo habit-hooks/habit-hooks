@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped } from '../wrap/run.js';
+import { KNIP_SMELL_MAP } from '../config/tool-smells.js';
 import { buildKnipArgs, consumerKnipMajor, resolveKnipBin } from './knip-resolve.js';
 import {
   KNOWN_KEYS,
@@ -30,13 +31,6 @@ interface IssueContext {
   issueType: string;
   issueFile: string;
 }
-
-const KNIP_SMELL_MAP: Record<string, string> = {
-  classMembers: 'unused-class-member',
-  files: 'unused-file',
-  exports: 'unused-export',
-  dependencies: 'unused-dependency',
-};
 
 function knipSmell(issueType: string): string {
   return KNIP_SMELL_MAP[issueType] ?? issueType;

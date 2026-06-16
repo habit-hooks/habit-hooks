@@ -3,29 +3,10 @@ import { commentCheck } from '../checks/comment-check.js';
 import { jscpdWrap } from '../checks/jscpd-wrap.js';
 import { knipWrap } from '../checks/knip-wrap.js';
 import type { SensorSink } from '../wrap/notices.js';
+import { COMMENT_SMELL, ESLINT_PRODUCES, JSCPD_SMELL, KNIP_PRODUCES } from '../config/tool-smells.js';
 import { needsExtractionSensor } from './needs-extraction.js';
 import type { Check, CheckOutcome, Rule, Violation } from '../types.js';
 import type { Issue, Sensor } from './types.js';
-
-// Smell keys each preset sensor can emit (docs/smell-vocabulary.md). Informational
-// for dependency resolution; leaf sensors may also pass unmapped raw keys through.
-const ESLINT_PRODUCES = [
-  'oversized-function',
-  'too-many-parameters',
-  'high-complexity',
-  'oversized-file',
-  'unused-variable',
-  'loose-equality',
-  'var-declaration',
-  'non-const-binding',
-  'duplicate-import',
-  'warning-comment',
-  'explicit-any',
-  'non-null-assertion',
-  'redundant-type-annotation',
-  'parse-error',
-];
-const KNIP_PRODUCES = ['unused-class-member', 'unused-file', 'unused-export', 'unused-dependency'];
 
 export function violationToIssue(v: Violation): Issue {
   const details: Record<string, unknown> = { file: v.file, line: v.line, message: v.message };
@@ -74,7 +55,7 @@ export interface PresetInput {
 // commentRule carries the resolved comment thresholds the ts-morph scan needs.
 function commentSensor(input: PresetInput): Sensor {
   const rules = input.commentRule ? [input.commentRule] : [];
-  return checkLeafSensor({ check: commentCheck, produces: ['non-essential-comment'], sink: input.sink, rules });
+  return checkLeafSensor({ check: commentCheck, produces: [COMMENT_SMELL], sink: input.sink, rules });
 }
 
 // The TypeScript/JavaScript preset: leaf sensors over eslint, ts-morph comments,
@@ -85,7 +66,7 @@ export function buildPresetSensors(input: PresetInput): Sensor[] {
   return [
     checkLeafSensor({ check: eslintWrap, produces: ESLINT_PRODUCES, sink }),
     commentSensor(input),
-    checkLeafSensor({ check: jscpdWrap, produces: ['duplicated-code'], sink }),
+    checkLeafSensor({ check: jscpdWrap, produces: [JSCPD_SMELL], sink }),
     checkLeafSensor({ check: knipWrap, produces: KNIP_PRODUCES, sink }),
     needsExtractionSensor(),
   ];

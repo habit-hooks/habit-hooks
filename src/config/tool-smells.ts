@@ -1,4 +1,4 @@
-import type { RuleSource } from '../types.js';
+import type { Rule, RuleSource } from '../types.js';
 import type { AdapterSpec, DeclarativeSensorSpec } from '../sensors/adapter.js';
 import { defaultRules } from './catalogue.js';
 
@@ -6,7 +6,7 @@ import { defaultRules } from './catalogue.js';
 // layers receive these from config and never hardcode a smell id. eslint/jscpd
 // data is derived from the catalogue, so adding a smell there auto-wires it.
 
-function rulesFor(source: RuleSource): { id: string; sourceRuleId?: string }[] {
+function rulesFor(source: RuleSource): Rule[] {
   return defaultRules.filter((rule) => rule.source === source);
 }
 

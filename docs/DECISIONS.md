@@ -332,3 +332,17 @@ phases (PR #13). Each call below is an _agent decision_.
   gated out, so a config that disables an input can't crash the run. The
   catalogue entry lives in `customRules` (source `custom`) to stay under the
   200-line cap.
+
+- **Smell knowledge lives only in config; the sensor layer consumes it.** _(agent
+  decision, #24)_ All tool/smell mappings moved to `src/config/tool-smells.ts`:
+  the eslint raw→smell map, eslint/knip/jscpd/comment produces, and the ruff +
+  deptry `AdapterSpec`s. The eslint/jscpd/comment data is **derived from the
+  catalogue** (so adding a smell there auto-wires its translation and produces);
+  knip's raw issue types and the supplemental `parse-error` (an eslint fatal with
+  no catalogue rule) are the config literals. The runner, sensors, checks, and
+  rules registry now import these instead of hardcoding — the acceptance grep is
+  clean for non-test source. (Test files still pin concrete smell strings as
+  behaviour assertions.) Adding a new eslint smell touches only `src/config/`
+  (catalogue) + `src/cli/init/` (the scaffolded eslint config) — proved live by
+  the `deep-nesting` smell (#26). Realizes the locked "spec from config" via
+  config-derived constants rather than per-call DI, keeping the refactor low-risk.

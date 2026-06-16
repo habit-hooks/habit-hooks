@@ -13,6 +13,7 @@ import {
   type BinResolution,
 } from '../wrap/notices.js';
 import { spawnTarget } from '../wrap/resolve.js';
+import { ESLINT_SMELL_MAP, PARSE_ERROR_SMELL } from '../config/tool-smells.js';
 import { parseJsonStdout } from '../wrap/run.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
@@ -58,22 +59,6 @@ function isConfigError(result: ShellResult, parsed: EslintFileResult[] | null): 
   return result.exitCode !== 0 && result.exitCode !== 1;
 }
 
-const ESLINT_SMELL_MAP: Record<string, string> = {
-  'max-lines-per-function': 'oversized-function',
-  'max-params': 'too-many-parameters',
-  complexity: 'high-complexity',
-  'max-lines': 'oversized-file',
-  'no-unused-vars': 'unused-variable',
-  eqeqeq: 'loose-equality',
-  'no-var': 'var-declaration',
-  'prefer-const': 'non-const-binding',
-  'no-duplicate-imports': 'duplicate-import',
-  'no-warning-comments': 'warning-comment',
-  '@typescript-eslint/no-explicit-any': 'explicit-any',
-  '@typescript-eslint/no-non-null-assertion': 'non-null-assertion',
-  '@typescript-eslint/no-inferrable-types': 'redundant-type-annotation',
-};
-
 function messageToViolation(filePath: string, m: EslintMessage & { ruleId: string }): Violation {
   const smell = ESLINT_SMELL_MAP[m.ruleId] ?? m.ruleId;
   const title = lookupPrompt(smell)?.title ?? m.ruleId;
@@ -84,7 +69,7 @@ function messageToViolation(filePath: string, m: EslintMessage & { ruleId: strin
 
 function fatalToViolation(filePath: string, m: EslintMessage): Violation {
   return {
-    ruleId: 'parse-error',
+    ruleId: PARSE_ERROR_SMELL,
     source: 'eslint:fatal',
     file: filePath,
     line: m.line,

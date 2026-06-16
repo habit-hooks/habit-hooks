@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildPresetSensors, issueToViolation, violationToIssue } from './preset.js';
+import { COMMENT_SMELL, JSCPD_SMELL, PARSE_ERROR_SMELL } from '../config/tool-smells.js';
 import type { Violation } from '../types.js';
 
 describe('violationToIssue', () => {
@@ -52,9 +53,9 @@ describe('buildPresetSensors', () => {
     expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip', 'needs-extraction']);
     const eslint = sensors.find((s) => s.id === 'eslint');
     expect(eslint?.produces).toContain('too-many-parameters');
-    expect(eslint?.produces).toContain('parse-error');
-    expect(sensors.find((s) => s.id === 'jscpd')?.produces).toEqual(['duplicated-code']);
-    expect(sensors.find((s) => s.id === 'comment')?.produces).toEqual(['non-essential-comment']);
+    expect(eslint?.produces).toContain(PARSE_ERROR_SMELL);
+    expect(sensors.find((s) => s.id === 'jscpd')?.produces).toEqual([JSCPD_SMELL]);
+    expect(sensors.find((s) => s.id === 'comment')?.produces).toEqual([COMMENT_SMELL]);
     const composite = sensors.find((s) => s.id === 'needs-extraction');
     expect(composite?.produces).toEqual(['needs-extraction']);
     expect(composite?.dependsOn).toEqual(['oversized-file', 'duplicated-code']);

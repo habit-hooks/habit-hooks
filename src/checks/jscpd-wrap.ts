@@ -7,11 +7,11 @@ import { detectTool } from '../detect/tool.js';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
 import { isSpawnSkip, skipOutcome, spawnWrapped } from '../wrap/run.js';
+import { JSCPD_SMELL } from '../config/tool-smells.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
 const require = createRequire(import.meta.url);
 
-const SMELL = 'duplicated-code';
 const REPORT_FILENAME = 'jscpd-report.json';
 
 const JSCPD_CONFIG_FILES = ['.jscpd.json', 'jscpd.json'];
@@ -84,7 +84,7 @@ function locationDescription(loc: JscpdLocation, cwd: string): string {
 
 function buildViolation(self: JscpdLocation, partner: JscpdLocation, cwd: string): Violation {
   return {
-    ruleId: SMELL,
+    ruleId: JSCPD_SMELL,
     source: 'jscpd:duplication',
     file: absolutize(cwd, self.name),
     line: self.startLoc.line,
