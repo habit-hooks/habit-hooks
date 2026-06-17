@@ -2,7 +2,7 @@ import type { HabitHooksConfig } from './schema.js';
 
 export { defaultRules } from './catalogue.js';
 
-const TEST_FILE_EXCLUDE = ['**/*.test.ts', '**/*.spec.ts', 'tests/**'];
+export const TEST_FILE_EXCLUDE = ['**/*.test.ts', '**/*.spec.ts', 'tests/**'];
 
 const CONFIG_FILE_EXCLUDE = ['habit-hooks.config.*'];
 

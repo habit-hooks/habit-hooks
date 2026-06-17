@@ -1,4 +1,8 @@
+import { TEST_FILE_EXCLUDE } from '../../../config/defaults.js';
+
 export const ESLINT_CONFIG_FILENAME = 'eslint.config.js';
+
+const testFileGlobs = TEST_FILE_EXCLUDE.map((glob) => `'${glob}'`).join(', ');
 
 export const ESLINT_CONFIG_TEMPLATE = `import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
@@ -33,7 +37,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', '**/*.spec.ts', 'tests/**'],
+    files: [${testFileGlobs}],
     rules: {
       'max-lines-per-function': 'off',
       'max-lines': 'off',
