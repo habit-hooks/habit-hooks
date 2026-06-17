@@ -2,7 +2,9 @@
 
 Stop reciting software engineering literature to your AI agent.
 
-Turn best practice advice into AI habits.
+Turn best practice advice into AI habits, and make it write code like this:
+
+![write_code_like_this.png](write_code_like_this.png)
 
 ## What it is
 
