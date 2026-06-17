@@ -1,7 +1,7 @@
 import type { Rule } from '../types.js';
+import { unusedRules } from './catalogue-unused.js';
 
-// The canonical, tool-independent smell catalogue (docs/smell-vocabulary.md): a
-// rule here makes the smell coached and activates its producing sensor.
+// The canonical, tool-independent smell catalogue (docs/smell-vocabulary.md).
 
 const tier1Rules: Rule[] = [
   {
@@ -29,6 +29,15 @@ const tier1Rules: Rule[] = [
     changedFilesOnly: true,
     title: 'High cyclomatic complexity',
     description: 'Complex functions are harder to understand, test, and maintain.',
+  },
+  {
+    id: 'deep-nesting',
+    source: 'eslint',
+    sourceRuleId: 'max-depth',
+    severity: 'enforced',
+    changedFilesOnly: true,
+    title: 'Deep nesting',
+    description: 'Deeply nested blocks want guard clauses, early returns, or an extracted helper.',
   },
   {
     id: 'oversized-file',
@@ -148,45 +157,6 @@ const jscpdRules: Rule[] = [
     changedFilesOnly: true,
     title: 'Duplicated code',
     description: 'Repeated blocks usually want a shared abstraction, not a copy-paste.',
-  },
-];
-
-// The "unused" family: knip (TS), deptry (unused-dependency), ruff (unused-import).
-const unusedRules: Rule[] = [
-  {
-    id: 'unused-class-member',
-    source: 'knip',
-    severity: 'enforced',
-    title: 'Unused class member',
-    description: 'Class methods or properties not referenced anywhere are dead weight.',
-  },
-  {
-    id: 'unused-file',
-    source: 'knip',
-    severity: 'enforced',
-    title: 'Unused file',
-    description: 'Files not referenced anywhere are dead weight; remove them.',
-  },
-  {
-    id: 'unused-export',
-    source: 'knip',
-    severity: 'enforced',
-    title: 'Unused export',
-    description: 'Exports not imported anywhere are dead weight; drop the export or the symbol.',
-  },
-  {
-    id: 'unused-dependency',
-    source: 'knip',
-    severity: 'enforced',
-    title: 'Unused dependency',
-    description: 'Dependencies declared but never used should be removed from the manifest.',
-  },
-  {
-    id: 'unused-import',
-    source: 'eslint',
-    severity: 'enforced',
-    title: 'Unused import',
-    description: 'Imports that are never used should be removed.',
   },
 ];
 

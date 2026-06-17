@@ -26,6 +26,7 @@ exits 0. The mapper config can override it per project.
 | `oversized-function`        | Oversized function                    | enforced         |
 | `too-many-parameters`       | Too many parameters                   | enforced         |
 | `high-complexity`           | High cyclomatic complexity            | enforced         |
+| `deep-nesting`              | Deep nesting                          | enforced         |
 | `oversized-file`            | Oversized file                        | enforced         |
 | `unused-variable`           | Unused variable                       | enforced         |
 | `loose-equality`            | Loose equality                        | enforced         |
@@ -59,6 +60,7 @@ to.
 | `eslint:max-lines-per-function`                   | `oversized-function`        |
 | `eslint:max-params`                               | `too-many-parameters`       |
 | `eslint:complexity`                               | `high-complexity`           |
+| `eslint:max-depth`                                | `deep-nesting`              |
 | `eslint:max-lines`                                | `oversized-file`            |
 | `eslint:no-unused-vars`                           | `unused-variable`           |
 | `eslint:eqeqeq`                                   | `loose-equality`            |
@@ -97,7 +99,9 @@ TS-only smells (`explicit-any`, `var-declaration`, …) simply do not appear in
 the Python preset. `oversized-file` has no clean ruff rule, so the Python preset
 emits it from a language-agnostic line-count sensor whose threshold
 (`max-module-lines`, default 200) is read from the consumer's config text (see
-`DECISIONS.md`).
+`DECISIONS.md`). `deep-nesting` ships for TypeScript only (ESLint `max-depth`);
+the Python equivalent (ruff `PLR1702`) is preview/unstable, so it is deferred
+rather than opting the default preset into ruff `--preview`.
 
 ## Combinations
 
