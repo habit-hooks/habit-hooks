@@ -24,12 +24,14 @@ describe('python preset', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('registers ruff, jscpd, deptry, and line-count sensors with their smell keys', () => {
+  it('registers ruff, jscpd, deptry, line-count, and needs-extraction sensors with their smell keys', () => {
     const sensors = buildPythonPresetSensors({ sink: { notices: [], failures: [] }, cwd: dir });
-    expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry', 'line-count']);
+    expect(sensors.map((s) => s.id)).toEqual(['ruff', 'jscpd', 'deptry', 'line-count', 'needs-extraction']);
     expect(sensors[0]?.produces).toContain('too-many-parameters');
     expect(sensors[2]?.produces).toEqual(['unused-dependency']);
     expect(sensors[3]?.produces).toEqual(['oversized-file']);
+    expect(sensors[4]?.produces).toEqual(['needs-extraction']);
+    expect(sensors[4]?.dependsOn).toEqual(['oversized-file', 'duplicated-code']);
   });
 
   it.skipIf(!RUFF_AVAILABLE)('runs ruff and maps PLR0913/F841 to canonical smells with provenance', async () => {

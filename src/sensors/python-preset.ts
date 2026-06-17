@@ -8,9 +8,11 @@ import { declarativeSensor } from './adapter.js';
 import { checkLeafSensor } from './preset.js';
 import { deptrySensor } from './deptry-sensor.js';
 import { DEFAULT_MAX_FILE_LINES, lineCountSensor } from './line-count-sensor.js';
+import { needsExtractionSensor } from './needs-extraction.js';
 import type { Sensor } from './types.js';
 
-// The Python preset: ruff (declarative adapter) + jscpd on .py + deptry + line-count.
+// The Python preset: ruff (declarative adapter) + jscpd on .py + deptry + line-count,
+// plus the needs-extraction composite over oversized-file (line-count) + duplicated-code (jscpd).
 // Ruff/deptry specs and smell ids come from config/tool-smells.ts; this only wires them.
 export interface PythonPresetInput {
   sink: SensorSink;
@@ -39,5 +41,6 @@ export function buildPythonPresetSensors(input: PythonPresetInput): Sensor[] {
     checkLeafSensor({ check: jscpdWrap, produces: [JSCPD_SMELL], sink }),
     deptrySensor(sink),
     lineCountSensor(readMaxModuleLines(cwd)),
+    needsExtractionSensor(),
   ];
 }

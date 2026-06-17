@@ -86,3 +86,52 @@ describe('python oversized-file (line-count sensor)', () => {
     expect(result.violations.some((v) => v.ruleId === 'oversized-file')).toBe(false);
   }, 30_000);
 });
+
+const PY_BLOCK = `def NAME(order):
+    tax = order.total * 0.1
+    shipping = 0 if order.total > 100 else 10
+    return order.total + tax + shipping
+`;
+
+// needs-extraction is a composite over oversized-file (line-count) + duplicated-code
+// (jscpd). Both Python inputs run without ruff/deptry, so this needs no Python
+// toolchain. Mirrors the TS needs-extraction end-to-end test.
+describe('python needs-extraction (composite sensor)', () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function pythonProject(config?: unknown): void {
+    dir = mkdtempSync(join(tmpdir(), 'hh-py-needs-extraction-'));
+    writeFileSync(join(dir, 'habit-hooks.config.json'), JSON.stringify({ language: 'python', ...(config ?? {}) }));
+    writeFileSync(join(dir, 'pyproject.toml'), '[tool.habit-hooks]\nmax-module-lines = 6\n');
+    writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ minTokens: 20, minLines: 2 }));
+    writeFileSync(join(dir, 'big.py'), PY_BLOCK.replace('NAME', 'alpha') + PY_BLOCK.replace('NAME', 'beta'));
+  }
+
+  function smellsOf(violations: { ruleId: string }[]): Set<string> {
+    return new Set(violations.map((v) => v.ruleId));
+  }
+
+  it('fires needs-extraction through the real runner and augments by default', async () => {
+    pythonProject();
+
+    const smells = smellsOf((await run(dir)).violations);
+
+    expect(smells.has('needs-extraction')).toBe(true);
+    expect(smells.has('oversized-file')).toBe(true);
+    expect(smells.has('duplicated-code')).toBe(true);
+  }, 30_000);
+
+  it('replace mode suppresses the input smells for the combined file', async () => {
+    pythonProject({ needsExtraction: { replace: true } });
+
+    const violations = (await run(dir)).violations;
+
+    expect(violations.filter((v) => v.ruleId === 'needs-extraction').length).toBeGreaterThan(0);
+    expect(violations.filter((v) => v.ruleId === 'oversized-file')).toEqual([]);
+    expect(violations.filter((v) => v.ruleId === 'duplicated-code')).toEqual([]);
+  }, 30_000);
+});
