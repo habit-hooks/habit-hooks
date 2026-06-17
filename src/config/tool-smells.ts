@@ -14,6 +14,20 @@ function smellsFor(source: RuleSource): string[] {
   return rulesFor(source).map((rule) => rule.id);
 }
 
+export function singleSmellFor(source: RuleSource): string {
+  const smells = smellsFor(source);
+  if (smells.length !== 1)
+    throw new Error(`tool-smells: expected exactly one '${source}' smell, found ${smells.length}`);
+  return smells[0];
+}
+
+export function catalogueSmell(id: string): string {
+  const matches = defaultRules.filter((rule) => rule.id === id);
+  if (matches.length !== 1)
+    throw new Error(`tool-smells: expected exactly one catalogue rule for '${id}', found ${matches.length}`);
+  return matches[0].id;
+}
+
 function rawToSmell(source: RuleSource): Record<string, string> {
   const map: Record<string, string> = {};
   for (const rule of rulesFor(source)) {
@@ -28,8 +42,8 @@ export const PARSE_ERROR_SMELL = 'parse-error';
 export const ESLINT_SMELL_MAP = rawToSmell('eslint');
 export const ESLINT_PRODUCES = [...smellsFor('eslint'), PARSE_ERROR_SMELL];
 
-export const JSCPD_SMELL = smellsFor('jscpd')[0];
-export const COMMENT_SMELL = smellsFor('custom')[0];
+export const JSCPD_SMELL = singleSmellFor('jscpd');
+export const COMMENT_SMELL = catalogueSmell('non-essential-comment');
 
 // knip's raw issue types are tool-specific, not catalogue rule ids, so the
 // translation lives here in config.

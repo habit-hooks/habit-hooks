@@ -6,6 +6,8 @@ import {
   ESLINT_SMELL_MAP,
   JSCPD_SMELL,
   PARSE_ERROR_SMELL,
+  catalogueSmell,
+  singleSmellFor,
 } from './tool-smells.js';
 
 // These prove the sensor/check layer's smell knowledge is DERIVED from the
@@ -48,5 +50,38 @@ describe('tool-smells concrete values', () => {
 
   it('PARSE_ERROR_SMELL is parse-error', () => {
     expect(PARSE_ERROR_SMELL).toBe('parse-error');
+  });
+});
+
+// singleSmellFor guards the JSCPD_SMELL single-pick site: a future catalogue
+// that adds a second jscpd rule must fail loudly instead of silently picking [0].
+describe('singleSmellFor', () => {
+  it('returns the one smell for a single-smell source', () => {
+    expect(singleSmellFor('jscpd')).toBe('duplicated-code');
+  });
+
+  it('throws when a source has no smells', () => {
+    expect(() => singleSmellFor('nonexistent-source' as never)).toThrow(
+      "tool-smells: expected exactly one 'nonexistent-source' smell, found 0",
+    );
+  });
+
+  it('throws when a source has more than one smell', () => {
+    expect(() => singleSmellFor('custom')).toThrow(/expected exactly one 'custom' smell, found 2/);
+  });
+});
+
+// catalogueSmell guards COMMENT_SMELL by rule identity rather than source order:
+// the 'custom' source now holds two rules (non-essential-comment + needs-extraction),
+// so `smellsFor('custom')[0]` would silently flip if the catalogue were reordered.
+describe('catalogueSmell', () => {
+  it('returns the id when exactly one catalogue rule matches', () => {
+    expect(catalogueSmell('non-essential-comment')).toBe('non-essential-comment');
+  });
+
+  it('throws when no catalogue rule matches', () => {
+    expect(() => catalogueSmell('not-a-real-smell')).toThrow(
+      "tool-smells: expected exactly one catalogue rule for 'not-a-real-smell', found 0",
+    );
   });
 });
