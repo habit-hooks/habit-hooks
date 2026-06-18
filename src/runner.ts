@@ -19,7 +19,7 @@ import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.
 import { guide } from './guide/guide.js';
 import type { SensorSink } from './wrap/notices.js';
 import type { Sensor } from './sensors/types.js';
-import type { HabitHooksConfig, Language, SensorSpec } from './config/schema.js';
+import type { HabitHooksConfig, SensorSpec } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
 
 export interface RunResult {
@@ -42,7 +42,7 @@ interface RunContext {
   scope: ResolvedScope;
   baseline: BaselineFile | null;
   snoozeIndex: SnoozeIndex;
-  language: Language;
+  language: string;
   promptsDir?: string;
   configWarnings: string[];
   needsExtractionReplace: boolean;
@@ -102,7 +102,7 @@ interface ResolvedInputs {
 function buildRunContext(inputs: ResolvedInputs): RunContext {
   const { cwd, config, configDir, files, scope, baseline } = inputs;
   const promptsDir = resolvePromptsDir(config, configDir);
-  const language: Language = config.language ?? 'typescript';
+  const language: string = config.language ?? 'typescript';
   const configWarnings = collectConfigWarnings(config, language);
   const snoozeIndex = createSnoozeIndex(cwd);
   const needsExtractionReplace = config.needsExtraction?.replace === true;
@@ -112,8 +112,8 @@ function buildRunContext(inputs: ResolvedInputs): RunContext {
 async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: RunContext; rules: Rule[] }> {
   const { config, configDir } = await resolveConfig(cwd, options);
   const rules = buildRules(config, configDir);
-  const language: Language = config.language ?? 'typescript';
-  const files = await discoverFiles(cwd, language, config.scope?.exclude);
+  const language: string = config.language ?? 'typescript';
+  const files = await discoverFiles(cwd, language, { exclude: config.scope?.exclude, files: config.files });
   const scope = resolveScope(options.scopeFlags ?? {}, config.scope, cwd);
   const baseline = resolveBaseline(cwd, options);
   return { ctx: buildRunContext({ cwd, config, configDir, files, scope, baseline }), rules };

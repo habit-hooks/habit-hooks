@@ -35,7 +35,19 @@ describe('discoverFiles', () => {
   });
 
   it('also skips paths matched by scope.exclude', async () => {
-    const files = await discoverFiles(cwd, 'typescript', ['fixtures/**']);
+    const files = await discoverFiles(cwd, 'typescript', { exclude: ['fixtures/**'] });
     expect(files.map((file) => relative(cwd, file)).sort()).toEqual(['a.ts', 'sub/b.ts']);
+  });
+
+  it('a files override discovers by those globs for an unknown language', async () => {
+    write(cwd, 'main.go');
+    const files = await discoverFiles(cwd, 'go', { files: ['**/*.go'] });
+    expect(files.map((file) => relative(cwd, file)).sort()).toEqual(['main.go']);
+  });
+
+  it('an unknown language with no files discovers nothing', async () => {
+    write(cwd, 'main.go');
+    const files = await discoverFiles(cwd, 'go');
+    expect(files).toEqual([]);
   });
 });

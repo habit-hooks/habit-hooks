@@ -23,6 +23,9 @@ export const RULES_DEPRECATION =
 export const SENSORS_FALLBACK_DEPRECATION =
   "habit-hooks: no 'sensors' block configured — falling back to the built-in language preset. Declare 'sensors' explicitly (see docs/sensors.md); this fallback will be removed in the 1.0.0 release.";
 
+export const UNKNOWN_LANGUAGE_NO_FILES =
+  "habit-hooks: 'language' is not a built-in (typescript/python) and no 'files' globs are configured — no source files will be discovered. Set 'files' to your project's globs.";
+
 function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_FILENAMES) {
     const candidate = join(cwd, name);

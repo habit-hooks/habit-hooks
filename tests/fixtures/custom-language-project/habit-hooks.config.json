@@ -1,0 +1,6 @@
+{
+  "language": "go",
+  "files": ["**/*.go"],
+  "sensors": { "marker": { "command": "node sensor.js ${files}", "produces": ["custom-go-smell"] } },
+  "smells": { "custom-go-smell": { "id": "custom-go-smell", "source": "custom", "severity": "enforced", "title": "Custom Go smell", "description": "flagged by the project's own Go sensor" } }
+}

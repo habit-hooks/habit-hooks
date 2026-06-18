@@ -2,7 +2,6 @@ import type { Severity, RuleSource } from '../types.js';
 import type {
   CommentCheckConfig,
   HabitHooksConfig,
-  Language,
   NeedsExtractionConfig,
   RuleDefinition,
   RuleOverride,
@@ -18,7 +17,6 @@ import { validateFiles, validateSensors } from './validate-sensors.js';
 
 const SEVERITIES: readonly Severity[] = ['enforced', 'suggested'];
 const SOURCES: readonly RuleSource[] = ['eslint', 'jscpd', 'knip', 'custom'];
-const LANGUAGES = ['typescript', 'python'] as const;
 
 function validateOptionalBoolean(value: unknown, path: string): void {
   if (value === undefined) return;
@@ -104,12 +102,12 @@ function validateCommentCheck(value: unknown): CommentCheckConfig | undefined {
   return value as CommentCheckConfig;
 }
 
-function validateLanguage(value: unknown): Language | undefined {
+function validateLanguage(value: unknown): string | undefined {
   if (value === undefined) return undefined;
-  if (typeof value !== 'string' || !LANGUAGES.includes(value as Language)) {
-    fail('language', `one of 'typescript', 'python'`);
+  if (typeof value !== 'string' || value.length === 0) {
+    fail('language', 'a non-empty string');
   }
-  return value as Language;
+  return value;
 }
 
 function validateNeedsExtraction(value: unknown): NeedsExtractionConfig | undefined {
@@ -121,7 +119,7 @@ function validateNeedsExtraction(value: unknown): NeedsExtractionConfig | undefi
 
 interface ValidatedParts {
   prompts?: string;
-  language: Language | undefined;
+  language: string | undefined;
   smells: HabitHooksConfig['smells'];
   rules: HabitHooksConfig['rules'];
   scope: ScopeConfig | undefined;

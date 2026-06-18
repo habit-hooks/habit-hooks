@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { run } from './runner.js';
-import { SENSORS_FALLBACK_DEPRECATION } from './config/load.js';
+import { SENSORS_FALLBACK_DEPRECATION, UNKNOWN_LANGUAGE_NO_FILES } from './config/load.js';
 import { lastCommitHash } from './baseline/file-hash.js';
 import { saveBaseline } from './baseline/store.js';
 import { createGitRepo, type GitRepo } from '../tests/helpers/git.js';
@@ -110,6 +110,30 @@ describe('runner.run with configured sensors', () => {
     expect(result.stderr.join('\n')).toContain(SENSORS_FALLBACK_DEPRECATION);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('Too many parameters');
+  });
+});
+
+describe('runner.run with a custom language', () => {
+  it('runs the custom sensor on a non-builtin language, with no built-in sensors', async () => {
+    const result = await run(join(fixturesDir, 'custom-language-project'));
+
+    expect(result.violations.some((v) => v.ruleId === 'custom-go-smell' && v.file.endsWith('main.go'))).toBe(true);
+    expect(result.exitCode).toBe(1);
+    expect(result.violations.some((v) => v.ruleId === 'loose-equality')).toBe(false);
+    expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(false);
+    expect(result.stderr).not.toContain(UNKNOWN_LANGUAGE_NO_FILES);
+  });
+
+  it('warns when the language is non-builtin and no files globs are configured', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hh-unknown-lang-'));
+    writeFileSync(join(dir, 'habit-hooks.config.json'), JSON.stringify({ language: 'go' }));
+    try {
+      const result = await run(dir);
+      expect(result.stderr).toContain(UNKNOWN_LANGUAGE_NO_FILES);
+      expect(result.stderr).not.toContain(SENSORS_FALLBACK_DEPRECATION);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
