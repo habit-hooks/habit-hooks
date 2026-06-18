@@ -60,47 +60,50 @@ order.
 
 Leaf sensors leave `dependsOn` unset and ignore `ctx.deps`.
 
-## Language presets
+## Sensors are config-driven
 
-No sensors are enabled by default. `init` asks which language the project
-uses and installs only the sensors for that language. The
-TypeScript/JavaScript preset:
+A project's `sensors` map (in `habit-hooks.config.{ts,js,mjs,json}`) is the
+single way sensors are assembled — built-in and custom alike. Each entry is
+keyed by sensor id and is one of three mutually exclusive `SensorSpec` modes.
+The mode is chosen by which keys you set; mixing modes is a validation error.
 
-| Sensor    | Tool              | Smells produced                                                            |
-|-----------|-------------------|----------------------------------------------------------------------------|
-| `eslint`  | ESLint            | size/complexity/correctness/TS smells, `parse-error`                       |
-| `knip`    | knip              | `unused-file`, `unused-export`, `unused-dependency`, `unused-class-member` |
-| `jscpd`   | jscpd             | `duplicated-code`                                                          |
-| `comment` | ts-morph AST scan | `non-essential-comment`                                                    |
-
-Each preset sensor owns its raw → smell translation (see
-[smell-vocabulary.md](smell-vocabulary.md)). A preset is a starting point;
-add, remove, or replace sensors in config.
-
-## Integrating other tools
-
-A sensor's output must be bag JSON:
-`{ "issues": [ { "smell", "details" } ] }`. Two ways to get there.
-
-### Wrapper script (default)
-
-Wrap any tool in a script that runs it and prints bag JSON. This is the
-universal path — the script can reshape anything and owns the raw → smell
-translation.
+### `use` — a code-backed built-in
 
 ```jsonc
-{ "sensors": { "ruff": { "command": "scripts/ruff-sensor.sh ${files}" } } }
+{ "sensors": { "eslint": { "use": "eslint" } } }
 ```
 
-`${files}` expands to the scoped file list; the command prints bag JSON to
-stdout.
+References a bundled sensor by id. Its `produces`/`dependsOn` come from the
+factory, so a `use` entry sets `use` and nothing else. Available built-in ids:
 
-### Declarative adapter (convenience)
+`eslint`, `comment`, `jscpd`, `knip`, `ruff`, `deptry`, `line-count`,
+`needs-extraction`.
+
+### Wrapper script
+
+```jsonc
+{
+  "sensors": {
+    "my-sensor": {
+      "command": "scripts/x.sh ${files}",
+      "produces": ["my-smell"]
+    }
+  }
+}
+```
+
+Wrap any tool in a script that runs it and prints bag JSON
+(`{ "issues": [ { "smell", "details" } ] }`) to stdout. This is the universal
+path — the script can reshape anything and owns the raw → smell translation.
+`${files}` expands to the scoped file list. `command` and `produces` are
+required; the entry id is the map key.
+
+### Declarative adapter
 
 When a tool already emits JSON, skip the script and declare how to read it.
-The adapter extracts each issue, maps field names into the bag, and
-translates raw keys to smells. Up to two levels of array nesting are
-supported, which covers the common toolchains.
+The adapter extracts each issue, maps field names into the bag, and translates
+raw keys to smells. Up to two levels of array nesting are supported, which
+covers the common toolchains.
 
 Flat list (Ruff, pylint, most Python/JS tools):
 
@@ -109,6 +112,7 @@ Flat list (Ruff, pylint, most Python/JS tools):
   "sensors": {
     "ruff": {
       "command": "ruff check --output-format=json ${files}",
+      "produces": ["too-many-parameters", "high-complexity"],
       "items": "[]",                 // each element is one issue
       "fields": {                    // bag field ← dot-path in the issue
         "smell":   "code",
@@ -130,6 +134,7 @@ Nested (ESLint groups messages under each file):
   "sensors": {
     "eslint": {
       "command": "eslint -f json ${files}",
+      "produces": ["too-many-parameters", "high-complexity"],
       "group": "[]",                 // outer array: one entry per file
       "items": "messages[]",         // inner array: the issues
       "fields": {
@@ -145,11 +150,129 @@ Nested (ESLint groups messages under each file):
 }
 ```
 
+- The sensor id is the map key, **not** an `id` field inside the entry.
+- `command`, `produces`, `items`, and `fields` are required; `group` and `map`
+  are optional. The presence of any adapter key (`items`/`fields`/`group`/`map`)
+  is what makes a command entry declarative rather than a wrapper script.
 - `fields` is the field-name map: each bag field is filled from a dot-path in
   the source (prefix `group.` to read the outer entry).
 - `map` rewrites the raw `smell` value to a canonical key; the raw key is
   kept in `details.source`. Omit for identity passthrough.
 - Anything the adapter cannot express falls back to a wrapper script.
+
+### `dependsOn` (multi sensors)
+
+A wrapper or declarative entry may add `dependsOn: ["<smell>", ...]` to consume
+other sensors' smells (the same `dependsOn` from the [Contract](#contract)).
+The runner orders producers before the multi sensor and hands their issues to
+it in `ctx.deps`. `use` entries inherit `dependsOn` from the factory and must
+not set it themselves.
+
+## Sensors and smells are a pair
+
+A declared sensor does not run on its own. Two gates govern it:
+
+- **A sensor only runs** when at least one smell it `produces` has an active
+  rule — a `smells.<smell>` entry that is not disabled and resolves to a
+  non-empty in-scope file set. Disabling or empty-scoping every smell a sensor
+  produces suppresses the whole sensor.
+- **A finding is only coached** when its smell is routed (has a `smells.<smell>`
+  entry or a catalogue prompt); otherwise it lands in the uncoached bucket.
+
+So a **custom** sensor must be declared as a pair: its `sensors.<id>` entry
+**and** a matching `smells.<smell>` entry. A custom smell entry carries
+`source: "custom"` and therefore requires an explicit `id`, plus `severity`,
+and optionally `title`/`description`:
+
+```jsonc
+{
+  "sensors": {
+    "marker": { "command": "node sensor.js ${files}", "produces": ["custom-marker"] }
+  },
+  "smells": {
+    "custom-marker": {
+      "id": "custom-marker",
+      "source": "custom",
+      "severity": "enforced",
+      "title": "Custom marker",
+      "description": "flagged by the project's own sensor"
+    }
+  }
+}
+```
+
+## Authoritative semantics and the language presets
+
+When `sensors` is present it is **authoritative**: it replaces the preset
+entirely (no merge). Removing a built-in is just deleting its entry; adding one
+means starting from the full preset block below and editing it.
+
+When `sensors` is **absent**, the language preset is used and a deprecation
+warning is emitted on stderr — this implicit fallback is removed in the 1.0.0
+release, so declare `sensors` explicitly.
+
+Copy-pasteable default blocks per language:
+
+**TypeScript/JavaScript**
+
+```jsonc
+{
+  "sensors": {
+    "eslint":           { "use": "eslint" },
+    "comment":          { "use": "comment" },
+    "jscpd":            { "use": "jscpd" },
+    "knip":             { "use": "knip" },
+    "needs-extraction": { "use": "needs-extraction" }
+  }
+}
+```
+
+**Python**
+
+```jsonc
+{
+  "sensors": {
+    "ruff":             { "use": "ruff" },
+    "jscpd":            { "use": "jscpd" },
+    "deptry":           { "use": "deptry" },
+    "line-count":       { "use": "line-count" },
+    "needs-extraction": { "use": "needs-extraction" }
+  }
+}
+```
+
+Each built-in sensor owns its raw → smell translation (see
+[smell-vocabulary.md](smell-vocabulary.md)).
+
+Planned follow-ups: `init` will write the default block automatically (#51),
+and per-sensor params will move onto the entries (#50).
+
+## Custom languages and `files`
+
+`language` accepts any string. The two built-ins (`typescript`, `python`) get a
+preset and default file-discovery globs out of the box. Any other value relies
+on `files` (discovery globs) plus a `sensors` map — there is no preset to fall
+back to. If a non-built-in `language` is set without `files`, no source files
+are discovered and a warning is emitted on stderr.
+
+```jsonc
+{
+  "language": "go",
+  "files": ["**/*.go"],
+  "sensors": {
+    "marker": { "command": "node sensor.js ${files}", "produces": ["custom-go-smell"] }
+  },
+  "smells": {
+    "custom-go-smell": {
+      "id": "custom-go-smell",
+      "source": "custom",
+      "severity": "enforced",
+      "title": "Custom Go smell",
+      "description": "flagged by the project's own Go sensor"
+    }
+  }
+}
+```
 
 ## More sensor wrappers (long term)
 
