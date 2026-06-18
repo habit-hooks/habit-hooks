@@ -20,6 +20,9 @@ interface LoadedConfig {
 export const RULES_DEPRECATION =
   "habit-hooks: config field 'rules' is deprecated — rename it to 'smells'. Support for 'rules' will be removed in a future release.";
 
+export const SENSORS_FALLBACK_DEPRECATION =
+  "habit-hooks: no 'sensors' block configured — falling back to the built-in language preset. Declare 'sensors' explicitly (see docs/sensors.md); this fallback will be removed in the 1.0.0 release.";
+
 function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_FILENAMES) {
     const candidate = join(cwd, name);

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { run } from './runner.js';
+import { SENSORS_FALLBACK_DEPRECATION } from './config/load.js';
 import { lastCommitHash } from './baseline/file-hash.js';
 import { saveBaseline } from './baseline/store.js';
 import { createGitRepo, type GitRepo } from '../tests/helpers/git.js';
@@ -89,6 +90,26 @@ describe('runner.run sensor gating', () => {
     const result = await run(dir);
 
     expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(false);
+  });
+});
+
+describe('runner.run with configured sensors', () => {
+  it('runs only the consumer custom sensor, with no built-in sensors', async () => {
+    const result = await run(join(fixturesDir, 'custom-sensor-project'));
+
+    expect(result.violations.some((v) => v.ruleId === 'custom-marker' && v.file.endsWith('app.ts'))).toBe(true);
+    expect(result.exitCode).toBe(1);
+    expect(result.violations.some((v) => v.ruleId === 'too-many-parameters')).toBe(false);
+    expect(result.violations.some((v) => v.ruleId === 'non-essential-comment')).toBe(false);
+    expect(result.stderr).not.toContain(SENSORS_FALLBACK_DEPRECATION);
+  });
+
+  it('warns on stderr when no sensors block is configured (preset fallback)', async () => {
+    const result = await run(join(fixturesDir, 'dirty-project'));
+
+    expect(result.stderr.join('\n')).toContain(SENSORS_FALLBACK_DEPRECATION);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('Too many parameters');
   });
 });
 

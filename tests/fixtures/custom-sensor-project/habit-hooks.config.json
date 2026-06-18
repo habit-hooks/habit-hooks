@@ -1,0 +1,4 @@
+{
+  "sensors": { "marker": { "command": "node sensor.js ${files}", "produces": ["custom-marker"] } },
+  "smells": { "custom-marker": { "id": "custom-marker", "source": "custom", "severity": "enforced", "title": "Custom marker", "description": "flagged by the project's own sensor" } }
+}

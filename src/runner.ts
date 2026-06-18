@@ -1,7 +1,8 @@
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { filterFilesForRule } from './rule-files.js';
 import { discoverFiles } from './discover.js';
-import { loadConfig, loadConfigFromPath, RULES_DEPRECATION } from './config/load.js';
+import { loadConfig, loadConfigFromPath } from './config/load.js';
+import { collectConfigWarnings } from './config/warnings.js';
 import { buildRules } from './rules/registry.js';
 import { lookupPrompt } from './prompts/registry.js';
 import { resolvePackagedDir } from './prompts/packaged-dir.js';
@@ -13,11 +14,12 @@ import { SensorRunner, satisfiableSensors } from './sensors/runner.js';
 import { applyReplaceMode } from './sensors/needs-extraction.js';
 import { issueToViolation, violationToIssue } from './sensors/preset.js';
 import { buildDefaultSensors } from './sensors/registry.js';
+import { buildSensors } from './sensors/build-sensors.js';
 import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
 import { guide } from './guide/guide.js';
 import type { SensorSink } from './wrap/notices.js';
 import type { Sensor } from './sensors/types.js';
-import type { HabitHooksConfig, Language } from './config/schema.js';
+import type { HabitHooksConfig, Language, SensorSpec } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
 
 export interface RunResult {
@@ -44,6 +46,7 @@ interface RunContext {
   promptsDir?: string;
   configWarnings: string[];
   needsExtractionReplace: boolean;
+  sensorSpecs: Record<string, SensorSpec> | undefined;
 }
 
 function applyScopeToRule(rule: Rule, files: string[], scope: ResolvedScope): string[] {
@@ -99,10 +102,11 @@ interface ResolvedInputs {
 function buildRunContext(inputs: ResolvedInputs): RunContext {
   const { cwd, config, configDir, files, scope, baseline } = inputs;
   const promptsDir = resolvePromptsDir(config, configDir);
-  const configWarnings = config.rules !== undefined ? [RULES_DEPRECATION] : [];
+  const language: Language = config.language ?? 'typescript';
+  const configWarnings = collectConfigWarnings(config, language);
   const snoozeIndex = createSnoozeIndex(cwd);
   const needsExtractionReplace = config.needsExtraction?.replace === true;
-  return { cwd, files, scope, baseline, snoozeIndex, language: config.language ?? 'typescript', promptsDir, configWarnings, needsExtractionReplace };
+  return { cwd, files, scope, baseline, snoozeIndex, language, promptsDir, configWarnings, needsExtractionReplace, sensorSpecs: config.sensors };
 }
 
 async function buildContext(cwd: string, options: RunOptions): Promise<{ ctx: RunContext; rules: Rule[] }> {
@@ -127,8 +131,12 @@ function sensorActive(sensor: Sensor, rulesById: Map<string, Rule>, ctx: RunCont
   });
 }
 
-function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, sink: SensorSink): Sensor[] {
-  return buildDefaultSensors(ctx.language, { sink, cwd: ctx.cwd, rulesById });
+// When the consumer declares sensors, that set is authoritative; otherwise fall
+// back to the language preset. Remove this fallback branch with the 1.0.0 release.
+function assembleSensors(ctx: RunContext, rulesById: Map<string, Rule>, sink: SensorSink): Sensor[] {
+  const input = { sink, cwd: ctx.cwd, rulesById };
+  if (ctx.sensorSpecs !== undefined) return buildSensors(ctx.sensorSpecs, input);
+  return buildDefaultSensors(ctx.language, input);
 }
 
 // Active sensors detect over the full discovered file set and their issues are
@@ -137,7 +145,7 @@ function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, sink: Sens
 async function detect(ctx: RunContext, rules: Rule[]): Promise<{ violations: Violation[]; sink: SensorSink }> {
   const sink: SensorSink = { notices: [], failures: [] };
   const rulesById = new Map(rules.map((r) => [r.id, r] as const));
-  const all = presetSensors(ctx, rulesById, sink);
+  const all = assembleSensors(ctx, rulesById, sink);
   const active = satisfiableSensors(all.filter((sensor) => sensorActive(sensor, rulesById, ctx)));
   const issues = await new SensorRunner(active).run({ files: ctx.files, cwd: ctx.cwd });
   const combined = applyReplaceMode(issues, ctx.needsExtractionReplace);
