@@ -11,12 +11,11 @@ import { partitionBySnooze } from './baseline/filter.js';
 import { createSnoozeIndex, type SnoozeIndex } from './baseline/snooze-index.js';
 import { SensorRunner, satisfiableSensors } from './sensors/runner.js';
 import { applyReplaceMode } from './sensors/needs-extraction.js';
-import { buildPresetSensors, issueToViolation, violationToIssue } from './sensors/preset.js';
-import { buildPythonPresetSensors } from './sensors/python-preset.js';
+import { issueToViolation, violationToIssue } from './sensors/preset.js';
+import { buildDefaultSensors } from './sensors/registry.js';
 import { mapIssues, type MapperDirs, type RoutingLookup } from './mapper/mapper.js';
 import { guide } from './guide/guide.js';
 import type { SensorSink } from './wrap/notices.js';
-import { COMMENT_SMELL } from './config/tool-smells.js';
 import type { Sensor } from './sensors/types.js';
 import type { HabitHooksConfig, Language } from './config/schema.js';
 import type { Rule, Violation } from './types.js';
@@ -129,8 +128,7 @@ function sensorActive(sensor: Sensor, rulesById: Map<string, Rule>, ctx: RunCont
 }
 
 function presetSensors(ctx: RunContext, rulesById: Map<string, Rule>, sink: SensorSink): Sensor[] {
-  if (ctx.language === 'python') return buildPythonPresetSensors({ sink, cwd: ctx.cwd });
-  return buildPresetSensors({ sink, commentRule: rulesById.get(COMMENT_SMELL) });
+  return buildDefaultSensors(ctx.language, { sink, cwd: ctx.cwd, rulesById });
 }
 
 // Active sensors detect over the full discovered file set and their issues are
