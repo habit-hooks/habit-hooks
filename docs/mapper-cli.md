@@ -22,6 +22,16 @@ export default {
 }
 ```
 
+sample_guides.ts
+
+```ts
+export default {
+  "issue56" : (details) => {
+    return run("Fixissue56.sh")
+  }
+}
+```
+
 ```bash
 cat sample_sensor.json | mapper --guides ./sample_guides.ts
 ```
@@ -46,7 +56,7 @@ issue56.md
 Fix issue56
 ```
 
-# Plugability 
+# Plugability
 
 ## events
 
@@ -54,3 +64,12 @@ begin all
 begin guide
 end guide
 end all
+
+
+# Complete pipeline
+
+```bash
+
+combine --sensors sample_config.json | mapper 
+
+```
