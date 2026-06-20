@@ -35,6 +35,23 @@ describe('scaffoldKnipConfig', () => {
     expect(parsed.project).toBeDefined();
   });
 
+  it('marks every entry pattern as production with a trailing bang', () => {
+    scaffoldKnipConfig(cwd);
+    const parsed = JSON.parse(readFileSync(join(cwd, 'knip.json'), 'utf8')) as {
+      entry: string[];
+    };
+    expect(parsed.entry.every((pattern) => pattern.endsWith('!'))).toBe(true);
+  });
+
+  it('marks the src project glob as production but keeps tests unmarked', () => {
+    scaffoldKnipConfig(cwd);
+    const parsed = JSON.parse(readFileSync(join(cwd, 'knip.json'), 'utf8')) as {
+      project: string[];
+    };
+    expect(parsed.project).toContain('src/**/*.ts!');
+    expect(parsed.project).toContain('tests/**/*.ts');
+  });
+
   it('does not overwrite an existing knip.json', () => {
     const path = join(cwd, 'knip.json');
     writeFileSync(path, '{"existing":true}');
