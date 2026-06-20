@@ -44,12 +44,15 @@ template's responsibility, using the fields the sensor put in each issue's
 
 Run a script instead of rendering a template. The script is plain bash or
 PowerShell named after the smell (mirroring `<smell>.md`), and receives the
-smell's **entire bag** as JSON on stdin. It runs once per smell.
+smell's **issues** as a JSON array (`Issue[]`) on stdin. It runs once per
+smell.
 
 - The script may or may not fix the issues — sometimes it just produces
   smarter output than a template can.
 - Its **exit code** drives pass/fail: `0` means handled (does not block);
-  non-zero contributes exit 1 for an `enforced` smell.
+  a non-zero exit contributes exit 1 for an `enforced` smell.
+- A spawn or timeout failure (the script can't run) always blocks the run,
+  regardless of severity.
 - Its stdout/stderr is shown to the agent.
 
 ## Exit code summary
@@ -60,6 +63,7 @@ smell's **entire bag** as JSON on stdin. It runs once per smell.
 | Only `suggested` smells                       | 0                         |
 | Any `enforced` smell with an unresolved issue | 1                         |
 | `command` script exits 0                      | does not block on its own |
+| `command` script fails to spawn / times out   | 1 (always blocks)         |
 
 A clean run prints the pass banner and a reminder that structural checks are
 not a substitute for a correctness/design review.

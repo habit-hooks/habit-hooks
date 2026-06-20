@@ -54,13 +54,17 @@ The mapper groups the bag by smell and resolves each group to one action,
 carrying its issues:
 
 ```ts
+type Fix =
+  | { kind: 'prompt';  templatePath: string }   // rendered once over all issues
+  | { kind: 'command'; scriptPath: string };    // run once, issues array on stdin
+
 interface GuideAction {
   smell: string;
   severity: Severity;
+  title: string;                            // section header (from the catalogue/config)
+  description: string;                      // shown under the header, or as the uncoached body
   issues: Issue[];                          // every issue for this smell
-  action:
-    | { kind: 'prompt';  templatePath: string }   // rendered once over all issues
-    | { kind: 'command'; scriptPath: string };    // run once, whole bag on stdin
+  action: Fix;
 }
 ```
 

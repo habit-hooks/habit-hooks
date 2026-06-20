@@ -244,8 +244,9 @@ Copy-pasteable default blocks per language:
 Each built-in sensor owns its raw → smell translation (see
 [smell-vocabulary.md](smell-vocabulary.md)).
 
-Planned follow-ups: `init` will write the default block automatically (#51),
-and per-sensor params will move onto the entries (#50).
+`init` writes the default block automatically: a freshly scaffolded config
+carries an explicit `sensors` map for the detected language (#51). Planned
+follow-up: per-sensor params will move onto the entries (#50).
 
 ## Custom languages and `files`
 

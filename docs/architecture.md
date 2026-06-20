@@ -89,7 +89,7 @@ smell key must never name a tool; it may name a language-specific concept.
 ## Stage specs
 
 - [sensors.md](sensors.md) — sensor contract + config (built-in, external
-  command, and the future composite sensor)
+  command, and the multi/composite sensor)
 - [mapper.md](mapper.md) — `smell → GuideAction` config format
 - [guide.md](guide.md) — prompt (default) and command (override) actions
 
