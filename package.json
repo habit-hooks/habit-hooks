@@ -7,7 +7,8 @@
     "node": ">=22.13"
   },
   "bin": {
-    "habit-hooks": "./dist/cli.js"
+    "habit-hooks": "./dist/cli.js",
+    "mapper": "./dist/mapper-cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,7 +20,7 @@
     "src/skills"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p . && chmod +x dist/cli.js",
+    "build": "rm -rf dist && tsc -p . && chmod +x dist/cli.js dist/mapper-cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
