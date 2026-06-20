@@ -2,133 +2,26 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { hasPackageJsonKey } from '../detect/package-json.js';
 import { TOOL_CONFIG_FILENAMES } from '../detect/tool.js';
-import { absolutize, emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
-import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped } from '../wrap/run.js';
-import { KNIP_SMELL_MAP } from '../config/tool-smells.js';
-import { buildKnipArgs, consumerKnipMajor, resolveKnipBin } from './knip-resolve.js';
+import { emptyOutcome, firstLine, noticesFor, type BinResolution } from '../wrap/notices.js';
+import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped, type SpawnSkip } from '../wrap/run.js';
 import {
-  KNOWN_KEYS,
-  LOCATION_KEYS,
-  MEMBER_KEYS,
-  type KnipIssue,
-  type KnipLocation,
-  type KnipMemberMap,
-  type KnipReport,
-} from './knip-schema.js';
+  buildKnipArgs,
+  buildKnipProductionArgs,
+  consumerKnipMajor,
+  knipConfigMarksProduction,
+  resolveKnipBin,
+} from './knip-resolve.js';
+import { type KnipReport } from './knip-schema.js';
+import { deadCodeViolations, dedupeViolations, reportToViolations } from './knip-merge.js';
 import type { Check, CheckOutcome, Violation } from '../types.js';
 
-export { buildKnipArgs, consumerKnipMajor, resolveKnipBin };
+export { buildKnipArgs, buildKnipProductionArgs, consumerKnipMajor, resolveKnipBin };
+export { deadCodeViolations, dedupeViolations };
 
 function exitFailureWarning(cwd: string, code: number, stderr: string): string {
   const detail = firstLine(stderr);
   const suffix = detail.length > 0 ? `: ${detail}` : '';
   return `habit-hooks: knip skipped in ${cwd} (exit ${code})${suffix}`;
-}
-
-interface IssueContext {
-  cwd: string;
-  issueType: string;
-  issueFile: string;
-}
-
-function knipSmell(issueType: string): string {
-  return Object.hasOwn(KNIP_SMELL_MAP, issueType) ? KNIP_SMELL_MAP[issueType] : issueType;
-}
-
-interface BuildViolationArgs {
-  ruleId: string;
-  source: string;
-  file: string;
-  message: string;
-  loc: KnipLocation;
-}
-
-function buildViolation(args: BuildViolationArgs): Violation {
-  const { ruleId, source, file, message, loc } = args;
-  return { ruleId, source, file, line: loc.line ?? 1, column: loc.col, message };
-}
-
-function locationToViolation(ctx: IssueContext, loc: KnipLocation): Violation {
-  const ruleId = knipSmell(ctx.issueType);
-  const source = `knip:${ctx.issueType}`;
-  return buildViolation({ ruleId, source, file: absolutize(ctx.cwd, ctx.issueFile), message: loc.name, loc });
-}
-
-function memberToViolation(ctx: IssueContext, owner: string, loc: KnipLocation): Violation {
-  const ruleId = knipSmell(ctx.issueType);
-  const source = `knip:${ctx.issueType}`;
-  const file = absolutize(ctx.cwd, ctx.issueFile);
-  return buildViolation({ ruleId, source, file, message: `${owner}.${loc.name}`, loc });
-}
-
-function flattenMemberMap(ctx: IssueContext, members: KnipMemberMap): Violation[] {
-  return Object.entries(members).flatMap(([owner, list]) =>
-    list.map((loc) => memberToViolation(ctx, owner, loc)),
-  );
-}
-
-function buildIssueContext(cwd: string, issue: KnipIssue, key: keyof KnipIssue): IssueContext {
-  return { cwd, issueType: key, issueFile: issue.file };
-}
-
-function locationsForKey(issue: KnipIssue, key: keyof KnipIssue, cwd: string): Violation[] {
-  const value = issue[key];
-  if (!Array.isArray(value) || value.length === 0) return [];
-  const ctx = buildIssueContext(cwd, issue, key);
-  return (value as KnipLocation[]).map((loc) => locationToViolation(ctx, loc));
-}
-
-function membersForKey(issue: KnipIssue, key: keyof KnipIssue, cwd: string): Violation[] {
-  const value = issue[key];
-  if (value === undefined || value === null || Array.isArray(value)) return [];
-  return flattenMemberMap(buildIssueContext(cwd, issue, key), value as KnipMemberMap);
-}
-
-function warnDuplicatesIfPresent(issue: KnipIssue, cwd: string): void {
-  if (issue.duplicates === undefined || issue.duplicates.length === 0) return;
-  const file = absolutize(cwd, issue.file);
-  process.stderr.write(`habit-hooks: knip duplicates issue ignored in ${file} (not yet supported)\n`);
-}
-
-function isPopulated(value: unknown): boolean {
-  if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return true;
-}
-
-function unknownKeyToViolation(cwd: string, issue: KnipIssue, key: string): Violation {
-  const ruleId = knipSmell(key);
-  const source = `knip:${key}`;
-  const file = absolutize(cwd, issue.file);
-  const message = 'unrecognised knip issue type';
-  return { ruleId, source, file, line: 1, message };
-}
-
-function unknownKeysForIssue(issue: KnipIssue, cwd: string): Violation[] {
-  const record = issue as unknown as Record<string, unknown>;
-  return Object.keys(record)
-    .filter((k) => !KNOWN_KEYS.has(k) && isPopulated(record[k]))
-    .map((k) => unknownKeyToViolation(cwd, issue, k));
-}
-
-function issueToViolations(issue: KnipIssue, cwd: string): Violation[] {
-  warnDuplicatesIfPresent(issue, cwd);
-  const fromLocations = LOCATION_KEYS.flatMap((k) => locationsForKey(issue, k, cwd));
-  const fromMembers = MEMBER_KEYS.flatMap((k) => membersForKey(issue, k, cwd));
-  const fromUnknown = unknownKeysForIssue(issue, cwd);
-  return [...fromLocations, ...fromMembers, ...fromUnknown];
-}
-
-function fileEntryToViolation(cwd: string, file: string): Violation {
-  const source = 'knip:files';
-  return { ruleId: knipSmell('files'), source, file: absolutize(cwd, file), line: 1, message: file };
-}
-
-function reportToViolations(report: KnipReport, cwd: string): Violation[] {
-  const filesViolations = (report.files ?? []).map((f) => fileEntryToViolation(cwd, f));
-  const issuesViolations = (report.issues ?? []).flatMap((i) => issueToViolations(i, cwd));
-  return [...filesViolations, ...issuesViolations];
 }
 
 function hasPackageJson(cwd: string): boolean {
@@ -140,12 +33,44 @@ function hasKnipConfig(cwd: string): boolean {
   return hasPackageJsonKey(cwd, 'knip');
 }
 
-async function runKnip(resolution: BinResolution, cwd: string, notices: string[]): Promise<CheckOutcome> {
-  const result = await spawnWrapped({ tool: 'knip', resolution, cwd, args: buildKnipArgs(resolution, cwd) });
-  if (isSpawnSkip(result)) return skipOutcome(result, notices);
+export type KnipPass =
+  | { kind: 'skip'; result: SpawnSkip }
+  | { kind: 'fail'; warning: string }
+  | { kind: 'ok'; violations: Violation[] };
+
+async function runKnipPass(resolution: BinResolution, cwd: string, args: string[]): Promise<KnipPass> {
+  const result = await spawnWrapped({ tool: 'knip', resolution, cwd, args });
+  if (isSpawnSkip(result)) return { kind: 'skip', result };
   const report = parseJsonStdout<KnipReport>(result.stdout, '{');
-  if (report === null) return emptyOutcome([...notices, exitFailureWarning(cwd, result.exitCode, result.stderr)]);
-  return { violations: reportToViolations(report, cwd), stderr: notices };
+  if (report === null) return { kind: 'fail', warning: exitFailureWarning(cwd, result.exitCode, result.stderr) };
+  return { kind: 'ok', violations: reportToViolations(report, cwd) };
+}
+
+export interface DefaultRun {
+  notices: string[];
+  violations: Violation[];
+}
+
+export function combineProductionPass(base: DefaultRun, pass: KnipPass): CheckOutcome {
+  const { notices, violations } = base;
+  if (pass.kind === 'skip') return { violations, stderr: notices };
+  if (pass.kind === 'fail') return { violations, stderr: [...notices, pass.warning] };
+  const merged = dedupeViolations([...violations, ...deadCodeViolations(pass.violations)]);
+  return { violations: merged, stderr: notices };
+}
+
+async function mergeProductionDeadCode(resolution: BinResolution, cwd: string, base: DefaultRun): Promise<CheckOutcome> {
+  const pass = await runKnipPass(resolution, cwd, buildKnipProductionArgs(resolution, cwd));
+  return combineProductionPass(base, pass);
+}
+
+async function runKnip(resolution: BinResolution, cwd: string, notices: string[]): Promise<CheckOutcome> {
+  const defaultPass = await runKnipPass(resolution, cwd, buildKnipArgs(resolution, cwd));
+  if (defaultPass.kind === 'skip') return skipOutcome(defaultPass.result, notices);
+  if (defaultPass.kind === 'fail') return emptyOutcome([...notices, defaultPass.warning]);
+  const violations = defaultPass.violations;
+  if (!knipConfigMarksProduction(cwd)) return { violations, stderr: notices };
+  return mergeProductionDeadCode(resolution, cwd, { notices, violations });
 }
 
 function noPackageJsonOutcome(cwd: string, notices: string[]): CheckOutcome {

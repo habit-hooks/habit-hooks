@@ -3,8 +3,18 @@ import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, sy
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildKnipArgs, consumerKnipMajor, knipWrap, resolveKnipBin } from './knip-wrap.js';
-import type { CheckOutcome, Rule } from '../types.js';
+import {
+  buildKnipArgs,
+  combineProductionPass,
+  consumerKnipMajor,
+  deadCodeViolations,
+  dedupeViolations,
+  knipWrap,
+  resolveKnipBin,
+  type DefaultRun,
+  type KnipPass,
+} from './knip-wrap.js';
+import type { CheckOutcome, Rule, Violation } from '../types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..');
@@ -440,5 +450,142 @@ describe('knipWrap', () => {
     const args = buildKnipArgs(resolution, cwd);
     expect(resolution.isFallback).toBe(true);
     expect(args).toContain('classMembers');
+  });
+
+  function writeProductionFixture(dir: string): void {
+    writeFile(
+      dir,
+      'package.json',
+      JSON.stringify({ name: 'fixture', version: '0.0.0', type: 'module', devDependencies: { 'is-odd': '^3.0.0' } }),
+    );
+    writeFile(
+      dir,
+      'knip.json',
+      JSON.stringify({ entry: ['src/index.ts!', 'tests/**/*.test.ts'], project: ['src/**/*.ts!', 'tests/**/*.ts'] }),
+    );
+    writeFile(
+      dir,
+      'src/lib.ts',
+      'export const usedByProd = 1;\nexport const usedByTestOnly = 2;\nexport const trulyDead = 3;\n',
+    );
+    writeFile(dir, 'src/index.ts', "import { usedByProd } from './lib.ts';\nconsole.log(usedByProd);\n");
+    writeFile(dir, 'tests/helpers.ts', 'export const makeFoo = () => 1;\nexport const deadHelper = () => 2;\n');
+    writeFile(
+      dir,
+      'tests/lib.test.ts',
+      "import { usedByTestOnly } from '../src/lib.ts';\nimport { makeFoo } from './helpers.ts';\nconsole.log(usedByTestOnly, makeFoo());\n",
+    );
+  }
+
+  function hasUnusedExport(violations: Violation[], file: string, name: string): boolean {
+    return violations.some((v) => v.source === 'knip:exports' && v.file === file && v.message === name);
+  }
+
+  it('merges production-pass dead-code findings while keeping default-run dependency findings', async () => {
+    linkNodeModules(cwd);
+    writeProductionFixture(cwd);
+    const lib = join(cwd, 'src/lib.ts');
+    const helpers = join(cwd, 'tests/helpers.ts');
+
+    const outcome = await runWrap(cwd, [join(cwd, 'src/index.ts')]);
+
+    expect(hasUnusedExport(outcome.violations, lib, 'usedByTestOnly')).toBe(true);
+    expect(hasUnusedExport(outcome.violations, lib, 'trulyDead')).toBe(true);
+    expect(hasUnusedExport(outcome.violations, helpers, 'deadHelper')).toBe(true);
+    expect(outcome.violations.some((v) => v.source === 'knip:devDependencies' && v.message === 'is-odd')).toBe(true);
+
+    const trulyDeadCount = outcome.violations.filter(
+      (v) => v.source === 'knip:exports' && v.file === lib && v.message === 'trulyDead',
+    ).length;
+    expect(trulyDeadCount).toBe(1);
+  }, 60_000);
+});
+
+describe('dedupeViolations', () => {
+  const base: Violation = { ruleId: 'unused-export', source: 'knip:exports', file: '/a.ts', line: 3, message: 'foo' };
+
+  it('collapses identical violations into one', () => {
+    expect(dedupeViolations([base, { ...base }])).toEqual([base]);
+  });
+
+  it('preserves distinct violations', () => {
+    const other: Violation = { ...base, message: 'bar' };
+    expect(dedupeViolations([base, other])).toEqual([base, other]);
+  });
+
+  it('keeps the first occurrence and preserves order', () => {
+    const a: Violation = { ...base, message: 'a' };
+    const b: Violation = { ...base, message: 'b' };
+    expect(dedupeViolations([a, b, { ...a }])).toEqual([a, b]);
+  });
+
+  it('treats a differing column as distinct', () => {
+    const noCol: Violation = { ...base };
+    const withCol: Violation = { ...base, column: 5 };
+    expect(dedupeViolations([noCol, withCol])).toEqual([noCol, withCol]);
+  });
+});
+
+describe('deadCodeViolations', () => {
+  function violation(source: string): Violation {
+    return { ruleId: 'r', source, file: '/a.ts', line: 1, message: 'm' };
+  }
+
+  it('drops dependency findings from a production pass', () => {
+    expect(deadCodeViolations([violation('knip:dependencies'), violation('knip:devDependencies')])).toEqual([]);
+  });
+
+  it('keeps export and file dead-code findings', () => {
+    const exportV = violation('knip:exports');
+    const fileV = violation('knip:files');
+    expect(deadCodeViolations([exportV, fileV])).toEqual([exportV, fileV]);
+  });
+});
+
+describe('combineProductionPass', () => {
+  function exportViolation(message: string): Violation {
+    return { ruleId: 'unused-export', source: 'knip:exports', file: '/src/lib.ts', line: 1, message };
+  }
+
+  const base: DefaultRun = {
+    notices: ['habit-hooks: using bundled knip'],
+    violations: [exportViolation('defaultDead')],
+  };
+
+  it('returns the default run unchanged when the production pass skips', () => {
+    const pass: KnipPass = { kind: 'skip', result: { skipWarning: 'knip skipped' } };
+
+    const outcome = combineProductionPass(base, pass);
+
+    expect(outcome.violations).toEqual(base.violations);
+    expect(outcome.stderr).toEqual(base.notices);
+  });
+
+  it('keeps default violations and appends the warning when the production pass fails', () => {
+    const pass: KnipPass = { kind: 'fail', warning: 'habit-hooks: knip skipped (exit 2)' };
+
+    const outcome = combineProductionPass(base, pass);
+
+    expect(outcome.violations).toEqual(base.violations);
+    expect(outcome.stderr).toEqual([...base.notices, 'habit-hooks: knip skipped (exit 2)']);
+  });
+
+  it('drops dependency findings, keeps code findings, and never duplicates default violations', () => {
+    const depFinding: Violation = {
+      ruleId: 'r',
+      source: 'knip:dependencies',
+      file: '/src/lib.ts',
+      line: 1,
+      message: 'left-pad',
+    };
+    const codeFinding = exportViolation('prodOnlyDead');
+    const duplicateOfDefault = exportViolation('defaultDead');
+    const pass: KnipPass = { kind: 'ok', violations: [depFinding, codeFinding, duplicateOfDefault] };
+
+    const outcome = combineProductionPass(base, pass);
+
+    expect(outcome.violations).toEqual([exportViolation('defaultDead'), codeFinding]);
+    expect(outcome.violations).not.toContainEqual(depFinding);
+    expect(outcome.stderr).toEqual(base.notices);
   });
 });

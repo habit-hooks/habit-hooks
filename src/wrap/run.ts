@@ -3,7 +3,7 @@ import { isSpawnFailure, spawnFailureOutcome, spawnFailureWarning, type BinResol
 import { spawnTarget } from './resolve.js';
 import type { CheckOutcome } from '../types.js';
 
-interface SpawnSkip {
+export interface SpawnSkip {
   skipWarning: string;
 }
 

@@ -83,3 +83,7 @@ export function buildKnipArgs(resolution: BinResolution, cwd: string): string[] 
   if (major !== null && major >= 6) return [...KNIP_BASE_ARGS];
   return [...KNIP_BASE_ARGS, '--include', 'classMembers'];
 }
+
+export function buildKnipProductionArgs(resolution: BinResolution, cwd: string): string[] {
+  return [...buildKnipArgs(resolution, cwd), '--production'];
+}

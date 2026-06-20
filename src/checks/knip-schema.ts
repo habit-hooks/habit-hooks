@@ -48,6 +48,8 @@ export const LOCATION_KEYS: (keyof KnipIssue)[] = [
 
 export const MEMBER_KEYS: (keyof KnipIssue)[] = ['enumMembers', 'classMembers', 'namespaceMembers'];
 
+export const CODE_KEYS: string[] = ['exports', 'nsExports', 'types', 'nsTypes', ...(MEMBER_KEYS as string[])];
+
 const STRUCTURAL_KEYS = new Set<string>(['file']);
 const SPECIAL_KEYS = new Set<string>(['duplicates']);
 

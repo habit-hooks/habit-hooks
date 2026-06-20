@@ -35,12 +35,15 @@ describe('scaffoldKnipConfig', () => {
     expect(parsed.project).toBeDefined();
   });
 
-  it('marks every entry pattern as production with a trailing bang', () => {
+  it('marks src entries as production but keeps the test entry unmarked', () => {
     scaffoldKnipConfig(cwd);
     const parsed = JSON.parse(readFileSync(join(cwd, 'knip.json'), 'utf8')) as {
       entry: string[];
     };
-    expect(parsed.entry.every((pattern) => pattern.endsWith('!'))).toBe(true);
+    const srcEntries = parsed.entry.filter((pattern) => pattern.startsWith('src/'));
+    expect(srcEntries.every((pattern) => pattern.endsWith('!'))).toBe(true);
+    expect(parsed.entry).toContain('tests/**/*.test.ts');
+    expect(parsed.entry).not.toContain('tests/**/*.test.ts!');
   });
 
   it('marks the src project glob as production but keeps tests unmarked', () => {
