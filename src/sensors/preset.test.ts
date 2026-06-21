@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildPresetSensors, issueToViolation, violationToIssue } from './preset.js';
+import { issueToViolation, violationToIssue } from './preset.js';
+import { buildDefaultSensors } from './registry.js';
 import { COMMENT_SMELL, JSCPD_SMELL, PARSE_ERROR_SMELL } from '../config/tool-smells.js';
-import type { Violation } from '../types.js';
+import type { Rule, Violation } from '../types.js';
 
 describe('violationToIssue', () => {
   it('maps the smell key and core fields into the details bag', () => {
@@ -47,9 +48,13 @@ describe('issueToViolation', () => {
   });
 });
 
-describe('buildPresetSensors', () => {
+describe('typescript preset', () => {
   it('registers the TS preset sensors (incl. the needs-extraction composite) with their smell keys', () => {
-    const sensors = buildPresetSensors({ sink: { notices: [], failures: [] } });
+    const sensors = buildDefaultSensors('typescript', {
+      sink: { notices: [], failures: [] },
+      cwd: '',
+      rulesById: new Map<string, Rule>(),
+    });
     expect(sensors.map((s) => s.id)).toEqual(['eslint', 'comment', 'jscpd', 'knip', 'needs-extraction']);
     const eslint = sensors.find((s) => s.id === 'eslint');
     expect(eslint?.produces).toContain('too-many-parameters');
