@@ -6,8 +6,6 @@ import {
   ESLINT_SMELL_MAP,
   JSCPD_SMELL,
   PARSE_ERROR_SMELL,
-  catalogueSmell,
-  singleSmellFor,
 } from './tool-smells.js';
 
 // These prove the sensor/check layer's smell knowledge is DERIVED from the
@@ -53,35 +51,27 @@ describe('tool-smells concrete values', () => {
   });
 });
 
-// singleSmellFor guards the JSCPD_SMELL single-pick site: a future catalogue
-// that adds a second jscpd rule must fail loudly instead of silently picking [0].
-describe('singleSmellFor', () => {
-  it('returns the one smell for a single-smell source', () => {
-    expect(singleSmellFor('jscpd')).toBe('duplicated-code');
-  });
-
-  it('throws when a source has no smells', () => {
-    expect(() => singleSmellFor('nonexistent-source' as never)).toThrow(
-      "tool-smells: expected exactly one 'nonexistent-source' smell, found 0",
-    );
-  });
-
-  it('throws when a source has more than one smell', () => {
-    expect(() => singleSmellFor('custom')).toThrow(/expected exactly one 'custom' smell, found 2/);
+// JSCPD_SMELL is built by a single-pick guard over the 'jscpd' source: it must
+// resolve to exactly one rule, so a future catalogue that adds a second jscpd
+// rule fails module load loudly instead of silently picking [0]. We exercise
+// that guard through the const production actually consumes.
+describe('JSCPD_SMELL single-pick', () => {
+  it('is the sole jscpd catalogue rule', () => {
+    const jscpdRules = defaultRules.filter((r) => r.source === 'jscpd');
+    expect(jscpdRules).toHaveLength(1);
+    expect(JSCPD_SMELL).toBe(jscpdRules[0].id);
   });
 });
 
-// catalogueSmell guards COMMENT_SMELL by rule identity rather than source order:
-// the 'custom' source now holds two rules (non-essential-comment + needs-extraction),
-// so `smellsFor('custom')[0]` would silently flip if the catalogue were reordered.
-describe('catalogueSmell', () => {
-  it('returns the id when exactly one catalogue rule matches', () => {
-    expect(catalogueSmell('non-essential-comment')).toBe('non-essential-comment');
-  });
-
-  it('throws when no catalogue rule matches', () => {
-    expect(() => catalogueSmell('not-a-real-smell')).toThrow(
-      "tool-smells: expected exactly one catalogue rule for 'not-a-real-smell', found 0",
-    );
+// COMMENT_SMELL is built by an identity guard rather than source order: the
+// 'custom' source holds two rules (non-essential-comment + needs-extraction),
+// so a position-based pick would silently flip on reorder. The const is pinned
+// by rule id, and that id must match exactly one catalogue rule.
+describe('COMMENT_SMELL identity-pick', () => {
+  it('matches exactly one catalogue rule by id, independent of source order', () => {
+    const matches = defaultRules.filter((r) => r.id === COMMENT_SMELL);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].source).toBe('custom');
+    expect(defaultRules.filter((r) => r.source === 'custom').length).toBeGreaterThan(1);
   });
 });

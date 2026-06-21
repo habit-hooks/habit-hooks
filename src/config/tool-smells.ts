@@ -14,14 +14,14 @@ function smellsFor(source: RuleSource): string[] {
   return rulesFor(source).map((rule) => rule.id);
 }
 
-export function singleSmellFor(source: RuleSource): string {
+function singleSmellFor(source: RuleSource): string {
   const smells = smellsFor(source);
   if (smells.length !== 1)
     throw new Error(`tool-smells: expected exactly one '${source}' smell, found ${smells.length}`);
   return smells[0];
 }
 
-export function catalogueSmell(id: string): string {
+function catalogueSmell(id: string): string {
   const matches = defaultRules.filter((rule) => rule.id === id);
   if (matches.length !== 1)
     throw new Error(`tool-smells: expected exactly one catalogue rule for '${id}', found ${matches.length}`);
