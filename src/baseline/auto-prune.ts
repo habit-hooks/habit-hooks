@@ -9,7 +9,7 @@ import { reapBaseline } from './reap.js';
 // configPath must match the one used for the main run so the re-scan sees the
 // same rules — using a different (or default-discovered) config could wrongly
 // mark a still-snoozed file as clean and prune it.
-export async function autoPruneFullRepo(cwd: string, configPath?: string): Promise<string[]> {
+async function autoPruneFullRepo(cwd: string, configPath?: string): Promise<string[]> {
   const baseline = loadBaseline(cwd);
   if (Object.keys(baseline.files).length === 0) return [];
   const scan = await run(cwd, { configPath, scopeFlags: { all: true }, applyBaseline: false });
@@ -19,7 +19,7 @@ export async function autoPruneFullRepo(cwd: string, configPath?: string): Promi
   return pruned;
 }
 
-export function autoPruneNotice(pruned: string[]): string {
+function autoPruneNotice(pruned: string[]): string {
   const entries = pruned.length === 1 ? 'entry' : 'entries';
   return `🧹 Auto-pruned ${String(pruned.length)} fixed baseline ${entries}: ${pruned.join(', ')}\n`;
 }
