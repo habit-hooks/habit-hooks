@@ -7,15 +7,12 @@ import { isSpawnSkip, parseJsonStdout, skipOutcome, spawnWrapped } from '../wrap
 import {
   buildKnipArgs,
   buildKnipProductionArgs,
-  consumerKnipMajor,
   knipConfigMarksProduction,
   resolveKnipBin,
 } from './knip-resolve.js';
 import { type KnipReport } from './knip-schema.js';
 import { combineProductionPass, reportToViolations, type DefaultRun, type KnipPass } from './knip-merge.js';
 import type { Check, CheckOutcome } from '../types.js';
-
-export { buildKnipArgs, consumerKnipMajor, resolveKnipBin };
 
 function exitFailureWarning(cwd: string, code: number, stderr: string): string {
   const detail = firstLine(stderr);

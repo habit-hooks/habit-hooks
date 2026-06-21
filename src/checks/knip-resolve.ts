@@ -36,7 +36,7 @@ function readMajorFromPackageJson(path: string): number | null {
   }
 }
 
-export function consumerKnipMajor(cwd: string): number | null {
+function consumerKnipMajor(cwd: string): number | null {
   return readMajorFromPackageJson(join(cwd, 'node_modules', 'knip', 'package.json'));
 }
 

@@ -3,7 +3,8 @@ import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, sy
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildKnipArgs, consumerKnipMajor, knipWrap, resolveKnipBin } from './knip-wrap.js';
+import { knipWrap } from './knip-wrap.js';
+import { buildKnipArgs, resolveKnipBin } from './knip-resolve.js';
 import { combineProductionPass, type DefaultRun, type KnipPass } from './knip-merge.js';
 import type { CheckOutcome, Rule, Violation } from '../types.js';
 
@@ -395,20 +396,64 @@ describe('knipWrap', () => {
     return argvFile;
   }
 
-  it('consumerKnipMajor returns the major version when package.json is valid', () => {
-    installFakeKnip('6.4.2');
-    expect(consumerKnipMajor(cwd)).toBe(6);
-  });
+  // Records the argv knip receives via a .bin/knip shim, so the consumer knip
+  // bin resolves regardless of what its own package.json says. This lets us
+  // exercise consumer-version detection (consumerKnipMajor, reached transitively
+  // via knipWrap -> buildKnipArgs) through the public entry point while
+  // controlling node_modules/knip/package.json independently of the bin.
+  function installBinShimRecorder(): string {
+    const argvFile = join(cwd, 'argv.json');
+    const stub = writeFile(
+      cwd,
+      'node_modules/.bin/knip',
+      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argvFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write('{"files":[],"issues":[]}');\nprocess.exit(0);\n`,
+    );
+    chmodSync(stub, 0o755);
+    return argvFile;
+  }
 
-  it('consumerKnipMajor returns null when the file is missing', () => {
-    expect(consumerKnipMajor(cwd)).toBeNull();
-  });
+  function writeConsumerProject(): string {
+    writeFile(cwd, 'package.json', JSON.stringify({ name: 'fixture', version: '0.0.0', type: 'module' }));
+    writeFile(cwd, 'knip.json', JSON.stringify({ entry: ['src/a.ts'], project: ['src/**/*.ts'] }));
+    return writeFile(cwd, 'src/a.ts', 'export const a = 1;\n');
+  }
 
-  it('consumerKnipMajor returns null when the file is unparseable JSON', () => {
+  function writeConsumerKnipPackageJson(contents: string): void {
     const knipDir = join(cwd, 'node_modules', 'knip');
     mkdirSync(knipDir, { recursive: true });
-    writeFileSync(join(knipDir, 'package.json'), '{not valid json');
-    expect(consumerKnipMajor(cwd)).toBeNull();
+    writeFileSync(join(knipDir, 'package.json'), contents);
+  }
+
+  it('detects consumer knip major version (omits classMembers for v6) via the wrap', async () => {
+    const argvFile = installBinShimRecorder();
+    writeConsumerKnipPackageJson(JSON.stringify({ name: 'knip', version: '6.4.2' }));
+    const file = writeConsumerProject();
+
+    await runWrap(cwd, [file]);
+
+    const argv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[];
+    expect(argv).not.toContain('classMembers');
+  });
+
+  it('treats a missing consumer knip package.json as v5 (adds classMembers) via the wrap', async () => {
+    const argvFile = installBinShimRecorder();
+    const file = writeConsumerProject();
+
+    await runWrap(cwd, [file]);
+
+    const argv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[];
+    expect(argv).toContain('classMembers');
+  });
+
+  it('treats an unparseable consumer knip package.json as v5 (adds classMembers) via the wrap', async () => {
+    const argvFile = installBinShimRecorder();
+    writeConsumerKnipPackageJson('{not valid json');
+    const file = writeConsumerProject();
+
+    await runWrap(cwd, [file]);
+
+    const argv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[];
+    expect(argv).toContain('classMembers');
   });
 
   it('omits --include classMembers when consumer knip is v6+', async () => {
