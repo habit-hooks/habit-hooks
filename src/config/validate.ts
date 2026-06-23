@@ -16,7 +16,7 @@ import {
 import { validateFiles, validateSensors } from './validate-sensors.js';
 
 const SEVERITIES: readonly Severity[] = ['enforced', 'suggested'];
-const SOURCES: readonly RuleSource[] = ['eslint', 'jscpd', 'knip', 'custom'];
+const SOURCES: readonly RuleSource[] = ['eslint', 'jscpd', 'knip', 'ruff', 'custom'];
 
 function validateOptionalBoolean(value: unknown, path: string): void {
   if (value === undefined) return;
@@ -32,7 +32,7 @@ function validateSeverity(value: unknown, path: string): void {
 
 function validateSource(value: unknown, path: string): void {
   if (typeof value !== 'string' || !SOURCES.includes(value as RuleSource)) {
-    fail(path, `one of 'eslint', 'jscpd', 'knip', 'custom'`);
+    fail(path, `one of 'eslint', 'jscpd', 'knip', 'ruff', 'custom'`);
   }
 }
 

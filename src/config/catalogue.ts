@@ -160,11 +160,24 @@ const jscpdRules: Rule[] = [
   },
 ];
 
+// ruff-only smells: no TypeScript-tool twin, so they carry source 'ruff'.
+const ruffRules: Rule[] = [
+  {
+    id: 'swallowed-exception',
+    source: 'ruff',
+    severity: 'suggested',
+    changedFilesOnly: true,
+    title: 'Swallowed exception',
+    description: 'A broad except that catches and discards the error hides failures; catch the specific exception and handle or re-raise it.',
+  },
+];
+
 export const defaultRules: Rule[] = [
   ...tier1Rules,
   ...tier2Rules,
   ...tier3Rules,
   ...customRules,
   ...jscpdRules,
+  ...ruffRules,
   ...unusedRules,
 ];

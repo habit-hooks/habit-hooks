@@ -13,6 +13,7 @@ const pythonProject = join(here, '..', 'tests', 'fixtures', 'python-project');
 // toolchain is absent (CI without it) so the suite stays green everywhere.
 const PY_TOOLS =
   spawnSync('ruff', ['--version']).status === 0 && spawnSync('deptry', ['--version']).status === 0;
+const RUFF = spawnSync('ruff', ['--version']).status === 0;
 
 interface ExpectedCount {
   ruleId: string;
@@ -133,5 +134,38 @@ describe('python needs-extraction (composite sensor)', () => {
     expect(violations.filter((v) => v.ruleId === 'needs-extraction').length).toBeGreaterThan(0);
     expect(violations.filter((v) => v.ruleId === 'oversized-file')).toEqual([]);
     expect(violations.filter((v) => v.ruleId === 'duplicated-code')).toEqual([]);
+  }, 30_000);
+});
+
+// ruff BLE001 -> swallowed-exception. Needs only ruff on PATH (no deptry), so it
+// gates on RUFF alone and asserts on violations, not exit code.
+describe.skipIf(!RUFF)('python swallowed-exception (ruff BLE001)', () => {
+  let dir = '';
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = '';
+  });
+
+  function pythonFile(body: string): void {
+    dir = mkdtempSync(join(tmpdir(), 'hh-py-swallowed-'));
+    writeFileSync(join(dir, 'habit-hooks.config.json'), JSON.stringify({ language: 'python' }));
+    writeFileSync(join(dir, 'risky.py'), body);
+  }
+
+  it('fires for a broad except that swallows the error', async () => {
+    pythonFile('def risky(x):\n    try:\n        return int(x)\n    except Exception:\n        return None\n');
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'swallowed-exception')).toBe(true);
+  }, 30_000);
+
+  it('does not fire for a specific, named except', async () => {
+    pythonFile('def risky(x):\n    try:\n        return int(x)\n    except ValueError:\n        return None\n');
+
+    const result = await run(dir);
+
+    expect(result.violations.some((v) => v.ruleId === 'swallowed-exception')).toBe(false);
   }, 30_000);
 });

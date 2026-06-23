@@ -45,10 +45,14 @@ exits 0. The mapper config can override it per project.
 | `unused-export`             | Unused export                         | enforced         |
 | `unused-dependency`         | Unused dependency                     | enforced         |
 | `unused-import`             | Unused import                         | enforced         |
+| `swallowed-exception`       | Swallowed exception                   | suggested        |
 | `parse-error`               | Parse / config error                  | enforced         |
 
 `unused-import` was added as a general smell (agent decision) so ruff `F401`
 has a canonical home; see `DECISIONS.md`.
+
+`swallowed-exception` is the first smell sourced only from ruff (`BLE001`), with
+no TypeScript twin; it carries `source: 'ruff'`. See `DECISIONS.md`.
 
 ## TypeScript/JavaScript preset translation
 
@@ -91,6 +95,7 @@ to (the rest of the catalogue is shared — only the sensor layer differs).
 | `ruff:PLR0915`      | `oversized-function`  |
 | `ruff:F841`         | `unused-variable`     |
 | `ruff:F401`         | `unused-import`       |
+| `ruff:BLE001`       | `swallowed-exception` |
 | `jscpd:duplication` | `duplicated-code`     |
 | `deptry:DEP002`     | `unused-dependency`   |
 | `line-count:max-module-lines` | `oversized-file` |

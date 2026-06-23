@@ -1,5 +1,5 @@
 export type Severity = 'enforced' | 'suggested';
-export type RuleSource = 'eslint' | 'jscpd' | 'knip' | 'custom';
+export type RuleSource = 'eslint' | 'jscpd' | 'knip' | 'ruff' | 'custom';
 
 export interface CommentCheckThresholds {
   maxSingleLineChars: number;

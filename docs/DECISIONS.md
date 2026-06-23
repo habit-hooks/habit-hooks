@@ -164,6 +164,15 @@ Each is labelled _agent decision_ per the working agreement.
   `oversized-file` for Python** — no clean ruff rule (GOAL says best-effort or
   defer). deptry's `/dev/stdout` JSON is POSIX-only, fine for the Linux e2e.
 
+- **Added ruff `BLE001` -> `swallowed-exception` (new smell).** A broad `except`
+  that catches and discards the error is a silent-failure risk and has no clean
+  TypeScript twin, so `swallowed-exception` is the first catalogue smell to carry
+  `source: 'ruff'` (added to `RuleSource` in `types.ts` and to config validation,
+  mirroring how `knip` is a spec-driven source). Severity `suggested`: blind-except
+  has legitimate top-level uses (a request handler, a worker loop), so it coaches
+  rather than failing the run. Exercised only when ruff is on PATH, skipped on CI
+  like the other Python sensors.
+
 - The live-ruff preset test skips when ruff is not on PATH (CI without the Python
   toolchain) so the suite stays green everywhere; it runs in the provisioned env.
 

@@ -58,8 +58,8 @@ export const KNIP_PRODUCES = Object.values(KNIP_SMELL_MAP);
 // Python tool specs (the generalized AdapterSpec model): ruff + deptry.
 export const RUFF_SPEC: DeclarativeSensorSpec = {
   id: 'ruff',
-  produces: ['high-complexity', 'too-many-parameters', 'oversized-function', 'unused-variable', 'unused-import'],
-  command: 'ruff check --output-format=json --select=C901,PLR0913,PLR0915,F841,F401 ${files}',
+  produces: ['high-complexity', 'too-many-parameters', 'oversized-function', 'unused-variable', 'unused-import', 'swallowed-exception'],
+  command: 'ruff check --output-format=json --select=C901,PLR0913,PLR0915,F841,F401,BLE001 ${files}',
   items: '[]',
   fields: { smell: 'code', file: 'filename', line: 'location.row', column: 'location.column', message: 'message' },
   map: {
@@ -68,6 +68,7 @@ export const RUFF_SPEC: DeclarativeSensorSpec = {
     PLR0915: 'oversized-function',
     F841: 'unused-variable',
     F401: 'unused-import',
+    BLE001: 'swallowed-exception',
   },
 };
 
