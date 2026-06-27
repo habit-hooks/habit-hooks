@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+echo JSON<< {
+
+}
