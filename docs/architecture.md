@@ -17,7 +17,7 @@ habit-sensors <scope flags> | habit-mapper
 graph LR
     files["working tree"] --> sensors["habit-sensors"]
     sensors -->|"{smell, details}\n(JSON)"| mapper["habit-mapper"]
-    mapper --> out["console output + exit code"]
+    mapper --> out["fix"]
 ```
 
 - **habit-sensors** — runs the enabled sensors (producers in parallel,
@@ -95,6 +95,8 @@ plugins/
 Most smells are generic; a sensor that needs a real tool or a language AST is
 language-specific. A file-line-count sensor is generic; an ESLint wrapper is
 TypeScript.
+
+To build one end to end, see [building-a-plugin.md](building-a-plugin.md).
 
 ## Resolution: override, never overwrite
 
