@@ -1,7 +1,8 @@
 # Guide
 
 A guide **coaches the fix for one smell**. It is the authored content the mapper
-renders for a smell — a markdown template or a script. Guides live in a plugin's
+renders for a smell — a markdown template, or a script run by a fix runner.
+Guides live in a plugin's
 `guides/` dir and resolve across the override chain (see
 [architecture.md](architecture.md)); a finding's `language` selects a
 language-specific guide before the generic one.
@@ -28,10 +29,14 @@ loops (`{% for i in issues %}…`) and groups however suits the smell; a plain
 markdown file with no interpolation is the degenerate case. Templates may
 `{% include %}` partials from the same override chain.
 
-## `guides/<smell>` — a script
+## `guides/<smell>.<ext>` — run by a fix runner
 
-Any non-`.md` file named after the smell is run instead of rendered. It receives
-the smell's finding as JSON on **stdin** and runs once for the smell.
+A guide can be a script in any language. The core does **not** execute it
+directly; it looks up the **fix runner** registered for `<ext>` in config
+([config.md](config.md)) and runs `<runner> guides/<smell>.<ext>` with the
+finding on **stdin**. No runner ships by default beyond the `.md` template
+renderer, so enabling fixes in a language is a few lines of config (e.g.
+`py = "python"`).
 
 - It may fix the issue, or just produce smarter output than a template could.
 - Its **exit code** drives pass/fail: `0` does not block; non-zero contributes

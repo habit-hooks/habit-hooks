@@ -20,6 +20,10 @@ files = ["**/*.{ts,tsx,js,mjs,cjs}"]     # optional; default comes from the load
 changedOnly = false                      # restrict every run to git-changed files
 branchBase = "main"                      # base ref for --branch
 
+# Run non-.md guides: file extension -> command.
+[runners]
+py = "python"                            # guides/<smell>.py -> python guides/<smell>.py
+
 # Turn a sensor off, or override its args/globs. Absent = plugin default.
 [sensors.line-count]
 disabled = false
@@ -45,6 +49,7 @@ Every field is optional; an empty file is valid (pure plugin defaults).
 | `languages`| Language plugins to load (their sensors run). Built-ins: `typescript`, `python`. |
 | `files`    | Discovery globs. Defaults from the loaded plugins.            |
 | `scope`    | `changedOnly` and `branchBase` for git-scoped runs.           |
+| `runners`  | Run non-`.md` guides — file extension → command.              |
 | `sensors`  | Per-sensor overrides, keyed by sensor name.                   |
 | `smells`   | Per-smell routing overrides, keyed by smell key.             |
 
@@ -71,6 +76,19 @@ only tunes a sensor the plugin already defines, or disables one.
 
 A smell with no override uses the catalogue default
 ([smell-vocabulary.md](smell-vocabulary.md)).
+
+## `[runners]`
+
+Maps a guide file extension to the command that runs it: the mapper runs
+`<command> guides/<smell>.<ext>` with the finding on stdin. `.md` is always
+rendered as a template and needs no runner; every other extension needs one, so
+no guide executes unless you opt in.
+
+```toml
+[runners]
+py = "python"
+js = "node"
+```
 
 ## Custom smells
 

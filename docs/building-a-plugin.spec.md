@@ -76,8 +76,10 @@ For each smell, author a `guides/<smell>` fix ([guide.md](guide.md)). A
 Resolve or remove these markers before merging.
 ```
 
-A **script** `guides/<smell>` (no `.md`) instead receives the finding on stdin
-and lets its exit code drive pass/fail. Author a guide only where the language
+Or make it a script in any language — `guides/<smell>.py`, say — run by the
+**fix runner** you register for that extension (`[runners]` in `config.toml`);
+it receives the finding on stdin and its exit code drives pass/fail. Author a
+guide only where the language
 needs its own wording; otherwise the smell falls back to the generic guide, or
 the `uncoached.md` default.
 

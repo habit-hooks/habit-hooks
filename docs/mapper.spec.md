@@ -393,22 +393,24 @@ habit-mapper
 
 ## Executable guides
 
-A guide named after the smell with **no** `.md` extension is executed instead of
-rendered. The smell's findings arrive as JSON on its stdin; its stdout and
-stderr are shown, and its exit code drives pass/fail.
+A guide with a non-`.md` extension is run by the **fix runner** registered for
+that extension ([config.md](config.md)): the mapper runs `<runner> <guide>` with
+the finding on stdin, shows its stdout/stderr, and uses its exit code for
+pass/fail. No runner ships by default — register one in config.
 
-### A guide script runs instead of rendering 🟡
+### A guide script runs via its fix runner 🟡
 
-The script's exit `0` does not block, even for an enforced smell.
+Exit `0` does not block, even for an enforced smell.
 
-📄.habit-hooks/generic/guides/oversized-file
-```sh
-#!/usr/bin/env bash
-echo "src/legacy.ts is too large — split it into focused modules."
+📄.habit-hooks/config.toml
+```toml
+[runners]
+sh = "bash"
 ```
 
-```bash
-chmod +x .habit-hooks/generic/guides/oversized-file
+📄.habit-hooks/generic/guides/oversized-file.sh
+```sh
+echo "src/legacy.ts is too large — split it into focused modules."
 ```
 
 ⌨️
@@ -433,19 +435,20 @@ habit-mapper
 src/legacy.ts is too large — split it into focused modules.
 ```
 
-### A failing guide script blocks an enforced smell 🟡
+### A failing fix runner blocks an enforced smell 🟡
 
-A non-zero exit from the script fails the run; its stderr is shown.
+A non-zero exit fails the run; the runner's stderr is shown.
 
-📄.habit-hooks/generic/guides/oversized-file
-```sh
-#!/usr/bin/env bash
-echo "Could not auto-split; manual extraction needed." >&2
-exit 1
+📄.habit-hooks/config.toml
+```toml
+[runners]
+sh = "bash"
 ```
 
-```bash
-chmod +x .habit-hooks/generic/guides/oversized-file
+📄.habit-hooks/generic/guides/oversized-file.sh
+```sh
+echo "Could not auto-split; manual extraction needed." >&2
+exit 1
 ```
 
 ⌨️

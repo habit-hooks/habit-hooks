@@ -87,8 +87,9 @@ plugins/
 
 - A **sensor** is `sensors/<name>.toml` — a command plus its descriptor (see
   [sensors.md](sensors.md)).
-- A **guide** is `guides/<smell>.md` (a template) or `guides/<smell>` (a
-  script) — see [guide.md](guide.md).
+- A **guide** is `guides/<smell>.md` (a rendered template) or
+  `guides/<smell>.<ext>` (run by a configured fix runner) — see
+  [guide.md](guide.md).
 - `config.toml` carries the language's defaults (file globs, which sensors are
   on). See [config.md](config.md).
 
