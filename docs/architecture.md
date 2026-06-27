@@ -17,7 +17,7 @@ habit-sensors <scope flags> | habit-mapper
 graph LR
     files["working tree"] --> sensors["habit-sensors"]
     sensors -->|"{smell, details}\n(JSON)"| mapper["habit-mapper"]
-    mapper --> out["fix"]
+    mapper --> out["console output + exit code"]
 ```
 
 - **habit-sensors** — runs the enabled sensors (producers in parallel,
