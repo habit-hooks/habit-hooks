@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from markdown_it import MarkdownIt
+from markdown_it.tree import SyntaxTreeNode
 
 # Marker base codepoints (U+FE0F stripped before matching).
 _FILE = "\U0001F4C4"  # 📄
@@ -206,25 +207,29 @@ class Block:
         return bool(head) and head[0] == "bash"
 
 
+def _heading(node: SyntaxTreeNode) -> Heading:
+    text = node.children[0].content.rstrip()
+    skip = text.replace("️", "").rstrip().endswith(_SKIP)
+    return Heading(int(node.tag[1]), text, skip)
+
+
+def _markers(text: str) -> list[Marker]:
+    """Every marker line in a paragraph (one paragraph may hold several)."""
+    lines = (line.lstrip() for line in text.split("\n"))
+    return [Marker(_MARKERS[head[0]], head[1:].replace("️", "")) for head in lines if head and head[0] in _MARKERS]
+
+
 def _elements(text: str) -> list[object]:
     """Markdown → the ordered Heading/Marker/Block elements we care about."""
-    tokens = MarkdownIt("commonmark").parse(text)
+    root = SyntaxTreeNode(MarkdownIt("commonmark").parse(text))
     elements: list[object] = []
-    for i, tok in enumerate(tokens):
-        if tok.type == "heading_open":
-            line = tokens[i + 1].content.rstrip()
-            skip = line.replace("️", "").rstrip().endswith(_SKIP)
-            elements.append(Heading(int(tok.tag[1]), line, skip))
-        elif tok.type == "fence":
-            elements.append(Block(tok.info.strip(), tok.content.rstrip("\n")))
-        elif tok.type == "inline" and tokens[i - 1].type == "paragraph_open":
-            # Markers only ever appear as paragraph text; an inline token is
-            # always preceded by its container open, so i-1 is safe (never i==0).
-            # One paragraph may hold several marker lines (no blank between them).
-            for line in tok.content.split("\n"):
-                head = line.lstrip()
-                if head and head[0] in _MARKERS:
-                    elements.append(Marker(_MARKERS[head[0]], head[1:].replace("️", "")))
+    for node in root.children:
+        if node.type == "heading":
+            elements.append(_heading(node))
+        elif node.type == "fence":
+            elements.append(Block(node.info.strip(), node.content.rstrip("\n")))
+        elif node.type == "paragraph":
+            elements.extend(_markers(node.children[0].content))
     return elements
 
 
