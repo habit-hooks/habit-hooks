@@ -18,6 +18,14 @@ from harness import SpecCase, SpecError, SpecFailure, execute, parse_spec
 _REPO_ROOT = Path(__file__).parent
 
 
+def _case_root() -> Path:
+    """One level below the repo root, so a case dir created inside it sits two
+    levels down and the specs' ``../../habit-mapper`` launcher shim resolves."""
+    root = _REPO_ROOT / ".spec-runs"
+    root.mkdir(exist_ok=True)
+    return root
+
+
 def pytest_collect_file(parent, file_path):
     if file_path.name.endswith(".spec.md"):
         return SpecFile.from_parent(parent, path=file_path)
@@ -37,7 +45,7 @@ class SpecItem(pytest.Item):
     def runtest(self):
         if self.case.skip:
             pytest.skip("🟡 not built yet")
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=_case_root()) as tmp:
             execute(self.case, Path(tmp), _REPO_ROOT)
 
     def repr_failure(self, excinfo):

@@ -28,7 +28,7 @@ The following function definitions have more than {{ details.maxAllowed }} param
 Bundle related arguments into an object.
 ```
 
-### A smell renders its guide and blocks the run 🟡
+### A smell renders its guide and blocks the run
 
 `too-many-parameters` is `enforced`, so the guide prints and the run fails.
 
@@ -67,7 +67,7 @@ src/billing.ts:2
 Bundle related arguments into an object.
 ```
 
-### Every issue of a smell renders in one guide 🟡
+### Every issue of a smell renders in one guide
 
 The guide is rendered once per smell; its loop walks every issue in the finding.
 
@@ -117,7 +117,7 @@ src/report.ts:8
 Bundle related arguments into an object.
 ```
 
-### Multiple smells each render their own guide 🟡
+### Multiple smells each render their own guide
 
 Every smell's guide is rendered and joined with a blank line, in the order the
 smells arrive. The exit code is the most severe (here `too-many-parameters` is
@@ -182,7 +182,7 @@ Resolve or remove these markers before merging.
 
 ## Severity sets the exit code
 
-### A suggested smell coaches but stays green 🟡
+### A suggested smell coaches but stays green
 
 `warning-comment` is `suggested`, so its guide prints but the run still passes.
 
@@ -221,7 +221,7 @@ src/api.ts:14 TODO handle retry
 Resolve or remove these markers before merging.
 ```
 
-### A clean run prints the pass reminder 🟡
+### A clean run prints the pass reminder
 
 No findings on stdin means nothing to coach; the run renders the no-findings guide.
 
@@ -245,7 +245,7 @@ Habit Hooks catches structural smells, not correctness or design. If no reviewer
 
 ## Routing every smell
 
-### Config can point a smell at another guide 🟡
+### Config can point a smell at another guide
 
 A smell's `guide` override replaces the default `<smell>.md`.
 
@@ -290,7 +290,7 @@ habit-mapper
 1 function(s) over 3 parameters. Bundle arguments into an object.
 ```
 
-### A finding's language selects a plugin's guide 🟡
+### A finding's language selects a plugin's guide
 
 To coach a `(smell, language)`, the mapper walks the `plugins` list in order and
 takes the first plugin that has a guide for that smell and language, falling back
@@ -336,7 +336,7 @@ habit-mapper
 Use `===`/`!==`; TypeScript will not coerce types for you.
 ```
 
-### An earlier plugin's guide wins over a later one 🟡
+### An earlier plugin's guide wins over a later one
 
 When two plugins both have a guide for the same `(smell, language)`, the one
 listed earlier in `plugins` wins. Both `biome` and `eslint` speak `typescript`
@@ -380,7 +380,7 @@ habit-mapper
 biome: prefer `===`/`!==` over loose equality.
 ```
 
-### An unknown smell escalates with the default guidance 🟡
+### An unknown smell escalates with the default guidance
 
 A smell with no catalogue entry has no tuned guide. It defaults to `enforced`
 and renders the generic `uncoached.md` guidance, so it fails the run rather than
@@ -413,7 +413,7 @@ General guidance: the issues listed are code smells. They tell you that there is
 
 ## Config overrides
 
-### Demoting a smell to suggested keeps the run green 🟡
+### Demoting a smell to suggested keeps the run green
 
 `severity` in config overrides the catalogue default, so an otherwise blocking
 smell stops failing the run.
@@ -458,7 +458,7 @@ that extension ([config.md](config.md)): the mapper runs `<runner> <guide>` with
 the finding on stdin, shows its stdout/stderr, and uses its exit code for
 pass/fail. No runner ships by default — register one in config.
 
-### A guide script runs via its fix runner 🟡
+### A guide script runs via its fix runner
 
 Exit `0` does not block, even for an enforced smell.
 
@@ -495,7 +495,7 @@ habit-mapper
 src/legacy.ts is too large — split it into focused modules.
 ```
 
-### A failing fix runner blocks an enforced smell 🟡
+### A failing fix runner blocks an enforced smell
 
 A non-zero exit fails the run; the runner's stderr is shown.
 
