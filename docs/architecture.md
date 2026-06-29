@@ -127,21 +127,43 @@ or its rule ID. The naming rules and the canonical catalogue live in
 ## Plugins
 
 Everything language- or tool-specific lives in a **plugin**, never in the core.
-A plugin is a self-contained bundle of files:
+A plugin is a **separately-installable package** — its own distribution
+(`habit-hooks-<name>`) that a consumer `pip install`s. It does not need to live
+in this repo; keeping the first-party plugins here is only a development
+convenience (a `uv` workspace that installs them editable). The package is a
+self-contained bundle of files, shipped as package data under its import package
+`habit_hooks_<name>`:
 
 ```
-<plugin>/
+habit_hooks_<name>/
   config.toml      # what this plugin contributes, and the language it speaks
   sensors/         # how it finds smells
   transformers/    # how it reshapes findings
   guides/          # how it coaches each fix
 ```
 
-A project turns plugins on by listing them, in order, in its config:
+The core never walks a `plugins/` directory. It **discovers installed plugins at
+run time through a packaging entry point**: each plugin registers itself under
+the `habit_hooks.plugins` group, mapping its plugin name to its import package,
+and the core reads that group with `importlib.metadata` and locates the package's
+bundled files with `importlib.resources`.
+
+```toml
+# in the plugin's pyproject.toml
+[project.entry-points."habit_hooks.plugins"]
+python = "habit_hooks_python"
+```
+
+A project turns installed plugins on by listing them, in order, in its config:
 
 ```toml
 plugins = ["generic", "python"]
 ```
+
+The `plugins` list **selects and orders** plugins among those installed; a name
+that is listed but neither installed nor overridden under `.habit-hooks/` fails
+with a clear error naming its install command. Authoring a plugin package end to
+end is in [authoring-plugins.spec.md](authoring-plugins.spec.md).
 
 Two things about that list matter.
 
@@ -169,14 +191,21 @@ tool or a language's AST. To build a plugin end to end, see
 A consumer project keeps a `.habit-hooks/` directory that mirrors the plugin
 layout but holds **only overrides** — its own `config.toml` plus any sensor,
 transformer, or guide it wants to replace. Defaults always resolve from the
-installed package, so updating Habit Hooks never clobbers a project's tuning.
+**installed plugin package's data**, so updating a plugin never clobbers a
+project's tuning.
 
 Any file is resolved by walking the active plugins in order and, for each, trying
-the project's override before the package's default:
+the project's override before the installed package's default:
 
 ```
-.habit-hooks/<plugin>/   →   <package>/plugins/<plugin>/
+.habit-hooks/<plugin>/<file>   →   <installed habit_hooks_<plugin> package data>/<file>
 ```
+
+The package side of that chain is the entry-point-resolved package directory, not
+a path inside this repo — so a project's overrides layer cleanly over a plugin
+that was `pip install`ed from anywhere. A project may even run a plugin with **no
+installed package at all**, supplying its whole bundle under `.habit-hooks/<plugin>/`;
+the chain simply has only its override leg.
 
 Configuration merges the same way, project last. This is the single mechanism
 behind both "a project tunes a plugin" and "an earlier plugin beats a later one";

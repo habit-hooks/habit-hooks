@@ -2,17 +2,19 @@
 
 All configuration is TOML. There are **two kinds of file, the same shape**:
 
-- **Plugin defaults** — `config.toml` shipped inside each plugin in the package
-  (`<package>/plugins/<plugin>/config.toml`). They state what the plugin
-  contributes and the language it speaks.
+- **Plugin defaults** — `config.toml` shipped as package data inside each plugin's
+  installed package (`habit_hooks_<plugin>/config.toml`). They state what the
+  plugin contributes and the language it speaks. Plugins are separate installable
+  packages, discovered at run time through the `habit_hooks.plugins` entry-point
+  group ([architecture.md](architecture.md)).
 - **Project overrides** — `.habit-hooks/config.toml` in the consumer repo. It
   tunes the run and the plugins, holding only what differs from the defaults.
 
 The two are merged in resolution order — generic defaults, then each language
 plugin's defaults, then the project — with the **project last and winning**.
-Override, never overwrite: the resolution and override chain (and how plugins
-nest) is owned by [architecture.md](architecture.md); this document is only the
-field reference for the format that drives it.
+Override, never overwrite: the resolution and override chain (and how plugins are
+discovered and selected) is owned by [architecture.md](architecture.md); this
+document is only the field reference for the format that drives it.
 
 Every field is optional. An empty `.habit-hooks/config.toml` is valid — it means
 "use the plugin defaults".
@@ -33,7 +35,7 @@ These live at the top level of the **project** `config.toml`.
 
 | Key            | Meaning |
 |----------------|---------|
-| `plugins`      | An **ordered** list of plugins to load. The order is a priority: it is the order sensors run and the order the mapper looks up guides (earlier wins, `generic` last). Replaces the old `languages` key. `generic` is listed explicitly like any other plugin, so a project can drop it. |
+| `plugins`      | An **ordered** list of plugins to activate, **selecting among the installed plugin packages** by name. The order is a priority: it is the order sensors run and the order the mapper looks up guides (earlier wins, `generic` last). A listed plugin that is neither installed nor overridden under `.habit-hooks/<plugin>/` fails with an error naming its `pip install habit-hooks-<plugin>` command. `generic` is listed explicitly like any other plugin, so a project can drop it. |
 | `transformers` | An ordered list of transformers applied to the concatenated findings of the whole run, in order. |
 | `files`        | Discovery globs (pathspec / gitwildmatch). Defaults come from the loaded plugins. |
 | `[scope]`      | Git-scoping defaults for a run with no scope flag. |
@@ -43,6 +45,52 @@ plugins = ["generic", "python"]
 transformers = ["snooze"]
 files = ["**/*.py"]
 ```
+
+### Installing the plugins you list
+
+`plugins` only **selects** among plugins that are installed; each name must
+resolve to an installed package (or a `.habit-hooks/<plugin>/` override). The
+first-party plugins are exposed as **install extras** on `habit-hooks`, so one
+install pulls the core plus the plugin packages you want:
+
+```bash
+pip install "habit-hooks[python]"            # core + habit-hooks-python
+pip install "habit-hooks[python,typescript]" # several at once
+```
+
+Each extra (`generic`, `python`, `typescript`, `php`) installs the matching
+`habit-hooks-<name>` distribution; a third-party plugin is just a package you
+`pip install habit-hooks-<name>` directly. The core then finds every installed
+plugin through its entry point — nothing else is configured for discovery.
+
+### Overriding an installed plugin
+
+A project tunes any installed plugin by dropping replacement files under
+`.habit-hooks/<plugin>/`, which mirror the package's data layout and win over it:
+
+```
+.habit-hooks/<plugin>/<file>   →   installed habit_hooks_<plugin> package data/<file>
+```
+
+So `.habit-hooks/python/sensors/ruff.toml` replaces only that one sensor, leaving
+the rest of the installed `python` plugin intact. `config.toml` merges field by
+field the same way (project last); every other file is whole-file replacement.
+This is the mechanism owned by [architecture.md](architecture.md).
+
+### Pinning plugins at run time
+
+Because plugins are ordinary packages, pin them like any dependency — the run is
+reproducible only to the extent the installed plugin versions are. Recommended:
+
+- Install the core and its plugins together as extras
+  (`habit-hooks[python,typescript]`) and lock them in your project's lockfile, so
+  every machine and CI run resolves the same plugin versions.
+- Prefer a per-project virtualenv over a global tool install when the project
+  relies on plugin behaviour, so a plugin upgrade is a deliberate, reviewable
+  lockfile change rather than an ambient one.
+- `habit-sensors` already prepends `node_modules/.bin` and `.venv/bin` to `PATH`
+  ([habit-sensors.spec.md](habit-sensors.spec.md)), so a plugin's sensor commands
+  pick up the project-local tools (`ruff`, `eslint`, …) those plugins shell out to.
 
 ### `files` globs have no brace expansion
 
@@ -77,7 +125,8 @@ mainBranch = "main"
 
 ## Plugin-node keys
 
-A plugin's own `config.toml` (inside the package, or shadowed by a
+A plugin's own `config.toml` (shipped as package data in
+`habit_hooks_<plugin>/config.toml`, or shadowed by a
 `.habit-hooks/<plugin>/config.toml` override) uses a different, smaller set of
 root keys — it describes the plugin, not the whole run:
 
@@ -88,7 +137,7 @@ root keys — it describes the plugin, not the whole run:
 | `transformers` | An ordered list of the plugin's own transformers, applied to its sensors' concatenated findings before the result joins the larger run. |
 
 ```toml
-# plugins/python/config.toml
+# habit_hooks_python/config.toml
 language = "python"
 sensors = ["ruff", "deptry", "line-count"]
 transformers = []

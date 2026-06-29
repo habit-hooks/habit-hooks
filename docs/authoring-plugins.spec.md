@@ -1,9 +1,9 @@
 # Authoring plugins
 
-This is the end-to-end manual for building a plugin: a sensor that finds a smell,
-the adapter trick for wrapping an existing linter, a transformer that reshapes
-findings, and a guide that coaches the fix. It runs top to bottom — each step
-builds on the last.
+This is the end-to-end manual for building a plugin: a small installable package
+holding a sensor that finds a smell, the adapter trick for wrapping an existing
+linter, a transformer that reshapes findings, and a guide that coaches the fix.
+It runs top to bottom — each step builds on the last.
 
 It assumes you already know the moving parts: what a plugin is and how resolution
 works ([architecture.md](architecture.md)), the exact finding shape every stage
@@ -16,18 +16,50 @@ habit-sensors() { ../../habit-sensors "$@"; }
 habit-mapper()  { ../../habit-mapper; }
 ```
 
-## 1. A plugin is just files
+## 1. A plugin is an installable package
 
-A plugin is a self-contained bundle — no core code. Ship it as
-`plugins/<name>/`, or override per-project under `.habit-hooks/<name>/`; the two
-resolve as one chain, project first ([architecture.md](architecture.md)).
+A plugin is a self-contained **Python package** — no core code. You build it,
+publish it, and a consumer `pip install`s it; the core finds it at run time
+through a packaging **entry point**, never by looking inside this repo. A plugin
+does not need to live in the habit-hooks repo at all.
+
+The package follows one naming convention: the **distribution** is
+`habit-hooks-<name>` (what you `pip install`) and the **import package** is
+`habit_hooks_<name>` (where the files live). The sensors, guides, transformers,
+and `config.toml` ship as **package data** inside that import package:
 
 ```
-plugins/<name>/
-  config.toml      # what this plugin contributes, and the language it speaks
-  sensors/         # how it finds smells
-  transformers/    # how it reshapes findings
-  guides/          # how it coaches each fix
+habit-hooks-<name>/
+  pyproject.toml                       # declares the dist + the entry point
+  src/habit_hooks_<name>/
+    __init__.py                        # may be empty; must import cleanly
+    config.toml                        # what this plugin contributes, and the language it speaks
+    sensors/                           # how it finds smells       — package data
+    transformers/                      # how it reshapes findings  — package data
+    guides/                            # how it coaches each fix    — package data
+```
+
+`pyproject.toml` registers the plugin under the `habit_hooks.plugins`
+entry-point group, mapping the **plugin name** (what a project lists in its
+`plugins`) to the **import package** whose bundled files are the plugin's
+defaults:
+
+```toml
+# habit-hooks-lua/pyproject.toml
+[project]
+name = "habit-hooks-lua"
+version = "0.0.0"
+requires-python = ">=3.11"
+
+[project.entry-points."habit_hooks.plugins"]
+lua = "habit_hooks_lua"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/habit_hooks_lua"]
 ```
 
 `config.toml` is where the plugin *declares the language it speaks*. The runner
@@ -38,13 +70,17 @@ none. The concept is in [architecture.md](architecture.md); the field-by-field
 format is in [config.md](config.md).
 
 ```toml
-# plugins/lua/config.toml
+# src/habit_hooks_lua/config.toml
 language = "lua"
 files = ["**/*.lua"]            # what this plugin's sensors scan by default
 sensors = ["todo"]             # the sensors this plugin enables, in order
 ```
 
-Everything below adds files into this bundle.
+A consumer who installs the package and lists `lua` in `plugins` gets these
+defaults; to *tune* them per project they drop overriding files under
+`.habit-hooks/lua/`, which win over the installed package data
+([architecture.md](architecture.md)). Everything below adds package-data files
+into this bundle; §6 builds, installs, and runs the finished package.
 
 ## 2. Write a sensor
 
@@ -53,7 +89,7 @@ a findings array. It takes no findings as input. Each sensor is one
 `sensors/<name>.toml` — both the static descriptor and the recipe for running it.
 
 ```toml
-# plugins/lua/sensors/todo.toml
+# src/habit_hooks_lua/sensors/todo.toml
 command = "grep -rn TODO ${files} | jq -Rn '<transform>'"   # required
 files = ["**/*.lua"]                                        # optional; overrides the plugin globs
 ```
@@ -124,7 +160,7 @@ whose `command` pipes that JSON through `jq` to reshape it into findings — the
 is no separate mapping language, the transform lives in the command.
 
 ```toml
-# plugins/python/sensors/ruff.toml
+# src/habit_hooks_python/sensors/ruff.toml
 command = "ruff check --output-format json ${files} | jq '<transform>'"
 ```
 
@@ -266,7 +302,7 @@ prints a new one on **stdout**. It may add, drop, or rewrite findings. Each is o
 plugin's transformers in order ([architecture.md](architecture.md)).
 
 ```toml
-# plugins/lua/transformers/tag-fixme.toml
+# src/habit_hooks_lua/transformers/tag-fixme.toml
 command = "jq '<transform>'"
 ```
 
@@ -344,7 +380,7 @@ smell-level facts straight off `details`, and loop `issues` for the
 per-occurrence ones, reading each occurrence's own `details`.
 
 ```markdown
-<!-- plugins/lua/guides/warning-comment.md -->
+<!-- src/habit_hooks_lua/guides/warning-comment.md -->
 {% for v in issues -%}
 {{ v.details.file }}:{{ v.details.line }} — {{ v.details.message }}
 {% endfor %}
@@ -371,7 +407,7 @@ executes**. A plugin therefore ships its **own** `[runners]` in its
 only the `.md` renderer.
 
 ```toml
-# plugins/python/config.toml
+# src/habit_hooks_python/config.toml
 language = "python"
 files = ["**/*.py"]
 
@@ -383,22 +419,99 @@ Author a guide only where the language needs its own wording; otherwise the smel
 falls back to the generic guide, or the `uncoached.md` default. Keep prompts short
 and outcome-focused — use the `habit-hooks-prompting` skill's ROSE pattern.
 
-## 6. Wire it up & try it 🟡
+## 6. Build it, install it, run it
 
-With the plugin listed in the project config and its sensors/guides in place, run
-the whole pipeline:
+Now assemble the `habit-hooks-lua` package from the pieces above, install it the
+way a consumer would, and run the whole pipeline against a Lua file. A plugin
+ships as a wheel, so a sensor must print a JSON **array** — here the `jq` from §2
+wrapped in `[ … ]` so its single object becomes a one-element array.
+
+📄habit-hooks-lua/pyproject.toml
+```toml
+[project]
+name = "habit-hooks-lua"
+version = "0.0.0"
+requires-python = ">=3.11"
+
+[project.entry-points."habit_hooks.plugins"]
+lua = "habit_hooks_lua"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/habit_hooks_lua"]
+```
+
+📄habit-hooks-lua/src/habit_hooks_lua/__init__.py
+```python
+```
+
+📄habit-hooks-lua/src/habit_hooks_lua/config.toml
+```toml
+language = "lua"
+files = ["**/*.lua"]
+sensors = ["todo"]
+```
+
+📄habit-hooks-lua/src/habit_hooks_lua/sensors/todo.toml
+```toml
+command = "grep -rn TODO ${files} | jq -Rn '[[inputs | capture(\"(?<file>[^:]+):(?<line>[0-9]+):(?<text>.*)\") | { key: .file, details: { file: .file, line: (.line | tonumber), message: (.text | gsub(\"^\\\\s*--\\\\s*\"; \"\")) } }] | { smell: \"warning-comment\", details: {}, issues: . }]'"
+```
+
+📄habit-hooks-lua/src/habit_hooks_lua/guides/warning-comment.md
+```markdown
+{% for v in issues -%}
+{{ v.details.file }}:{{ v.details.line }} — {{ v.details.message }}
+{% endfor %}
+Resolve or remove these markers before merging.
+```
+
+Build the wheel and install it into a local target dir, then point Python at it —
+exactly what `pip install habit-hooks-lua` would do, minus a registry. The core
+discovers the plugin through its entry point, no path into this package required.
+
+```bash
+uv pip install --quiet --target vendor ./habit-hooks-lua
+```
+
+✏️PYTHONPATH
+```text
+vendor
+```
+
+The project turns the installed plugin on by listing it; `files` scopes the run
+to Lua sources so the sensor sees only them.
 
 📄.habit-hooks/config.toml
 ```toml
-plugins = ["generic", "lua"]
+plugins = ["lua"]
+files = ["**/*.lua"]
+```
+
+📄src/util.lua
+```lua
+local function add(a, b)
+  -- TODO: validate inputs
+  return a + b
+end
 ```
 
 ```bash
 habit-sensors --all | habit-mapper
 ```
 
-A Lua file with a `TODO` now surfaces `warning-comment`, routed to your guide.
-What each stage guarantees is pinned in
+🖥️ ✅
+```text
+src/util.lua:2 — TODO: validate inputs
+
+Resolve or remove these markers before merging.
+```
+
+A Lua file with a `TODO` now surfaces `warning-comment`, routed to your guide —
+from an installed package the core never had to be told the location of. What
+each stage guarantees is pinned in
 [sensor-interface.spec.md](sensor-interface.spec.md),
 [habit-sensors.spec.md](habit-sensors.spec.md), and
 [habit-mapper.spec.md](habit-mapper.spec.md).
