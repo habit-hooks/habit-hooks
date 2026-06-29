@@ -1,18 +1,33 @@
-# Adapter sensor: ESLint emits nested JSON (one entry per file with a messages[]
-# array); a jq transform flattens and remaps it. Fatals (ruleId null) map to
-# parse-error. `language` is stamped onto each finding by habit-sensors. TS uses
-# eslint's max-lines for oversized-file, so the TS config disables the generic
-# line-count sensor (see plugins/typescript/config.toml).
 command = """
-eslint -f json ${files} | jq '[.[] | .filePath as $file | .messages[] | {
-  smell: (if .fatal then "parse-error" else ({"max-params":"too-many-parameters","complexity":"high-complexity","max-depth":"deep-nesting","max-lines-per-function":"oversized-function","max-lines":"oversized-file","no-unused-vars":"unused-variable","eqeqeq":"loose-equality","no-var":"var-declaration","prefer-const":"non-const-binding","no-duplicate-imports":"duplicate-import","no-warning-comments":"warning-comment","@typescript-eslint/no-explicit-any":"explicit-any","@typescript-eslint/no-non-null-assertion":"non-null-assertion","@typescript-eslint/no-inferrable-types":"redundant-type-annotation"}[.ruleId] // .ruleId) end),
-  details: {file: $file, line: .line, column: .column, message: .message, source: ("eslint:" + (.ruleId // "fatal"))}
-}]'
+files=$(printf '%s\\n' ${files} | grep -E '\\.tsx?$' || true)
+if [ -z "$files" ]; then echo '[]'; exit 0; fi
+eslint -f json $files | jq '[.[] | .filePath as $file | .messages[] | {
+  smell: (if .fatal then "parse-error" else ({
+    "max-lines-per-function": "oversized-function",
+    "max-params": "too-many-parameters",
+    "complexity": "high-complexity",
+    "max-depth": "deep-nesting",
+    "max-lines": "oversized-file",
+    "no-unused-vars": "unused-variable",
+    "eqeqeq": "loose-equality",
+    "no-var": "var-declaration",
+    "prefer-const": "non-const-binding",
+    "no-duplicate-imports": "duplicate-import",
+    "no-warning-comments": "warning-comment",
+    "@typescript-eslint/no-explicit-any": "explicit-any",
+    "@typescript-eslint/no-non-null-assertion": "non-null-assertion",
+    "@typescript-eslint/no-inferrable-types": "redundant-type-annotation"
+  }[.ruleId] // .ruleId) end),
+  file: $file, line: .line, column: .column, message: .message,
+  source: ("eslint:" + (.ruleId // "fatal"))
+}]
+| group_by(.smell)
+| map({
+    smell: .[0].smell,
+    details: {},
+    issues: map({
+      key: .file,
+      details: {file: .file, line: .line, column: .column, message: .message, source: .source}
+    })
+  })'
 """
-language = "typescript"
-produces = [
-  "too-many-parameters", "high-complexity", "deep-nesting", "oversized-function",
-  "oversized-file", "unused-variable", "loose-equality", "var-declaration",
-  "non-const-binding", "duplicate-import", "warning-comment", "explicit-any",
-  "non-null-assertion", "redundant-type-annotation", "parse-error",
-]

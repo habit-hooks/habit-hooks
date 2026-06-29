@@ -1,4 +1,1 @@
-# Native sensor: knip runs whole-project (ignores ${files}) and needs bin/
-# package.json resolution, so a wrapper runs it and prints JSONL.
-command  = "node ${dir}/knip.js"
-produces = ["unused-file", "unused-export", "unused-dependency", "unused-class-member"]
+command = "node ${dir}/knip.js"

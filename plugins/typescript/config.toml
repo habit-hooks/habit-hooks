@@ -1,9 +1,4 @@
-# TypeScript/JavaScript plugin defaults. A project's .habit-hooks/config.toml
-# overrides these (project last wins).
 language = "typescript"
-files = ["**/*.{ts,tsx,js,mjs,cjs}"]
-
-# TS uses eslint's max-lines for oversized-file (language standard), so the
-# generic line-count sensor is off here.
-[sensors.line-count]
-disabled = true
+files = ["**/*.ts", "**/*.tsx"]
+sensors = ["eslint", "knip", "comment"]
+transformers = []

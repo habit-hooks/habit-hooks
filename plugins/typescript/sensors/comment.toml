@@ -1,4 +1,1 @@
-# Native sensor: AST scan (ts-morph) for non-essential comments. TypeScript-only
-# because detection is TS-AST based.
-command  = "node ${dir}/comment.js ${files}"
-produces = ["non-essential-comment", "warning-comment"]
+command = "node ${dir}/comment.js ${files}"
