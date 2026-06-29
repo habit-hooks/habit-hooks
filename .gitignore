@@ -19,7 +19,7 @@ package.json
 package-lock.json
 habit-hooks.config.js
 .habit-hooks-baseline.json
-ruff.toml
+/ruff.toml
 
 # Workflow orchestration script (run from ~/.claude, never a repo deliverable)
 .claude/workflows-build-overnight.js

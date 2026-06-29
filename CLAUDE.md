@@ -127,3 +127,15 @@ filename, or a new `package.json` key (e.g. `eslint.config.cjs`,
 caller flows through them. Individual wraps may keep their own narrower
 lists for internal "has-config" checks, but those should mirror the
 canonical set.
+
+### A sensor named `ruff.toml` collides with ruff's config discovery
+
+`plugins/python/sensors/ruff.toml` is a sensor spec (`command = ...`),
+but ruff treats any file literally named `ruff.toml` as its own config.
+A `ruff check` whose upward config-discovery walk passes through
+`plugins/python/sensors/` hard-fails with `unknown field 'command'`.
+Harmless in normal consumer operation — the file lives inside the
+habit-hooks package, off the consumer's discovery path — but a future
+dogfooding ruff run from inside that tree will be mystifying. Point ruff
+at an explicit `--config` (the repo-root `ruff.toml`, gitignored as
+`/ruff.toml`) if you hit this.

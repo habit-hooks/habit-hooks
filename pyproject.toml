@@ -19,7 +19,12 @@ build-backend = "hatchling.build"
 packages = ["src/habit_hooks"]
 
 [dependency-groups]
-dev = ["pytest>=8", "markdown-it-py>=3"]
+dev = [
+    "pytest>=8",
+    "markdown-it-py>=3",
+    "ruff>=0.15.20",
+    "deptry>=0.25.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "docs"]

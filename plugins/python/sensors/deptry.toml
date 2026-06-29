@@ -1,4 +1,1 @@
-# Native sensor written in Python: deptry's JSON-to-stdout is unreliable when
-# piped, so the script runs it against a temp report and prints JSONL.
-command  = "python ${dir}/deptry_sensor.py ${files}"
-produces = ["unused-dependency"]
+command = "python ${dir}/deptry_sensor.py"

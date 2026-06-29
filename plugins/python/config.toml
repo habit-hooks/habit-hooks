@@ -1,3 +1,5 @@
 # Python plugin defaults.
 language = "python"
 files = ["**/*.py"]
+sensors = ["ruff", "deptry"]
+transformers = []

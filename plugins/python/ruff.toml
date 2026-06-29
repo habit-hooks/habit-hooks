@@ -1,0 +1,6 @@
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 3
+max-statements = 12
