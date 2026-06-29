@@ -1,6 +1,7 @@
 command = """
 files=$(printf '%s\\n' ${files} | grep -E '\\.tsx?$' || true)
 if [ -z "$files" ]; then echo '[]'; exit 0; fi
+set -o pipefail
 eslint -f json $files | jq '[.[] | .filePath as $file | .messages[] | {
   smell: (if .fatal then "parse-error" else ({
     "max-lines-per-function": "oversized-function",

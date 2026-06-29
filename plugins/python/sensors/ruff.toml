@@ -1,4 +1,5 @@
 command = """
+set -o pipefail
 ruff check --output-format=json --select=C901,PLR0913,PLR0915,F841,F401,BLE001 ${files} | jq '
   map(. + {smell: ({
     "C901": "high-complexity",

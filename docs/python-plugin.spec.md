@@ -126,3 +126,68 @@ habit-sensors --all
 ```text
 habit-sensors: sensor 'deptry' failed: python ${dir}/deptry_sensor.py
 ```
+
+## A crashing ruff fails the run, never reports clean
+
+The `ruff` sensor pipes the tool into `jq`. A crashing `ruff` (here, a malformed
+`ruff.toml` that makes the tool exit non-zero) prints nothing on stdout, so a
+naive pipe would let `jq` succeed on empty input and mask the crash as a false-
+clean run. The command sets `pipefail` so the tool's failing exit propagates
+through the pipe; `habit-sensors` then raises, names the sensor on stderr, and
+exits 1.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+
+[sensors.deptry]
+disabled = true
+```
+
+📄ruff.toml
+```toml
+this is not = valid ruff config
+```
+
+📄app.py
+```python
+import os
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ❌ 1
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: sensor 'ruff' failed: set -o pipefail
+ruff check --output-format=json --select=C901,PLR0913,PLR0915,F841,F401,BLE001 ${files} | jq '
+  map(. + {smell: ({
+    "C901": "high-complexity",
+    "PLR0913": "too-many-parameters",
+    "PLR0915": "oversized-function",
+    "F841": "unused-variable",
+    "F401": "unused-import",
+    "BLE001": "swallowed-exception"
+  }[.code])})
+  | group_by(.smell)
+  | map({
+      smell: .[0].smell,
+      details: {},
+      issues: map({
+        key: .filename,
+        details: {
+          file: .filename,
+          line: .location.row,
+          column: .location.column,
+          message: .message,
+          source: ("ruff:" + .code)
+        }
+      })
+    })'
+```
