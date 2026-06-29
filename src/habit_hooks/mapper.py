@@ -12,7 +12,7 @@ from jinja2 import Template
 
 from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
 from .config import Config, load_config
-from .resolve import package_root, resolve_first, resolve_guide
+from .resolve import Resolver, package_root
 
 CLEAN_GUIDE = "clean.md"
 
@@ -43,10 +43,10 @@ def guide_names(smell: str, config: Config) -> list[str]:
 
 def render_markdown(guide: Path, finding: dict) -> Rendered:
     template = Template(guide.read_text())
-    return Rendered(text=template.render(**finding), blocks=False)
+    return Rendered(text=template.render(**finding), blocks=True)
 
 
-def render_runner(guide: Path, runner: str, finding: dict, blocks: bool) -> Rendered:
+def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
     result = subprocess.run(
         [runner, str(guide)],
         input=json.dumps(finding),
@@ -55,41 +55,39 @@ def render_runner(guide: Path, runner: str, finding: dict, blocks: bool) -> Rend
     )
     return Rendered(
         text=result.stdout,
-        blocks=blocks and result.returncode != 0,
+        blocks=result.returncode != 0,
         stderr=result.stderr,
     )
 
 
-def render_finding(
-    finding: dict, config: Config, project_dir: Path, package_dir: Path
-) -> Rendered:
+def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendered:
     smell = finding["smell"]
-    blocks = severity_of(smell, config) == ENFORCED
-    guide = resolve_first(
-        config.plugins, project_dir, package_dir, guide_names(smell, config)
-    )
+    enforced = severity_of(smell, config) == ENFORCED
+    guide = resolver.first(config.plugins, guide_names(smell, config))
     if guide is None:
         raise SystemExit(f"no guide found for smell {smell!r}")
     extension = guide.suffix.lstrip(".")
     if extension == "md":
         rendered = render_markdown(guide, finding)
-        rendered.blocks = blocks
-        return rendered
-    return render_runner(guide, config.runners[extension], finding, blocks)
+    else:
+        rendered = render_runner(guide, config.runners[extension], finding)
+    rendered.blocks = enforced and rendered.blocks
+    return rendered
 
 
-def render_clean(config: Config, project_dir: Path, package_dir: Path) -> Rendered:
-    guide = resolve_guide(CLEAN_GUIDE, config.plugins, project_dir, package_dir)
+def render_clean(config: Config, resolver: Resolver) -> Rendered:
+    guide = resolver.guide(CLEAN_GUIDE, config.plugins)
     return Rendered(text=guide.read_text(), blocks=False)
 
 
 def run(findings: list[dict], project_dir: Path, package_dir: Path) -> int:
     config = load_config(project_dir)
+    resolver = Resolver(project_dir, package_dir)
     if not findings:
-        clean = render_clean(config, project_dir, package_dir)
+        clean = render_clean(config, resolver)
         sys.stdout.write(clean.text)
         return 0
-    rendered = [render_finding(f, config, project_dir, package_dir) for f in findings]
+    rendered = [render_finding(f, config, resolver) for f in findings]
     body = "\n\n".join(r.text.strip() for r in rendered if r.text.strip())
     if body:
         sys.stdout.write(body + "\n")

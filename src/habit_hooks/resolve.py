@@ -7,6 +7,7 @@ order, so an earlier plugin's guide wins over a later one's.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -18,39 +19,41 @@ def package_root() -> Path:
     raise SystemExit("could not locate the package plugins directory")
 
 
-def plugin_dirs(plugin: str, project_dir: Path, package_dir: Path) -> list[Path]:
-    return [
-        project_dir / ".habit-hooks" / plugin,
-        package_dir / "plugins" / plugin,
-    ]
+@dataclass(frozen=True)
+class Resolver:
+    """The override chain layout: where plugin files are looked up.
 
+    Holds the project (override) and package (default) roots and offers the
+    lookups that walk them — project override before package default.
+    """
 
-def resolve_in_plugin(
-    plugin: str, relative: str, project_dir: Path, package_dir: Path
-) -> Path | None:
-    """First existing ``<plugin>/<relative>``, project override before package."""
-    for base in plugin_dirs(plugin, project_dir, package_dir):
-        candidate = base / relative
-        if candidate.is_file():
-            return candidate
-    return None
+    project_dir: Path
+    package_dir: Path
 
+    def plugin_dirs(self, plugin: str) -> list[Path]:
+        return [
+            self.project_dir / ".habit-hooks" / plugin,
+            self.package_dir / "plugins" / plugin,
+        ]
 
-def resolve_guide(
-    guide: str, plugins: list[str], project_dir: Path, package_dir: Path
-) -> Path | None:
-    return resolve_first(plugins, project_dir, package_dir, [guide])
+    def in_plugin(self, plugin: str, relative: str) -> Path | None:
+        """First existing ``<plugin>/<relative>``, project override before package."""
+        for base in self.plugin_dirs(plugin):
+            candidate = base / relative
+            if candidate.is_file():
+                return candidate
+        return None
 
+    def guide(self, guide: str, plugins: list[str]) -> Path | None:
+        return self.first(plugins, [guide])
 
-def resolve_first(
-    plugins: list[str], project_dir: Path, package_dir: Path, candidates: list[str]
-) -> Path | None:
-    """First existing guide, walking plugins then override-before-package; within
-    one directory the candidate names are tried in order."""
-    for plugin in plugins:
-        for base in plugin_dirs(plugin, project_dir, package_dir):
-            for name in candidates:
-                candidate = base / "guides" / name
-                if candidate.is_file():
-                    return candidate
-    return None
+    def first(self, plugins: list[str], candidates: list[str]) -> Path | None:
+        """First existing guide, walking plugins then override-before-package; within
+        one directory the candidate names are tried in order."""
+        for plugin in plugins:
+            for base in self.plugin_dirs(plugin):
+                for name in candidates:
+                    candidate = base / "guides" / name
+                    if candidate.is_file():
+                        return candidate
+        return None

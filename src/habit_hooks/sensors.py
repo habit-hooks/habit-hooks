@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import Config, load_config
-from .resolve import package_root, resolve_in_plugin
+from .resolve import Resolver, package_root
 from .scope import Scope, parse_args, resolve_scope
 
 ACCEPTED_EXIT_CODES = (0, 1)
@@ -76,8 +76,8 @@ def _resolve_part(
     config: Config,
 ) -> Part:
     for plugin in plugins:
-        path = resolve_in_plugin(
-            plugin, f"{kind}/{name}.toml", project_dir, package_dir
+        path = Resolver(project_dir, package_dir).in_plugin(
+            plugin, f"{kind}/{name}.toml"
         )
         if path is not None:
             spec = _read_toml(path)
@@ -89,7 +89,7 @@ def _resolve_part(
 def _load_plugin(
     name: str, config: Config, project_dir: Path, package_dir: Path
 ) -> Plugin:
-    path = resolve_in_plugin(name, "config.toml", project_dir, package_dir)
+    path = Resolver(project_dir, package_dir).in_plugin(name, "config.toml")
     spec = _read_toml(path) if path else {}
     sensors = [
         _resolve_part([name], "sensors", sensor, project_dir, package_dir, config)
