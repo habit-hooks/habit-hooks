@@ -504,6 +504,8 @@ habit-sensors --all | habit-mapper
 
 🖥️ ✅
 ```text
+── warning-comment (1 issue) ──
+
 src/util.lua:2 — TODO: validate inputs
 
 Resolve or remove these markers before merging.

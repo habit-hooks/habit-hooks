@@ -68,6 +68,8 @@ habit-hooks --file src/billing.py
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (1 issue) ──
+
 The following function definitions have more than 3 parameters:
 
 src/billing.py:2
@@ -89,6 +91,8 @@ PATH=/usr/bin:/bin "$VIRTUAL_ENV/bin/habit-hooks" --file src/billing.py
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (1 issue) ──
+
 The following function definitions have more than 3 parameters:
 
 src/billing.py:2
@@ -110,7 +114,7 @@ habit-hooks --all | head -1
 
 🖥️ ❌ 1
 ```text
-The following function definitions have more than 3 parameters:
+── too-many-parameters (7 issues) ──
 ```
 
 ### A clean run exits 0 and prints the pass reminder

@@ -59,6 +59,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (1 issue) ──
+
 The following function definitions have more than 3 parameters:
 
 src/billing.ts:2
@@ -107,6 +109,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (2 issues) ──
+
 The following function definitions have more than 3 parameters:
 
 src/billing.ts:2
@@ -117,7 +121,7 @@ src/report.ts:8
 Bundle related arguments into an object.
 ```
 
-### Multiple smells each render their own guide 🟡
+### Multiple smells each render their own guide
 
 Every finding is framed by a banner — `── <smell> (<n> issue[s]) ──` — so the
 findings read as distinct blocks instead of one wall of prose. The banner is
@@ -232,6 +236,8 @@ habit-mapper
 
 🖥️ ✅
 ```text
+── warning-comment (1 issue) ──
+
 src/api.ts:14 TODO handle retry
 
 Resolve or remove these markers before merging.
@@ -303,6 +309,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (1 issue) ──
+
 1 function(s) over 3 parameters. Bundle arguments into an object.
 ```
 
@@ -349,6 +357,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── loose-equality (1 issue) ──
+
 Use `===`/`!==`; TypeScript will not coerce types for you.
 ```
 
@@ -393,6 +403,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── loose-equality (1 issue) ──
+
 biome: prefer `===`/`!==` over loose equality.
 ```
 
@@ -421,6 +433,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── mystery-rule (1 issue) ──
+
 General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
 - Ask yourself why the rule exists in the first place. What is it telling you about the code?
 - Find a fix that improves maintainability, cuts cruft — doing the same with fewer statements where that lowers cognitive load — and/or improves security, scalability, and resilience.
@@ -453,6 +467,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── duplicate-import (1 issue) ──
+
 General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
 - Ask yourself why the rule exists in the first place. What is it telling you about the code?
 - Find a fix that improves maintainability, cuts cruft — doing the same with fewer statements where that lowers cognitive load — and/or improves security, scalability, and resilience.
@@ -540,6 +556,8 @@ habit-mapper
 
 🖥️ ✅
 ```text
+── oversized-file (1 issue) ──
+
 src/legacy.ts is too large — split it into focused modules.
 ```
 

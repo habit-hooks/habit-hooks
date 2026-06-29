@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from jinja2 import Template
+from jinja2 import Environment, FunctionLoader
 
 from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
 from .config import Config, load_config
@@ -41,8 +41,18 @@ def guide_names(smell: str, config: Config) -> list[str]:
     return [f"{smell}.{ext}" for ext in extensions]
 
 
-def render_markdown(guide: Path, finding: dict) -> Rendered:
-    template = Template(guide.read_text())
+def include_environment(plugins: list[str], resolver: Resolver) -> Environment:
+    def load(name: str) -> str | None:
+        partial = resolver.first(plugins, [name])
+        return None if partial is None else partial.read_text()
+
+    return Environment(loader=FunctionLoader(load))
+
+
+def render_markdown(
+    guide: Path, finding: dict, plugins: list[str], resolver: Resolver
+) -> Rendered:
+    template = include_environment(plugins, resolver).from_string(guide.read_text())
     return Rendered(text=template.render(**finding), blocks=True)
 
 
@@ -68,7 +78,7 @@ def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendere
         guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
     extension = guide.suffix.lstrip(".")
     if extension == "md":
-        rendered = render_markdown(guide, finding)
+        rendered = render_markdown(guide, finding, config.plugins, resolver)
     else:
         rendered = render_runner(guide, config.runners[extension], finding)
     rendered.blocks = enforced and rendered.blocks
@@ -80,6 +90,12 @@ def render_clean(config: Config, resolver: Resolver) -> Rendered:
     return Rendered(text=guide.read_text(), blocks=False)
 
 
+def banner(finding: dict) -> str:
+    count = len(finding["issues"])
+    noun = "issue" if count == 1 else "issues"
+    return f"── {finding['smell']} ({count} {noun}) ──"
+
+
 def run(findings: list[dict], project_dir: Path) -> int:
     config = load_config(project_dir)
     resolver = Resolver.discover(project_dir)
@@ -88,7 +104,12 @@ def run(findings: list[dict], project_dir: Path) -> int:
         sys.stdout.write(clean.text)
         return 0
     rendered = [render_finding(f, config, resolver) for f in findings]
-    body = "\n\n".join(r.text.strip() for r in rendered if r.text.strip())
+    blocks = [
+        f"{banner(f)}\n\n{r.text.strip()}"
+        for f, r in zip(findings, rendered)
+        if r.text.strip()
+    ]
+    body = "\n\n".join(blocks)
     if body:
         sys.stdout.write(body + "\n")
     for r in rendered:

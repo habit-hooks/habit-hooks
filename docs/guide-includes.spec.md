@@ -57,7 +57,7 @@ plugins = ["generic"]
 {% endfor -%}
 ```
 
-### A point-located guide includes the line listing, with content 🟡
+### A point-located guide includes the line listing, with content
 
 `too-many-parameters` is point-located (enforced). Each issue carries the
 signature as `content`, so the listing lines the signatures up under each other.
@@ -90,6 +90,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── too-many-parameters (2 issues) ──
+
 These functions take more than 3 parameters:
 
 src/billing.py:2  bill(customer, items, discount, tax)
@@ -98,7 +100,7 @@ src/orders.py:9  place_order(cart, user, coupon, shipping, gift_wrap)
 Bundle related arguments into an object.
 ```
 
-### A point-located guide includes the line listing, without content 🟡
+### A point-located guide includes the line listing, without content
 
 When a sensor emits no `content`, the same listing renders bare `file:line`.
 
@@ -130,6 +132,8 @@ habit-mapper
 
 🖥️
 ```text
+── non-null-assertion (2 issues) ──
+
 Replace these non-null assertions with a real check:
 
 src/config.ts:7
@@ -152,7 +156,7 @@ plugins = ["generic"]
 {% endfor -%}
 ```
 
-### A whole-file guide includes the file listing 🟡
+### A whole-file guide includes the file listing
 
 `oversized-file` is whole-file (enforced); its issues carry no `line`, and here
 no `content`, so the listing is just the files.
@@ -185,6 +189,8 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
+── oversized-file (2 issues) ──
+
 These files are over 200 lines:
 
 src/big.ts
@@ -203,7 +209,7 @@ include resolves by walking `plugins` in order, exactly like a guide.
 plugins = ["typescript", "generic"]
 ```
 
-### A guide includes a partial shipped by a later plugin 🟡
+### A guide includes a partial shipped by a later plugin
 
 The `typescript` guide ships no `includes/` of its own; its `{% include %}`
 falls through to the listing `generic` provides.
@@ -243,6 +249,8 @@ habit-mapper
 
 🖥️
 ```text
+── explicit-any (1 issue) ──
+
 Replace these `any` annotations with precise types:
 
 src/api.ts:5  fetchUser(id): any
