@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import os
+import sys
+from pathlib import Path
+
+_HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(_HERE / "src"))
+os.environ["PATH"] = f"{_HERE}{os.pathsep}{os.environ['PATH']}"
+
+from habit_hooks.hooks import main
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -9,6 +9,7 @@ dependencies = ["jinja2>=3", "pathspec>=0.12", "pydantic>=2"]
 habit-mapper = "habit_hooks.mapper:main"
 habit-sensors = "habit_hooks.sensors:main"
 habit-snooze = "habit_hooks.snooze:main"
+habit-hooks = "habit_hooks.hooks:main"
 
 [build-system]
 requires = ["hatchling"]

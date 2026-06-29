@@ -28,16 +28,16 @@ sensors = ["params"]
 
 📄.habit-hooks/generic/sensors/params.toml
 ```toml
-command = "jq -n --args '[{smell: \"too-many-parameters\", details: {maxAllowed: 3, issues: ($ARGS.positional | map({file: ., line: 2, actual: 4, signature: \"bill(...)\"}))}, issues: ($ARGS.positional | map({key: ., details: {file: .}}))}]' ${files}"
+command = "jq -n --args '[{smell: \"too-many-parameters\", details: {maxAllowed: 3}, issues: ($ARGS.positional | map({key: ., details: {file: ., line: 2, actual: 4, signature: \"bill(...)\"}}))}]' ${files}"
 ```
 
 📄.habit-hooks/generic/guides/too-many-parameters.md
 ```markdown
-The following function definitions have more than {{ maxAllowed }} parameters:
+The following function definitions have more than {{ details.maxAllowed }} parameters:
 
 {% for v in issues -%}
-{{ v.file }}:{{ v.line }}
-    {{ v.signature }} has {{ v.actual }} parameters
+{{ v.details.file }}:{{ v.details.line }}
+    {{ v.details.signature }} has {{ v.details.actual }} parameters
 {% endfor %}
 Bundle related arguments into an object.
 ```
@@ -57,7 +57,7 @@ bill
 report
 ```
 
-## Scope arguments forward to the sensors stage 🟡
+## Scope arguments forward to the sensors stage
 
 `habit-hooks --file <path>` forwards `--file` to `habit-sensors`, so the run is
 scoped to that one file and the coached output names only it.
@@ -78,7 +78,7 @@ Bundle related arguments into an object.
 
 ## The mapper's exit code propagates
 
-### An enforced smell fails the whole pipeline 🟡
+### An enforced smell fails the whole pipeline
 
 `too-many-parameters` is `enforced`; the mapper exits 1, and that is the
 pipeline's exit code.
@@ -92,7 +92,7 @@ habit-hooks --all | head -1
 The following function definitions have more than 3 parameters:
 ```
 
-### A clean run exits 0 and prints the pass reminder 🟡
+### A clean run exits 0 and prints the pass reminder
 
 When the sensors find nothing, the mapper renders the clean guide and the
 pipeline exits 0. This leaf overrides the sensor to emit an empty array.
