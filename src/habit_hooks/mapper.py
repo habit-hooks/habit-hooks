@@ -65,7 +65,7 @@ def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendere
     enforced = severity_of(smell, config) == ENFORCED
     guide = resolver.first(config.plugins, guide_names(smell, config))
     if guide is None:
-        raise SystemExit(f"no guide found for smell {smell!r}")
+        guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
     extension = guide.suffix.lstrip(".")
     if extension == "md":
         rendered = render_markdown(guide, finding)

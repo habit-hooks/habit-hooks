@@ -411,6 +411,38 @@ General guidance: the issues listed are code smells. They tell you that there is
 - AVOID AT ALL COST: any fix that is designed to appease the reporting tool, but goes against the spirit of the warning.
 ```
 
+### A catalogued smell with no resolvable guide falls back to uncoached
+
+A smell can be in the catalogue yet ship no guide for it (here `duplicate-import`
+is `enforced` but has no `duplicate-import.md`). Rather than crash, the mapper
+falls back to the generic `uncoached.md` guidance, so the run still coaches and
+fails on the enforced smell.
+
+⌨️
+```json
+[
+  {
+    "smell": "duplicate-import",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+```text
+General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
+- Ask yourself why the rule exists in the first place. What is it telling you about the code?
+- Find a fix that improves maintainability, cuts cruft — doing the same with fewer statements where that lowers cognitive load — and/or improves security, scalability, and resilience.
+- AVOID AT ALL COST: any fix that is designed to appease the reporting tool, but goes against the spirit of the warning.
+```
+
 ## Config overrides
 
 ### Demoting a smell to suggested keeps the run green

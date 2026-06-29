@@ -76,6 +76,27 @@ src/billing.py:2
 Bundle related arguments into an object.
 ```
 
+## The installed command composes without its bin dir on PATH
+
+The installed `habit-hooks` console script shells out to its siblings
+`habit-sensors` and `habit-mapper`. Invoked by absolute path with its own bin
+directory stripped from `PATH`, it resolves those siblings relative to itself
+rather than by bare name, so the pipeline still composes.
+
+```bash
+PATH=/usr/bin:/bin "$VIRTUAL_ENV/bin/habit-hooks" --file src/billing.py
+```
+
+🖥️ ❌ 1
+```text
+The following function definitions have more than 3 parameters:
+
+src/billing.py:2
+    bill(...) has 4 parameters
+
+Bundle related arguments into an object.
+```
+
 ## The mapper's exit code propagates
 
 ### An enforced smell fails the whole pipeline
