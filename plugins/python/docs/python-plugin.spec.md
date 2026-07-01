@@ -5,10 +5,6 @@ These cases run the **actual** tools (`ruff`, `deptry`) against a fixture with a
 known smell and assert the canonical finding comes out, mapped to the smell keys
 in [smell-vocabulary.md](smell-vocabulary.md).
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-```
-
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["python"]
@@ -41,14 +37,32 @@ def charge(a, b, c, d):
 ```
 
 ```bash
-habit-sensors --all | jq -c 'sort_by(.smell)[] | {smell, language, key: (.issues[0].key | sub(".*/"; "")), line: .issues[0].details.line, source: .issues[0].details.source}'
+habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0].key | sub(".*/"; "")), line: .issues[0].details.line, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"too-many-parameters","language":"python","key":"billing.py","line":4,"source":"ruff:PLR0913"}
-{"smell":"unused-import","language":"python","key":"billing.py","line":1,"source":"ruff:F401"}
-{"smell":"unused-variable","language":"python","key":"billing.py","line":5,"source":"ruff:F841"}
+{
+  "smell": "too-many-parameters",
+  "language": "python",
+  "key": "billing.py",
+  "line": 4,
+  "source": "ruff:PLR0913"
+}
+{
+  "smell": "unused-import",
+  "language": "python",
+  "key": "billing.py",
+  "line": 1,
+  "source": "ruff:F401"
+}
+{
+  "smell": "unused-variable",
+  "language": "python",
+  "key": "billing.py",
+  "line": 5,
+  "source": "ruff:F841"
+}
 ```
 
 ## ruff maps a syntax error to parse-error
@@ -75,12 +89,15 @@ def broken(:
 ```
 
 ```bash
-habit-sensors --all | jq -c '.[] | {smell, source: .issues[0].details.source}'
+habit-sensors --all | jq '.[] | {smell, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"parse-error","source":"ruff:invalid-syntax"}
+{
+  "smell": "parse-error",
+  "source": "ruff:invalid-syntax"
+}
 ```
 
 ## deptry sensor maps DEP002 to unused-dependency
@@ -115,12 +132,18 @@ def fetch(url):
 ```
 
 ```bash
-habit-sensors --all | jq -c '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
+habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"unused-dependency","language":"python","key":"rich","file":"pyproject.toml","source":"deptry:DEP002"}
+{
+  "smell": "unused-dependency",
+  "language": "python",
+  "key": "rich",
+  "file": "pyproject.toml",
+  "source": "deptry:DEP002"
+}
 ```
 
 ## A crashing deptry fails the run, never reports clean

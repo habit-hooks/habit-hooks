@@ -11,11 +11,6 @@ passes ([sensor-interface.spec.md](sensor-interface.spec.md)), and the config
 format ([config.md](config.md)). Read those first; this manual links back rather
 than re-explaining them.
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-habit-mapper()  { ../../habit-mapper; }
-```
-
 ## 1. A plugin is an installable package
 
 A plugin is a self-contained **Python package** — no core code. You build it,

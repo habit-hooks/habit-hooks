@@ -10,10 +10,6 @@ runs `php phpmd.phar` with PHP error reporting silenced (PHP's deprecation
 notices would otherwise leak onto the JSON stdout) and normalises PHPMD's
 exit-2-on-violations into a clean run.
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-```
-
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["php"]
@@ -37,13 +33,25 @@ function charge($a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k) {
 ```
 
 ```bash
-habit-sensors --all | jq -c 'sort_by(.smell)[] | {smell, language, key: (.issues[0].key | sub(".*/"; "")), line: .issues[0].details.line, source: .issues[0].details.source}'
+habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0].key | sub(".*/"; "")), line: .issues[0].details.line, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"too-many-parameters","language":"php","key":"billing.php","line":2,"source":"phpmd:ExcessiveParameterList"}
-{"smell":"unused-variable","language":"php","key":"billing.php","line":3,"source":"phpmd:UnusedLocalVariable"}
+{
+  "smell": "too-many-parameters",
+  "language": "php",
+  "key": "billing.php",
+  "line": 2,
+  "source": "phpmd:ExcessiveParameterList"
+}
+{
+  "smell": "unused-variable",
+  "language": "php",
+  "key": "billing.php",
+  "line": 3,
+  "source": "phpmd:UnusedLocalVariable"
+}
 ```
 
 ## phpmd sensor maps a deeply-branched function to high-complexity
@@ -73,12 +81,16 @@ function classify($n) {
 ```
 
 ```bash
-habit-sensors --all | jq -c '.[] | {smell, language, source: .issues[0].details.source}'
+habit-sensors --all | jq '.[] | {smell, language, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"high-complexity","language":"php","source":"phpmd:CyclomaticComplexity"}
+{
+  "smell": "high-complexity",
+  "language": "php",
+  "source": "phpmd:CyclomaticComplexity"
+}
 ```
 
 ## A crashing phpmd fails the run, never reports clean

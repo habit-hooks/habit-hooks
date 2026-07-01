@@ -7,10 +7,6 @@ that shape — what a sensor must produce, and therefore what every transformer 
 preserve and the mapper can rely on. The big picture is in
 [architecture.md](architecture.md).
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-```
-
 ## The shape
 
 One finding names one smell and lists everywhere it occurs:
@@ -76,12 +72,29 @@ command = "cat ${dir}/alpha.json"
 ```
 
 ```bash
-habit-sensors --all | jq -c .
+habit-sensors --all | jq .
 ```
 
 🖥️ ✅
 ```json
-[{"smell":"too-many-parameters","details":{"maxAllowed":3},"issues":[{"key":"src/billing.py","details":{"file":"src/billing.py","line":2,"signature":"bill(...)"}}]}]
+[
+  {
+    "smell": "too-many-parameters",
+    "details": {
+      "maxAllowed": 3
+    },
+    "issues": [
+      {
+        "key": "src/billing.py",
+        "details": {
+          "file": "src/billing.py",
+          "line": 2,
+          "signature": "bill(...)"
+        }
+      }
+    ]
+  }
+]
 ```
 
 ## A clean run emits an empty array
@@ -105,7 +118,7 @@ command = "echo []"
 ```
 
 ```bash
-habit-sensors --all | jq -c .
+habit-sensors --all | jq .
 ```
 
 🖥️ ✅

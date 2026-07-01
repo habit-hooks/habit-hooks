@@ -9,10 +9,6 @@ exit-code propagation; the stages' own behaviour lives in
 [habit-mapper.spec.md](habit-mapper.spec.md), and the big picture in
 [architecture.md](architecture.md).
 
-```bash
-habit-hooks() { ../../habit-hooks "$@"; }
-```
-
 A minimal plugin backs every case below: one sensor that emits a single
 `too-many-parameters` finding scoped from `${files}`, and a guide for that smell.
 

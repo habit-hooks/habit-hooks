@@ -7,10 +7,6 @@ The finding shape it consumes is the contract in
 [sensor-interface.spec.md](sensor-interface.spec.md); how guides resolve through
 the ordered plugins is in [architecture.md](architecture.md).
 
-```bash
-habit-mapper() { ../../habit-mapper; }
-```
-
 ## Rendering Jinja2 guides
 
 A `guides/<smell>.md` template renders (Jinja2) against the whole finding. It

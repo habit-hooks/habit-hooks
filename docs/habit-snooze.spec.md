@@ -21,10 +21,6 @@ Two rules cover the whole transform:
 The `--snooze` / `--prune` / `--list` commands maintain the index. They are the
 only things that write it; the transform itself only reads it.
 
-```bash
-habit-snooze() { ../../habit-snooze; }
-```
-
 ## An unsnoozed issue passes through
 
 With an empty index, every finding survives untouched.
@@ -43,12 +39,28 @@ With an empty index, every finding survives untouched.
 ```
 
 ```bash
-habit-snooze | jq -c .
+habit-snooze | jq .
 ```
 
 🖥️ ✅
 ```json
-[{"smell":"loose-equality","details":{"maxAllowed":0},"issues":[{"key":"src/x.ts","details":{"file":"src/x.ts","line":1}}]}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "maxAllowed": 0
+    },
+    "issues": [
+      {
+        "key": "src/x.ts",
+        "details": {
+          "file": "src/x.ts",
+          "line": 1
+        }
+      }
+    ]
+  }
+]
 ```
 
 ## `--snooze` records an issue's key into the index
@@ -114,12 +126,28 @@ habit-snooze --snooze
 ```
 
 ```bash
-habit-snooze | jq -c .
+habit-snooze | jq .
 ```
 
 🖥️ ✅
 ```json
-[{"smell":"loose-equality","details":{"maxAllowed":0},"issues":[{"key":"src/y.ts","details":{"file":"src/y.ts","line":9}}]}]
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "maxAllowed": 0
+    },
+    "issues": [
+      {
+        "key": "src/y.ts",
+        "details": {
+          "file": "src/y.ts",
+          "line": 9
+        }
+      }
+    ]
+  }
+]
 ```
 
 ## A finding loses its only issue and disappears
@@ -158,7 +186,7 @@ habit-snooze --snooze
 ```
 
 ```bash
-habit-snooze | jq -c .
+habit-snooze | jq .
 ```
 
 🖥️ ✅

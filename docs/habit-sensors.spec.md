@@ -14,10 +14,6 @@ in [architecture.md](architecture.md); the finding shape every step speaks is
 the contract in [sensor-interface.spec.md](sensor-interface.spec.md); the TOML
 config that wires it up is in [config.md](config.md).
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-```
-
 ## Sensors combine
 
 ### Sibling sensors concatenate in listed order
@@ -56,12 +52,15 @@ command = "cat ${dir}/beta.json"
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].smell]'
+habit-sensors --all | jq '[.[].smell]'
 ```
 
 🖥️ ✅
 ```json
-["warning-comment","oversized-file"]
+[
+  "warning-comment",
+  "oversized-file"
+]
 ```
 
 ### A plugin stamps its declared language; the name need not match
@@ -92,12 +91,14 @@ command = "cat ${dir}/out.json"
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].language]'
+habit-sensors --all | jq '[.[].language]'
 ```
 
 🖥️ ✅
 ```json
-["python"]
+[
+  "python"
+]
 ```
 
 ## Transformers reshape
@@ -145,12 +146,23 @@ command = "jq 'map(if .smell == \"warning-comment\" then .details.tagged = true 
 ```
 
 ```bash
-habit-sensors --all | jq -c 'map({smell, details})'
+habit-sensors --all | jq 'map({smell, details})'
 ```
 
 🖥️ ✅
 ```json
-[{"smell":"warning-comment","details":{"tagged":true}},{"smell":"oversized-file","details":{}}]
+[
+  {
+    "smell": "warning-comment",
+    "details": {
+      "tagged": true
+    }
+  },
+  {
+    "smell": "oversized-file",
+    "details": {}
+  }
+]
 ```
 
 ### The transformer chain runs left to right
@@ -190,12 +202,15 @@ command = "jq 'map(.details.steps += [\"second\"])'"
 ```
 
 ```bash
-habit-sensors --all | jq -c '.[0].details.steps'
+habit-sensors --all | jq '.[0].details.steps'
 ```
 
 🖥️ ✅
 ```json
-["first","second"]
+[
+  "first",
+  "second"
+]
 ```
 
 ## Plugins compose
@@ -243,12 +258,17 @@ command = "cat ${dir}/p.json"
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[] | [.smell, .language]]'
+habit-sensors --all | jq '[.[] | [.smell, .language]]'
 ```
 
 🖥️ ✅
 ```json
-[["too-many-parameters","python"]]
+[
+  [
+    "too-many-parameters",
+    "python"
+  ]
+]
 ```
 
 ## Failure is not false-clean
@@ -285,12 +305,14 @@ command = "this-tool-does-not-exist"
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].smell]'
+habit-sensors --all | jq '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-["warning-comment"]
+[
+  "warning-comment"
+]
 ```
 
 🚨
@@ -338,7 +360,7 @@ x = 1
 ```
 
 ```bash
-habit-sensors --all | jq -c '.'
+habit-sensors --all | jq '.'
 ```
 
 🖥️ ✅
@@ -527,10 +549,12 @@ b
 ```
 
 ```bash
-habit-sensors --file src/a.txt | jq -c '[.[].issues[].key]'
+habit-sensors --file src/a.txt | jq '[.[].issues[].key]'
 ```
 
 🖥️ ✅
 ```json
-["src/a.txt"]
+[
+  "src/a.txt"
+]
 ```

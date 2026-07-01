@@ -40,10 +40,6 @@ built-in partials as the final fallback — so a project can re-format a listing
 once and every guide that includes it follows, and any plugin can rely on the two
 shared partials whether or not `generic` is configured.
 
-```bash
-habit-mapper() { ../../habit-mapper; }
-```
-
 ## The line-level listing
 
 📄.habit-hooks/config.toml
