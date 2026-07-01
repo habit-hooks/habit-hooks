@@ -4,13 +4,21 @@ The generic plugin runs language-agnostic sensors through the real `habit-sensor
 pipeline. These cases run the **actual** tools against a fixture with a known
 smell and assert the canonical finding comes out.
 
-```bash
-habit-sensors() { ../../habit-sensors "$@"; }
-```
+The Node tools live in `plugins/generic/node_modules`; the intro symlinks that
+into each case as `./node_modules` and puts its `.bin` on `PATH` once.
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+```
+
+```bash
+ln -s ../../plugins/generic/node_modules node_modules
+```
+
+✏️PATH
+```text
+$PWD/node_modules/.bin:$PATH
 ```
 
 ## line-count emits oversized-file over the threshold
@@ -30,12 +38,17 @@ disabled = true
 
 ```bash
 seq 1 205 | sed 's/^/x/;s/$/ = 0/' > big.py
-habit-sensors --all | jq -c '.[] | {smell, max: .details.maxAllowed, key: .issues[0].key, lines: .issues[0].details.lines}'
+habit-sensors --all | jq '.[] | {smell, max: .details.maxAllowed, key: .issues[0].key, lines: .issues[0].details.lines}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"oversized-file","max":200,"key":"big.py","lines":205}
+{
+  "smell": "oversized-file",
+  "max": 200,
+  "key": "big.py",
+  "lines": 205
+}
 ```
 
 ## line-count threshold is replace-on-override
@@ -57,7 +70,7 @@ args = ["--max", "300"]
 
 ```bash
 seq 1 205 | sed 's/^/x/;s/$/ = 0/' > big.py
-habit-sensors --all | jq -c .
+habit-sensors --all | jq .
 ```
 
 🖥️ ✅
@@ -105,11 +118,17 @@ export function beta(x: number, y: number) {
 ```
 
 ```bash
-ln -s ../../plugins/generic/node_modules node_modules
-PATH="$PWD/node_modules/.bin:$PATH" habit-sensors --all | jq -c '.[] | {smell, files: [.issues[].key | sub(".*/"; "")], source: .issues[0].details.source}'
+habit-sensors --all | jq '.[] | {smell, files: [.issues[].key | sub(".*/"; "")], source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-{"smell":"duplicated-code","files":["a.ts","b.ts"],"source":"jscpd:duplication"}
+{
+  "smell": "duplicated-code",
+  "files": [
+    "a.ts",
+    "b.ts"
+  ],
+  "source": "jscpd:duplication"
+}
 ```
