@@ -90,7 +90,7 @@ a findings array. It takes no findings as input. Each sensor is one
 
 ```toml
 # src/habit_hooks_lua/sensors/todo.toml
-command = "grep -rn TODO ${files} | jq -Rn '<transform>'"   # required
+command = "grep -Hrn TODO ${files} | jq -Rn '<transform>'"   # required
 files = ["**/*.lua"]                                        # optional; overrides the plugin globs
 ```
 
@@ -111,7 +111,9 @@ what snoozing acts on (default: the file path).
 
 The command pipes `grep` through `jq` to emit one `warning-comment` finding whose
 `issues` lists each TODO. Run the pipeline directly against a sample file to see
-exactly what the sensor emits.
+exactly what the sensor emits. The `-H` flag forces grep to print the `file:`
+prefix even when the scope is a single file — GNU grep omits it otherwise, which
+would break the capture on Linux.
 
 📄src/util.lua
 ```lua
@@ -122,7 +124,7 @@ end
 ```
 
 ```bash
-grep -rn TODO src | jq -Rn '[
+grep -Hrn TODO src | jq -Rn '[
   inputs | capture("(?<file>[^:]+):(?<line>[0-9]+):(?<text>.*)")
   | { key: .file,
       details: { file: .file,
@@ -457,7 +459,7 @@ sensors = ["todo"]
 
 📄habit-hooks-lua/src/habit_hooks_lua/sensors/todo.toml
 ```toml
-command = "grep -rn TODO ${files} | jq -Rn '[[inputs | capture(\"(?<file>[^:]+):(?<line>[0-9]+):(?<text>.*)\") | { key: .file, details: { file: .file, line: (.line | tonumber), message: (.text | gsub(\"^\\\\s*--\\\\s*\"; \"\")) } }] | { smell: \"warning-comment\", details: {}, issues: . }]'"
+command = "grep -Hrn TODO ${files} | jq -Rn '[[inputs | capture(\"(?<file>[^:]+):(?<line>[0-9]+):(?<text>.*)\") | { key: .file, details: { file: .file, line: (.line | tonumber), message: (.text | gsub(\"^\\\\s*--\\\\s*\"; \"\")) } }] | { smell: \"warning-comment\", details: {}, issues: . }]'"
 ```
 
 📄habit-hooks-lua/src/habit_hooks_lua/guides/warning-comment.md
