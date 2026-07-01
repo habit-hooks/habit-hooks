@@ -1,8 +1,6 @@
 A broad `except` (`except:`, `except Exception`, `except BaseException`) that discards the error silently is hiding a failure you have not understood, not handling one you planned for. Before you write it, name the specific error you expect and why. That one sentence is usually the fix.
 
-{% for issue in issues -%}
-{{ issue.details.file }}:{{ issue.details.line }}{% if issue.details.content %}  {{ issue.details.content }}{% endif %}
-{% endfor -%}
+{% include "includes/line_level_issues.md" %}
 Work through it in order:
 
 1. **Catch only what you can name.** `ValueError`, `KeyError`, `TimeoutError`, whatever the call really raises. If you cannot name it, you are guessing, and every other error should stay free to surface where someone can see it.

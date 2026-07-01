@@ -408,55 +408,6 @@ habit-mapper
 biome: prefer `===`/`!==` over loose equality.
 ```
 
-### The python plugin ships an opinionated swallowed-exception guide
-
-`swallowed-exception` comes only from ruff (`BLE001`), so it is python-only. The
-python plugin ships its own guide for it, so a `["python"]` config coaches it
-directly with no `generic` present. The guide inlines its own line listing rather
-than the generic `includes/line_level_issues.md`, so it never depends on `generic`
-being installed. It is `suggested`, so it coaches but the run stays green.
-
-📄.habit-hooks/config.toml
-```toml
-plugins = ["python"]
-```
-
-⌨️
-```json
-[
-  {
-    "smell": "swallowed-exception",
-    "language": "python",
-    "details": {},
-    "issues": [
-      { "key": "src/loader.py:4", "details": { "file": "src/loader.py", "line": 4 } }
-    ]
-  }
-]
-```
-
-```bash
-habit-mapper
-```
-
-🖥️ ✅
-```text
-── swallowed-exception (1 issue) ──
-
-A broad `except` (`except:`, `except Exception`, `except BaseException`) that discards the error silently is hiding a failure you have not understood, not handling one you planned for. Before you write it, name the specific error you expect and why. That one sentence is usually the fix.
-
-src/loader.py:4
-Work through it in order:
-
-1. **Catch only what you can name.** `ValueError`, `KeyError`, `TimeoutError`, whatever the call really raises. If you cannot name it, you are guessing, and every other error should stay free to surface where someone can see it.
-2. **Make the decision visible.** Recover from it, add context and re-raise (`raise ... from err`), or, at a boundary that has to stay alive, log the full traceback (`logging.exception(...)`) and continue. Logging and returning a default is a real option, not automatically a swallow.
-3. **The test is not whether you re-raised.** Ask one question: if this fires at 3am, will anyone know it happened, and will they know why? What turns a catch into a swallow is doing it blindly: a wide catch, no named error, nothing logged, the failure gone without a trace. If the answer is no, it is still a swallow, however you dressed it up.
-
-Narrowing the type or adding `# noqa` only to quiet ruff is not a fix if the error is still discarded.
-
-If you are unsure whether this catch is a real decision or a reflex, check with a human before you keep it.
-```
-
 ### An unknown smell escalates with the default guidance
 
 A smell with no catalogue entry has no tuned guide. It defaults to `enforced`
@@ -668,7 +619,7 @@ runs the `python` plugin without `generic`.
 
 ### A python-only config coaches an unguided smell via the core uncoached guide
 
-`swallowed-exception` has no guide in the `python` plugin and `generic` is not
+`warning-comment` has no guide in the `python` plugin and `generic` is not
 configured, so the mapper falls back to the core `uncoached.md` rather than
 crashing. The smell is `suggested`, so the run still passes.
 
@@ -679,7 +630,7 @@ plugins = ["python"]
 
 ⌨️
 ```json
-[{"smell":"swallowed-exception","details":{},"issues":[{"key":"x.py:4","details":{"file":"x.py","line":4}}]}]
+[{"smell":"warning-comment","details":{},"issues":[{"key":"x.py:4","details":{"file":"x.py","line":4}}]}]
 ```
 
 ```bash
@@ -688,7 +639,7 @@ habit-mapper
 
 🖥️ ✅
 ```text
-── swallowed-exception (1 issue) ──
+── warning-comment (1 issue) ──
 
 General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
 - Ask yourself why the rule exists in the first place. What is it telling you about the code?

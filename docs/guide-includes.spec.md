@@ -35,9 +35,10 @@ lists the pairs inline. The shared includes exist only for the two typical shape
 Partials live in an `includes/` subdirectory so they never collide with a
 smell-named guide (`guides/<smell>.md`). They resolve through the **same override
 chain as guides** — project `.habit-hooks/<plugin>/guides/includes/…` before the
-plugin's package default, walking the ordered `plugins` list — so a project can
-re-format a listing once and every guide that includes it follows, and a plugin
-can rely on a partial a lower-priority plugin (e.g. `generic`) ships.
+plugin's package default, walking the ordered `plugins` list, then the core's
+built-in partials as the final fallback — so a project can re-format a listing
+once and every guide that includes it follows, and any plugin can rely on the two
+shared partials whether or not `generic` is configured.
 
 ```bash
 habit-mapper() { ../../habit-mapper; }
