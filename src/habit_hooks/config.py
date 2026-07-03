@@ -1,34 +1,35 @@
-"""Load and validate the merged TOML config across the resolution chain."""
+"""Load the merged TOML config across the resolution chain.
+
+Unknown keys are ignored at every level: each raw dict is filtered to the
+type's declared attrs fields before construction.
+"""
 
 from __future__ import annotations
 
 import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from attrs import define, field, fields
 
 
-class SmellOverride(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
+@define
+class SmellOverride:
     severity: str | None = None
     guide: str | None = None
     disabled: bool | None = None
     title: str | None = None
 
 
-class ScopeDefaults(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
+@define
+class ScopeDefaults:
     changedOnly: bool = False
     autoBranchOffMain: bool = False
     branchBase: str = "main"
     mainBranch: str = "main"
 
 
-class SensorOverride(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
+@define
+class SensorOverride:
     disabled: bool | None = None
     command: str | None = None
     language: str | None = None
@@ -36,16 +37,37 @@ class SensorOverride(BaseModel):
     args: list[str] | None = None
 
 
-class Config(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    plugins: list[str] = ["generic"]
-    transformers: list[str] = []
+@define
+class Config:
+    plugins: list[str] = field(factory=lambda: ["generic"])
+    transformers: list[str] = field(factory=list)
     files: list[str] | None = None
-    scope: ScopeDefaults = ScopeDefaults()
-    sensors: dict[str, SensorOverride] = {}
-    runners: dict[str, str] = {}
-    smells: dict[str, SmellOverride] = {}
+    scope: ScopeDefaults = field(factory=ScopeDefaults)
+    sensors: dict[str, SensorOverride] = field(factory=dict)
+    runners: dict[str, str] = field(factory=dict)
+    smells: dict[str, SmellOverride] = field(factory=dict)
+
+
+def _known(cls: type, data: dict) -> dict:
+    names = {f.name for f in fields(cls)}
+    return {key: value for key, value in data.items() if key in names}
+
+
+def _build_mapping(cls: type, data: object) -> dict:
+    if not isinstance(data, dict):
+        return {}
+    return {key: cls(**_known(cls, value)) for key, value in data.items() if isinstance(value, dict)}
+
+
+def _build_config(data: dict) -> Config:
+    known = _known(Config, data)
+    if isinstance(known.get("scope"), dict):
+        known["scope"] = ScopeDefaults(**_known(ScopeDefaults, known["scope"]))
+    if "sensors" in known:
+        known["sensors"] = _build_mapping(SensorOverride, known["sensors"])
+    if "smells" in known:
+        known["smells"] = _build_mapping(SmellOverride, known["smells"])
+    return Config(**known)
 
 
 def _read_toml(path: Path) -> dict:
@@ -58,4 +80,4 @@ def _read_toml(path: Path) -> dict:
 def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     """Merge the project's ``.habit-hooks/config.toml`` over plugin defaults."""
     path = config_path or project_dir / ".habit-hooks" / "config.toml"
-    return Config(**_read_toml(path))
+    return _build_config(_read_toml(path))
