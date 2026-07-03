@@ -1,0 +1,46 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build every workspace package
+        run: uv build --all-packages --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    strategy:
+      matrix:
+        package:
+          - habit_hooks
+          - habit_hooks_generic
+          - habit_hooks_python
+          - habit_hooks_typescript
+          - habit_hooks_php
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Isolate this package's distributions
+        run: |
+          mkdir -p upload
+          mv "dist/${{ matrix.package }}-"*.whl "dist/${{ matrix.package }}-"*.tar.gz upload/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
