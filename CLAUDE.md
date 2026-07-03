@@ -163,3 +163,9 @@ habit-hooks package, off the consumer's discovery path — but a future
 dogfooding ruff run from inside that tree will be mystifying. Point ruff
 at an explicit `--config` (the repo-root `ruff.toml`, gitignored as
 `/ruff.toml`) if you hit this.
+
+### Each released package needs its own publish environment
+
+`.github/workflows/release.yml` maps each of the five PyPI packages to a
+distinct GitHub environment because a pending trusted publisher is unique by
+`(owner, repo, workflow, environment)` — five packages can't share one.

@@ -52,7 +52,7 @@ smell, never by which tool reported it.
 
 ## Install
 
-habit-hooks is a Python package (requires Python 3.11+). Install it with `uv` or `pip`:
+habit-hooks is a Python package (requires Python 3.11+). Install it with `uv`, `pip`, or Homebrew:
 
 ```sh
 uv tool install habit-hooks
@@ -60,6 +60,8 @@ uv tool install habit-hooks
 uvx habit-hooks
 # or
 pip install habit-hooks
+# or
+brew install habit-hooks/tap/habit-hooks
 ```
 
 This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
