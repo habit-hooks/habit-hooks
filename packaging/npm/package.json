@@ -1,0 +1,20 @@
+{
+  "name": "habit-hooks",
+  "version": "1.0.0",
+  "description": "Deprecated: habit-hooks moved to PyPI. Install with uv/pipx/pip or Homebrew.",
+  "bin": {
+    "habit-hooks": "bin/habit-hooks.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/habit-hooks/habit-hooks.git"
+  },
+  "homepage": "https://github.com/habit-hooks/habit-hooks",
+  "engines": {
+    "node": ">=18"
+  }
+}
