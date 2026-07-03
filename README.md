@@ -57,10 +57,32 @@ habit-hooks is a Python package (requires Python 3.11+). Install it with `uv` or
 ```sh
 uv tool install habit-hooks
 # or
+uvx habit-hooks
+# or
 pip install habit-hooks
 ```
 
-This installs four commands on your `PATH`: `habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`.
+This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
+`habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`.
+
+The three language plugins are **opt-in** via extras:
+
+```sh
+uv tool install "habit-hooks[python]"       # adds the python plugin
+uv tool install "habit-hooks[typescript]"   # adds the typescript plugin
+uv tool install "habit-hooks[php]"          # adds the php plugin
+uv tool install "habit-hooks[all]"          # adds all three
+```
+
+To pick language plugins per project without a global install, run from the extra with `uvx` (uv caches it):
+
+```sh
+uvx --from "habit-hooks[typescript]" habit-hooks
+```
+
+Alternatively, vendor a plugin's files under `.habit-hooks/<plugin>/` in your project. That works with any
+install — including one that cannot add extras (e.g. Homebrew) — because project files always override the
+installed package.
 
 The detectors themselves are **not** bundled — each plugin shells out to the real tool. Install the ones the
 plugins you enable need:
@@ -127,13 +149,14 @@ A plugin is not a language — it *declares* the language it speaks in its `conf
 onto the plugin's findings. So several plugins can speak the same language using different tools, and the order
 decides which one's guide wins. `generic` is listed explicitly like any other plugin, so a project can drop it.
 
-The three plugins that ship:
+The four plugins that ship:
 
 | Plugin | Language | Sensors | Tools used |
 |--------|----------|---------|------------|
 | `generic` | (none) | `line-count`, `jscpd` | built-in line counter, jscpd |
 | `python` | `python` | `ruff`, `deptry` | ruff, deptry |
 | `typescript` | `typescript` | `eslint`, `knip`, `comment` | eslint, knip, ts-morph |
+| `php` | `php` | `phpmd` | phpmd |
 
 ## Overrides: tune without forking
 

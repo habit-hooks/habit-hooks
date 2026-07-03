@@ -38,8 +38,8 @@ def _php() -> str:
     return php
 
 
-def _build_wheels(out_dir: Path) -> None:
-    for package in ("habit-hooks", "habit-hooks-generic", "habit-hooks-php"):
+def _build_wheels(out_dir: Path, packages: tuple[str, ...]) -> None:
+    for package in packages:
         subprocess.run(
             [_uv(), "build", "--wheel", "--package", package, "--out-dir", str(out_dir)],
             cwd=_REPO_ROOT,
@@ -67,8 +67,35 @@ def installed_habit_sensors(tmp_path_factory) -> Path:
     root = tmp_path_factory.mktemp("wheel-smoke")
     wheels_dir = root / "wheels"
     wheels_dir.mkdir()
-    _build_wheels(wheels_dir)
+    _build_wheels(wheels_dir, ("habit-hooks", "habit-hooks-generic", "habit-hooks-php"))
     return _install_into_venv(root / "venv", wheels_dir)
+
+
+@pytest.fixture(scope="module")
+def default_install(tmp_path_factory) -> tuple[Path, Path]:
+    root = tmp_path_factory.mktemp("default-install")
+    wheelhouse = root / "wheelhouse"
+    wheelhouse.mkdir()
+    _build_wheels(wheelhouse, ("habit-hooks", "habit-hooks-generic"))
+    venv = root / "venv"
+    subprocess.run([_uv(), "venv", str(venv)], check=True, capture_output=True, text=True)
+    python = venv / "bin" / "python"
+    subprocess.run(
+        [
+            _uv(),
+            "pip",
+            "install",
+            "--python",
+            str(python),
+            "--find-links",
+            str(wheelhouse),
+            "habit-hooks",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return python, venv / "bin" / "habit-sensors"
 
 
 def _oversized_fixture(project: Path) -> None:
@@ -92,6 +119,49 @@ def test_installed_generic_plugin_emits_a_real_finding(
 
     result = subprocess.run(
         [str(installed_habit_sensors), "--all"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "is not installed" not in result.stderr, result.stderr
+    assert "could not locate" not in result.stderr.lower(), result.stderr
+    assert result.returncode == 0, result.stderr
+
+    findings = json.loads(result.stdout)
+    assert findings == [
+        {
+            "smell": "oversized-file",
+            "details": {"maxAllowed": 200},
+            "issues": [
+                {
+                    "key": "big.py",
+                    "details": {"file": "big.py", "lines": 205, "source": "line-count"},
+                }
+            ],
+        }
+    ]
+
+
+def test_installing_core_by_name_pulls_generic_and_finds_a_smell(
+    default_install: tuple[Path, Path], tmp_path: Path
+) -> None:
+    python, habit_sensors = default_install
+
+    pip_list = subprocess.run(
+        [_uv(), "pip", "list", "--python", str(python)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "habit-hooks-generic" in pip_list.stdout, pip_list.stdout
+
+    project = tmp_path / "default-proj"
+    project.mkdir()
+    _oversized_fixture(project)
+
+    result = subprocess.run(
+        [str(habit_sensors), "--all"],
         cwd=project,
         capture_output=True,
         text=True,

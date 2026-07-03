@@ -73,9 +73,10 @@ wheels = [
 
 [[package]]
 name = "habit-hooks"
-version = "0.0.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "habit-hooks-generic" },
     { name = "jinja2" },
     { name = "pathspec" },
     { name = "pydantic" },
@@ -83,13 +84,9 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "habit-hooks-generic" },
     { name = "habit-hooks-php" },
     { name = "habit-hooks-python" },
     { name = "habit-hooks-typescript" },
-]
-generic = [
-    { name = "habit-hooks-generic" },
 ]
 php = [
     { name = "habit-hooks-php" },
@@ -115,8 +112,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "habit-hooks-generic", marker = "extra == 'all'", editable = "plugins/generic" },
-    { name = "habit-hooks-generic", marker = "extra == 'generic'", editable = "plugins/generic" },
+    { name = "habit-hooks-generic", editable = "plugins/generic" },
     { name = "habit-hooks-php", marker = "extra == 'all'", editable = "plugins/php" },
     { name = "habit-hooks-php", marker = "extra == 'php'", editable = "plugins/php" },
     { name = "habit-hooks-python", marker = "extra == 'all'", editable = "plugins/python" },
@@ -127,7 +123,7 @@ requires-dist = [
     { name = "pathspec", specifier = ">=0.12" },
     { name = "pydantic", specifier = ">=2" },
 ]
-provides-extras = ["generic", "python", "typescript", "php", "all"]
+provides-extras = ["python", "typescript", "php", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -143,22 +139,22 @@ dev = [
 
 [[package]]
 name = "habit-hooks-generic"
-version = "0.0.0"
+version = "1.0.0"
 source = { editable = "plugins/generic" }
 
 [[package]]
 name = "habit-hooks-php"
-version = "0.0.0"
+version = "1.0.0"
 source = { editable = "plugins/php" }
 
 [[package]]
 name = "habit-hooks-python"
-version = "0.0.0"
+version = "1.0.0"
 source = { editable = "plugins/python" }
 
 [[package]]
 name = "habit-hooks-typescript"
-version = "0.0.0"
+version = "1.0.0"
 source = { editable = "plugins/typescript" }
 
 [[package]]

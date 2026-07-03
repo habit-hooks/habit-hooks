@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks-php"
-version = "0.0.0"
+version = "1.0.0"
 description = "The PHP Habit Hooks plugin"
 requires-python = ">=3.11"
 dependencies = []

@@ -1,20 +1,23 @@
 [project]
 name = "habit-hooks"
-version = "0.0.0"
+version = "1.0.0"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
 requires-python = ">=3.11"
-dependencies = ["jinja2>=3", "pathspec>=0.12", "pydantic>=2"]
+dependencies = [
+    "jinja2>=3",
+    "pathspec>=0.12",
+    "pydantic>=2",
+    "habit-hooks-generic~=1.0",
+]
 
 [project.optional-dependencies]
-generic = ["habit-hooks-generic"]
-python = ["habit-hooks-python"]
-typescript = ["habit-hooks-typescript"]
-php = ["habit-hooks-php"]
+python = ["habit-hooks-python~=1.0"]
+typescript = ["habit-hooks-typescript~=1.0"]
+php = ["habit-hooks-php~=1.0"]
 all = [
-    "habit-hooks-generic",
-    "habit-hooks-python",
-    "habit-hooks-typescript",
-    "habit-hooks-php",
+    "habit-hooks-python~=1.0",
+    "habit-hooks-typescript~=1.0",
+    "habit-hooks-php~=1.0",
 ]
 
 [project.scripts]
