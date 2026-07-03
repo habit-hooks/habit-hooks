@@ -21,17 +21,17 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    environment: pypi
+    environment: ${{ matrix.environment }}
     permissions:
       id-token: write
     strategy:
       matrix:
-        package:
-          - habit_hooks
-          - habit_hooks_generic
-          - habit_hooks_python
-          - habit_hooks_typescript
-          - habit_hooks_php
+        include:
+          - { dist: habit_hooks, environment: pypi }
+          - { dist: habit_hooks_generic, environment: pypi-generic }
+          - { dist: habit_hooks_python, environment: pypi-python }
+          - { dist: habit_hooks_typescript, environment: pypi-typescript }
+          - { dist: habit_hooks_php, environment: pypi-php }
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -40,7 +40,7 @@ jobs:
       - name: Isolate this package's distributions
         run: |
           mkdir -p upload
-          mv "dist/${{ matrix.package }}-"*.whl "dist/${{ matrix.package }}-"*.tar.gz upload/
+          mv "dist/${{ matrix.dist }}-"*.whl "dist/${{ matrix.dist }}-"*.tar.gz upload/
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: upload/
