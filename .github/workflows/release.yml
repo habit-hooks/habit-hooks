@@ -25,6 +25,7 @@ jobs:
     permissions:
       id-token: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { dist: habit_hooks, environment: pypi }
@@ -44,3 +45,4 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: upload/
+          skip-existing: true
