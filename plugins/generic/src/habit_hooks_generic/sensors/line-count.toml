@@ -1,2 +1,2 @@
-command = "python ${dir}/line-count.py ${args} ${files}"
+command = "${python} ${dir}/line-count.py ${args} ${files}"
 args = ["--max", "200"]

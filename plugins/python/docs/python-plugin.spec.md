@@ -179,7 +179,7 @@ habit-sensors --all
 
 🚨
 ```text
-habit-sensors: sensor 'deptry' failed: python ${dir}/deptry_sensor.py
+habit-sensors: sensor 'deptry' failed: ${python} ${dir}/deptry_sensor.py
 ```
 
 ## A crashing ruff fails the run, never reports clean

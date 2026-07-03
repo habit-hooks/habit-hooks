@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,7 +81,8 @@ class Execution:
         files = " ".join(self.scope.files)
         args = " ".join(shlex.quote(arg) for arg in part.args)
         return (
-            part.command.replace("${dir}", str(part.directory))
+            part.command.replace("${python}", shlex.quote(sys.executable))
+            .replace("${dir}", str(part.directory))
             .replace("${args}", args)
             .replace("${files}", files)
         )

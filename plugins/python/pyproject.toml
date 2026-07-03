@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks-python"
-version = "1.0.0"
+version = "1.0.1"
 description = "The Python Habit Hooks plugin"
 requires-python = ">=3.11"
 dependencies = []

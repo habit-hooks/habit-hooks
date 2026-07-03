@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixes
+- Bundled Python sensors (`line-count`, `jscpd`, `deptry`, `phpmd`) now invoke the interpreter via the new `${python}` placeholder (`sys.executable`) instead of a bare `python`, so they run on environments without `python` on `PATH` (stock macOS, clean CI, Homebrew installs).
+
 ### Sensors & languages
 - **Consumer-defined sensors** (#16): the `sensors` config map is now the single way sensors are assembled — built-in and custom alike. Each entry is one of three mutually exclusive modes: `use` (reference a bundled sensor by id — `eslint`/`comment`/`jscpd`/`knip`/`ruff`/`deptry`/`line-count`/`needs-extraction`), a **wrapper script** (`command` + `produces` printing bag JSON), or a **declarative adapter** (`command` + `produces` + `items`/`fields`/`group`/`map`). The sensor id is the map key; `dependsOn` wires multi sensors. See `docs/sensors.md`.
 - **Authoritative `sensors` semantics**: when `sensors` is present it replaces the language preset entirely (no merge), so removing a built-in is just deleting its entry. When `sensors` is absent the preset is used and a deprecation warning is emitted — this implicit fallback is **removed in the 1.0.0 release**.

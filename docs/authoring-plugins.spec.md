@@ -91,7 +91,7 @@ files = ["**/*.lua"]                                        # optional; override
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts). |
+| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH). |
 | `language` | no | Language stamped on every finding this sensor emits. Usually inherited from the plugin's `config.toml` rather than set here. |
 | `files` | no | Per-sensor discovery globs, overriding the plugin's. |
 
@@ -147,7 +147,7 @@ grep -Hrn TODO src | jq -Rn '[
 ```
 
 A sensor emits an *array* of findings; here it is a single one. Anything `jq`
-cannot express becomes a script — `command = "python ${dir}/todo.py ${files}"` —
+cannot express becomes a script — `command = "${python} ${dir}/todo.py ${files}"` —
 as long as it prints the same array.
 
 ## 3. The adapter technique

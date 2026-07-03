@@ -1,1 +1,1 @@
-command = "python ${dir}/jscpd.py --config ${dir}/../.jscpd.json"
+command = "${python} ${dir}/jscpd.py --config ${dir}/../.jscpd.json"

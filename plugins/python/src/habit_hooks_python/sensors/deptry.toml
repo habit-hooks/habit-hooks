@@ -1,1 +1,1 @@
-command = "python ${dir}/deptry_sensor.py"
+command = "${python} ${dir}/deptry_sensor.py"

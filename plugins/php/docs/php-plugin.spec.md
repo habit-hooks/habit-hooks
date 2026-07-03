@@ -116,5 +116,5 @@ habit-sensors --all
 
 🚨
 ```text
-habit-sensors: sensor 'phpmd' failed: python ${dir}/phpmd_sensor.py ${files}
+habit-sensors: sensor 'phpmd' failed: ${python} ${dir}/phpmd_sensor.py ${files}
 ```

@@ -15,6 +15,7 @@ wheel, with no source tree on disk.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -126,6 +127,67 @@ def test_installed_generic_plugin_emits_a_real_finding(
 
     assert "is not installed" not in result.stderr, result.stderr
     assert "could not locate" not in result.stderr.lower(), result.stderr
+    assert result.returncode == 0, result.stderr
+
+    findings = json.loads(result.stdout)
+    assert findings == [
+        {
+            "smell": "oversized-file",
+            "details": {"maxAllowed": 200},
+            "issues": [
+                {
+                    "key": "big.py",
+                    "details": {"file": "big.py", "lines": 205, "source": "line-count"},
+                }
+            ],
+        }
+    ]
+
+
+def _path_without_python(tmp_path: Path) -> str:
+    """A PATH with the usual tools (``bash`` etc.) but no ``python``/``python3``,
+    reproducing a clean CI sandbox / stock-macOS environment. Built by symlinking
+    every executable on the current PATH except the Python interpreters into a
+    single bin dir."""
+    blocked = {"python", "python3"}
+    bin_dir = tmp_path / "no-python-bin"
+    bin_dir.mkdir()
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        source = Path(entry)
+        if not source.is_dir():
+            continue
+        for tool in source.iterdir():
+            link = bin_dir / tool.name
+            if tool.name in blocked or link.exists() or not os.access(tool, os.X_OK):
+                continue
+            link.symlink_to(tool)
+
+    assert shutil.which("python", path=str(bin_dir)) is None
+    assert shutil.which("python3", path=str(bin_dir)) is None
+    assert shutil.which("bash", path=str(bin_dir)) is not None
+    return str(bin_dir)
+
+
+def test_bundled_python_sensor_runs_without_python_on_path(
+    installed_habit_sensors: Path, tmp_path: Path
+) -> None:
+    """The bundled line-count sensor invokes a Python helper script. With a bare
+    ``python`` in the command this fails on any environment that ships only
+    ``python3`` (or none). The ``${python}`` placeholder must run it via the
+    interpreter behind ``habit-sensors`` regardless of PATH."""
+    project = tmp_path / "no-python-proj"
+    project.mkdir()
+    _oversized_fixture(project)
+
+    result = subprocess.run(
+        [str(installed_habit_sensors), "--all"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        env={"PATH": _path_without_python(tmp_path)},
+    )
+
+    assert "is not installed" not in result.stderr, result.stderr
     assert result.returncode == 0, result.stderr
 
     findings = json.loads(result.stdout)

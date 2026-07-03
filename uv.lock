@@ -73,7 +73,7 @@ wheels = [
 
 [[package]]
 name = "habit-hooks"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "habit-hooks-generic" },
@@ -139,17 +139,17 @@ dev = [
 
 [[package]]
 name = "habit-hooks-generic"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "plugins/generic" }
 
 [[package]]
 name = "habit-hooks-php"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "plugins/php" }
 
 [[package]]
 name = "habit-hooks-python"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "plugins/python" }
 
 [[package]]
