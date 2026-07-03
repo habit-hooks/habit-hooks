@@ -49,10 +49,8 @@ def include_environment(plugins: list[str], resolver: Resolver) -> Environment:
     return Environment(loader=FunctionLoader(load))
 
 
-def render_markdown(
-    guide: Path, finding: dict, plugins: list[str], resolver: Resolver
-) -> Rendered:
-    template = include_environment(plugins, resolver).from_string(guide.read_text())
+def render_markdown(guide: Path, finding: dict, environment: Environment) -> Rendered:
+    template = environment.from_string(guide.read_text())
     return Rendered(text=template.render(**finding), blocks=True)
 
 
@@ -78,7 +76,8 @@ def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendere
         guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
     extension = guide.suffix.lstrip(".")
     if extension == "md":
-        rendered = render_markdown(guide, finding, config.plugins, resolver)
+        environment = include_environment(config.plugins, resolver)
+        rendered = render_markdown(guide, finding, environment)
     else:
         rendered = render_runner(guide, config.runners[extension], finding)
     rendered.blocks = enforced and rendered.blocks

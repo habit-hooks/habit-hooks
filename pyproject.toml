@@ -74,3 +74,17 @@ DEP002 = [
     "habit-hooks-typescript",
     "habit-hooks-php",
 ]
+
+[tool.ruff.lint]
+# Dogfood the python plugin's recommended structural thresholds
+# (plugins/python/src/habit_hooks_python/ruff.toml). extend-select turns the
+# three checks on; the blocks below set the limits. Without extend-select the
+# thresholds are inert, so both parts are required.
+extend-select = ["C901", "PLR0913", "PLR0915"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 3
+max-statements = 12
