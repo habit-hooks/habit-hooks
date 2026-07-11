@@ -1,12 +1,34 @@
 # Changelog
 
-## Unreleased
+## 1.0.3
+
+### Changed
+- **TypeScript plugin**: the bundled `eslint.config.mjs` / `knip.json` defaults no longer exempt test files (`*.test.ts` / `*.spec.ts` / `tests/**`) from size and complexity rules — test code is now held to the same thresholds as production code. knip `entry`/`project` also broadened to cover `.tsx` and `.spec.*` files (#75).
+- **Generic plugin**: the bundled `.jscpd.json` no longer ignores `*.test.ts`, so duplication inside test files is now detected (#75).
+
+### Internal
+- The core mapper builds the Jinja environment once per finding render instead of once per markdown template.
+- The repo dogfoods the Python plugin's recommended ruff structural thresholds (`C901` / `PLR0913` / `PLR0915`, complexity 10 / max-args 3) and enforces them in CI.
+
+## 1.0.2
+
+### Internal
+- The core config loader uses `attrs` instead of `pydantic`, dropping the compiled `pydantic-core` (Rust) dependency so the core is pure Python — enabling fast, Rust-free Homebrew bottles.
+
+## 1.0.1
 
 ### Fixes
 - Bundled Python sensors (`line-count`, `jscpd`, `deptry`, `phpmd`) now invoke the interpreter via the new `${python}` placeholder (`sys.executable`) instead of a bare `python`, so they run on environments without `python` on `PATH` (stock macOS, clean CI, Homebrew installs).
 
-### Internal
-- The core config loader uses `attrs` instead of `pydantic`, dropping the compiled `pydantic-core` (Rust) dependency so the core is pure Python — enabling fast, Rust-free Homebrew bottles.
+### Packaging
+- The npm `habit-hooks` package is now a deprecation shim pointing at the PyPI / Homebrew distributions.
+- Added the Homebrew install path (`habit-hooks/tap/habit-hooks`); GitHub Actions pinned to Node 24-native versions.
+
+## 1.0.0
+
+### Packaging
+- Default install is now **core + generic**; the four language plugins (`generic`/`python`/`typescript`/`php`) are installable dists discovered via the `habit_hooks.plugins` entry-point group. Language plugins beyond generic install as extras.
+- All workspace packages publish to PyPI via trusted publishing, each in its own per-package GitHub environment, on a `v*` tag.
 
 ### Sensors & languages
 - **Consumer-defined sensors** (#16): the `sensors` config map is now the single way sensors are assembled — built-in and custom alike. Each entry is one of three mutually exclusive modes: `use` (reference a bundled sensor by id — `eslint`/`comment`/`jscpd`/`knip`/`ruff`/`deptry`/`line-count`/`needs-extraction`), a **wrapper script** (`command` + `produces` printing bag JSON), or a **declarative adapter** (`command` + `produces` + `items`/`fields`/`group`/`map`). The sensor id is the map key; `dependsOn` wires multi sensors. See `docs/sensors.md`.
