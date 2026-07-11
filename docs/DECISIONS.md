@@ -132,3 +132,29 @@ Pinned in [habit-sensors.spec.md](habit-sensors.spec.md).
 The three earlier design gaps (sensor-command bin resolution, conditional adapter
 mapping, config validation) are resolved and recorded above / in
 [checklist.md](checklist.md).
+
+## Tests are not exempt from quality tooling (2026-07, issue #75)
+
+- **Test code is production code; never exempt tests from linting / complexity /
+  duplication tooling.** The only legal test-specific carve-out is treating test
+  files as **entry points during dead-code detection** (they are roots, not dead
+  code), so a symbol used only by tests is not falsely flagged as unused and the
+  test file itself is not reported as an unused file.
+- **Removed exemptions:** the typescript plugin's `eslint.config.mjs` no longer
+  turns `max-lines` / `max-lines-per-function` off for `*.test.ts` / `*.spec.ts` /
+  `tests/**` — every size/complexity rule now applies to test `.ts` **and** `.tsx`
+  (the base block already scopes `["**/*.ts", "**/*.tsx"]`). The generic plugin's
+  `.jscpd.json` (and the repo-root dogfood copy) no longer ignore `**/*.test.ts`,
+  so duplication in test files is detected.
+- **knip (kept, extended):** test files stay listed as `entry` — the legal
+  dead-code exemption above. Entry globs were widened to `.tsx` and `.spec`
+  variants so co-located React/component tests are treated as roots too (else knip
+  reports them as unused files). `ignore: ["tests/**"]` is **kept deliberately**:
+  narrowing it to surface unused helpers in a separate `tests/` tree would require
+  pulling `tests/**` into `project` scope and enumerating every test-file
+  convention as an entry, trading a small gain for real false-positive churn
+  across diverse consumer layouts. Co-located tests under `src/` are already in
+  scope, so their unused helpers are already surfaced.
+- **Deleted** the stale `prompts/build-habit-hooks-overnight.md` overnight
+  build-scaffold prompt, which had documented the (now-removed) test exemption as
+  intended behaviour.

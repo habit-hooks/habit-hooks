@@ -1,5 +1,12 @@
 {
-  "entry": ["src/cli.ts!", "src/index.ts!", "src/**/*.test.ts"],
-  "project": ["src/**/*.ts!"],
+  "entry": [
+    "src/cli.ts!",
+    "src/index.ts!",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx"
+  ],
+  "project": ["src/**/*.ts!", "src/**/*.tsx!"],
   "ignore": ["dist/**", "tests/**"]
 }

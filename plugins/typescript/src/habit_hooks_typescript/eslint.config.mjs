@@ -39,11 +39,4 @@ export default [
       "@typescript-eslint/no-inferrable-types": "error",
     },
   },
-  {
-    files: ["**/*.test.ts", "**/*.spec.ts", "tests/**"],
-    rules: {
-      "max-lines-per-function": "off",
-      "max-lines": "off",
-    },
-  },
 ];
