@@ -521,6 +521,113 @@ habit-mapper
 
 🖥️ ✅
 
+### A disabled smell is neither coached nor counted
+
+`disabled` drops the smell before routing: no guide renders for it, and it cannot
+fail the run. Here the enforced `too-many-parameters` is disabled, so only the
+suggested `warning-comment` coaches and the run stays green.
+
+📄.habit-hooks/config.toml
+```toml
+[smells.too-many-parameters]
+disabled = true
+```
+
+📄.habit-hooks/generic/guides/warning-comment.md
+```markdown
+{% for v in issues -%}
+{{ v.details.file }}:{{ v.details.line }} {{ v.details.message }}
+{% endfor %}
+Resolve or remove these markers before merging.
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "too-many-parameters",
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
+          "file": "src/billing.ts",
+          "line": 2,
+          "actual": 4,
+          "signature": "bill(customer, items, discount, tax)"
+        }
+      }
+    ]
+  },
+  {
+    "smell": "warning-comment",
+    "details": {},
+    "issues": [
+      {
+        "key": "src/api.ts",
+        "details": { "file": "src/api.ts", "line": 14, "message": "TODO handle retry" }
+      }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+── warning-comment (1 issue) ──
+
+src/api.ts:14 TODO handle retry
+
+Resolve or remove these markers before merging.
+```
+
+### Disabling every reported smell leaves a clean run
+
+With its only smell disabled there is nothing left to coach, so the run renders
+the no-findings guide, exactly as if the sensor had never reported it.
+
+📄.habit-hooks/config.toml
+```toml
+[smells.too-many-parameters]
+disabled = true
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "too-many-parameters",
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
+          "file": "src/billing.ts",
+          "line": 2,
+          "actual": 4,
+          "signature": "bill(customer, items, discount, tax)"
+        }
+      }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+✅ Habit Hooks: automated checks passed.
+
+Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
+```
+
 ## Executable guides
 
 A guide with a non-`.md` extension is run by the **fix runner** registered for

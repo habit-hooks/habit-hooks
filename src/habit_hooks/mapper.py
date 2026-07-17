@@ -24,6 +24,11 @@ class Rendered:
     stderr: str = ""
 
 
+def is_disabled(smell: str, config: Config) -> bool:
+    override = config.smells.get(smell)
+    return bool(override and override.disabled)
+
+
 def severity_of(smell: str, config: Config) -> str:
     override = config.smells.get(smell)
     if override and override.severity:
@@ -89,6 +94,12 @@ def render_clean(config: Config, resolver: Resolver) -> Rendered:
     return Rendered(text=guide.read_text(), blocks=False)
 
 
+def write_stderr(rendered: list[Rendered]) -> None:
+    for r in rendered:
+        if r.stderr:
+            sys.stderr.write(r.stderr)
+
+
 def banner(finding: dict) -> str:
     count = len(finding["issues"])
     noun = "issue" if count == 1 else "issues"
@@ -98,6 +109,7 @@ def banner(finding: dict) -> str:
 def run(findings: list[dict], project_dir: Path) -> int:
     config = load_config(project_dir)
     resolver = Resolver.discover(project_dir)
+    findings = [f for f in findings if not is_disabled(f["smell"], config)]
     if not findings:
         clean = render_clean(config, resolver)
         sys.stdout.write(clean.text)
@@ -111,9 +123,7 @@ def run(findings: list[dict], project_dir: Path) -> int:
     body = "\n\n".join(blocks)
     if body:
         sys.stdout.write(body + "\n")
-    for r in rendered:
-        if r.stderr:
-            sys.stderr.write(r.stderr)
+    write_stderr(rendered)
     return 1 if any(r.blocks for r in rendered) else 0
 
 
