@@ -1,11 +1,11 @@
-A broad `except` (`except:`, `except Exception`, `except BaseException`) that swallows the error is hiding a failure you have not understood, not handling one you planned for. Before writing it, name the specific error you expect here and why. That sentence is usually the fix.
+A catch-all that discards the error is hiding a failure you have not understood, not handling one you planned for. Name the specific error you expect here and why — that sentence is usually the fix.
 
-Catch only the exception you actually expect: `ValueError`, `KeyError`, `TimeoutError`, whatever the call can really raise. If you cannot name it, you are guessing, and every other error should stay free to surface where it can be seen.
+**Make the failure visible:**
+1. Catch only what you can name: the specific error type the call can really raise. If you cannot name it, you are guessing — let everything else surface where it can be seen.
+2. Make the decision explicit: recover, or add context and rethrow, or — at a boundary that must stay alive (request handler, worker loop, CLI entry point) — log the full stack trace and continue. Logging and returning a default is a real option when it is a decision, not a reflex.
 
-Then do something real: recover, or add context and re-raise (`raise ... from err`), or let it propagate. Catching broadly and then `pass`, logging-and-continuing, or returning a default is the swallow. The bug does not disappear. It resurfaces later, far from here, where it costs the most.
+Useful tip: ask "if this fires at 3am, will anyone know it happened, and know why?" If not, it is still a swallow, however it is dressed up. If you are unsure whether a catch is a decision or a reflex, check with a human.
 
-Narrowing the type or adding `# noqa` only to quiet the checker is not a fix if the error is still discarded. The smell is the silent swallow, not the width of the catch.
-
-One legitimate case: a top-level boundary that must stay alive (a request handler, a worker loop, a CLI entry point). Even there, catch as narrow as you can, log the full traceback, and never discard the error silently. If unsure, check with a human first.
+**AVOID**: narrowing the type or adding a suppression comment just to quiet the checker while the error is still discarded.
 
 {% include "includes/line_level_issues.md" %}
