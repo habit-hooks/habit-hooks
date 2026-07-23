@@ -1,6 +1,5 @@
 Deeply nested blocks — `if` inside `for` inside `try` inside `if` — force the reader to hold every enclosing condition in their head at once. The smell is not the indentation; it is that the function is doing too much branching in one place.
 
-{% include "includes/line_level_issues.md" %}
 Read the nesting from the inside out and ask what the innermost block actually needs. Usually most of the enclosing conditions are *guards* — preconditions that should be checked and bailed on early, not wrapped around the real work.
 
 Prefer, in order:
@@ -12,3 +11,5 @@ Prefer, in order:
 Avoid the mechanical fix of merging conditions with `&&` just to drop a level — that trades vertical nesting for an unreadable horizontal condition. The goal is a function whose shape you can take in at a glance, not one that merely passes the depth threshold.
 
 If the nesting is genuinely irreducible (a real algorithm with interacting conditions), extracting the inner loops into well-named helpers is still the move: keep each function shallow even when the algorithm as a whole is deep.
+
+{% include "includes/line_level_issues.md" %}

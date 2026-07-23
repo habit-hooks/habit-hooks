@@ -1,6 +1,5 @@
 A broad `except` (`except:`, `except Exception`, `except BaseException`) that discards the error silently is hiding a failure you have not understood, not handling one you planned for. Before you write it, name the specific error you expect and why. That one sentence is usually the fix.
 
-{% include "includes/line_level_issues.md" %}
 Work through it in order:
 
 1. **Catch only what you can name.** `ValueError`, `KeyError`, `TimeoutError`, whatever the call really raises. If you cannot name it, you are guessing, and every other error should stay free to surface where someone can see it.
@@ -10,3 +9,5 @@ Work through it in order:
 Narrowing the type or adding `# noqa` only to quiet ruff is not a fix if the error is still discarded.
 
 If you are unsure whether this catch is a real decision or a reflex, check with a human before you keep it.
+
+{% include "includes/line_level_issues.md" %}

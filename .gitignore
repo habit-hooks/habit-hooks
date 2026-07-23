@@ -18,3 +18,4 @@ __pycache__/
 
 # Workflow orchestration script (run from ~/.claude, never a repo deliverable)
 .claude/workflows-build-overnight.js
+/scratches/
