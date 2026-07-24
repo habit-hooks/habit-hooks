@@ -14,8 +14,6 @@ __pycache__/
 .pytest_cache/
 .spec-runs/
 
-/ruff.toml
-
 # Workflow orchestration script (run from ~/.claude, never a repo deliverable)
 .claude/workflows-build-overnight.js
 /scratches/

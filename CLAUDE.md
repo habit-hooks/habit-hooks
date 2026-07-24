@@ -161,8 +161,12 @@ A `ruff check` whose upward config-discovery walk passes through
 Harmless in normal consumer operation — the file lives inside the
 habit-hooks package, off the consumer's discovery path — but a future
 dogfooding ruff run from inside that tree will be mystifying. Point ruff
-at an explicit `--config` (the repo-root `ruff.toml`, gitignored as
-`/ruff.toml`) if you hit this.
+at an explicit `--config pyproject.toml` if you hit this — never a
+separate repo-root `ruff.toml`, which ruff prefers over `pyproject.toml`
+on every local run and will silently shadow (and drift from) the real
+`[tool.ruff]` config. The dogfooding config
+(`.habit-hooks/config.toml`) already excludes the python-plugin subtree
+for the same reason.
 
 ### Each released package needs its own publish environment
 

@@ -1,0 +1,22 @@
+# Committed habit-hooks dogfooding config — runs habit-hooks against this repo's
+# own source. Consumer repos are told to commit this same file (see README), so
+# ours is checked in too, not gitignored.
+
+plugins = ["python", "generic"]
+
+# Scope discovery to real source only. Without this, --all rglobs the whole
+# tree (.git, .venv, node_modules, dist). pathspec gitwildmatch, no brace exp.
+# Plugin sources are in scope too, EXCEPT the python plugin's own subtree:
+# plugins/python/.../ruff.toml and .../sensors/ruff.toml are literally named
+# `ruff.toml`, so ruff's upward config discovery from a file there loads them as
+# its own config (the sensor spec is not valid ruff config and crashes). The
+# other plugins carry no such file and lint cleanly against the repo-root
+# pyproject.
+files = [
+  "src/**/*.py",
+  "tests/**/*.py",
+  "conftest.py",
+  "plugins/*/src/**/*.py",
+  "!plugins/python/**",
+  "!**/__pycache__/**",
+]

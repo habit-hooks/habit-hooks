@@ -39,10 +39,7 @@ def test_missing_config_yields_defaults(tmp_path: Path) -> None:
     assert config.scope.mainBranch == "main"
 
 
-def test_known_fields_load(tmp_path: Path) -> None:
-    project = _write(
-        tmp_path,
-        """
+_POPULATED_CONFIG = """
 plugins = ["python", "generic"]
 transformers = ["squash"]
 files = ["src/**"]
@@ -61,24 +58,41 @@ disabled = true
 [smells.long-file]
 severity = "error"
 title = "Too long"
-""",
-    )
-    config = load_config(project)
+"""
+
+
+def _load_populated(tmp_path: Path) -> Config:
+    return load_config(_write(tmp_path, _POPULATED_CONFIG))
+
+
+def test_populated_top_level_fields_load(tmp_path: Path) -> None:
+    config = _load_populated(tmp_path)
     assert config.plugins == ["python", "generic"]
     assert config.transformers == ["squash"]
     assert config.files == ["src/**"]
-    assert config.scope.changedOnly is True
-    assert config.scope.branchBase == "develop"
-    assert config.scope.mainBranch == "main"  # untouched default
-    assert config.runners == {"py": "python3"}
 
-    override = config.sensors["line-count"]
+
+def test_populated_scope_merges_with_defaults(tmp_path: Path) -> None:
+    scope = _load_populated(tmp_path).scope
+    assert scope.changedOnly is True
+    assert scope.branchBase == "develop"
+    assert scope.mainBranch == "main"  # untouched default
+
+
+def test_populated_runners_load(tmp_path: Path) -> None:
+    assert _load_populated(tmp_path).runners == {"py": "python3"}
+
+
+def test_populated_sensor_override_loads(tmp_path: Path) -> None:
+    override = _load_populated(tmp_path).sensors["line-count"]
     assert isinstance(override, SensorOverride)
     assert override.args == ["--max", "300"]
     assert override.disabled is True
     assert override.command is None
 
-    smell = config.smells["long-file"]
+
+def test_populated_smell_override_loads(tmp_path: Path) -> None:
+    smell = _load_populated(tmp_path).smells["long-file"]
     assert isinstance(smell, SmellOverride)
     assert smell.severity == "error"
     assert smell.title == "Too long"

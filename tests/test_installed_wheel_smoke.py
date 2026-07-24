@@ -39,6 +39,22 @@ def _php() -> str:
     return php
 
 
+def _run_and_collect_findings(
+    habit_sensors: Path, project: Path, env: dict[str, str] | None = None
+) -> list[dict]:
+    result = subprocess.run(
+        [str(habit_sensors), "--all"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert "is not installed" not in result.stderr, result.stderr
+    assert "could not locate" not in result.stderr.lower(), result.stderr
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
 def _build_wheels(out_dir: Path, packages: tuple[str, ...]) -> None:
     for package in packages:
         subprocess.run(
@@ -118,18 +134,7 @@ def test_installed_generic_plugin_emits_a_real_finding(
     project.mkdir()
     _oversized_fixture(project)
 
-    result = subprocess.run(
-        [str(installed_habit_sensors), "--all"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-    )
-
-    assert "is not installed" not in result.stderr, result.stderr
-    assert "could not locate" not in result.stderr.lower(), result.stderr
-    assert result.returncode == 0, result.stderr
-
-    findings = json.loads(result.stdout)
+    findings = _run_and_collect_findings(installed_habit_sensors, project)
     assert findings == [
         {
             "smell": "oversized-file",
@@ -144,14 +149,7 @@ def test_installed_generic_plugin_emits_a_real_finding(
     ]
 
 
-def _path_without_python(tmp_path: Path) -> str:
-    """A PATH with the usual tools (``bash`` etc.) but no ``python``/``python3``,
-    reproducing a clean CI sandbox / stock-macOS environment. Built by symlinking
-    every executable on the current PATH except the Python interpreters into a
-    single bin dir."""
-    blocked = {"python", "python3"}
-    bin_dir = tmp_path / "no-python-bin"
-    bin_dir.mkdir()
+def _link_executables_except(bin_dir: Path, blocked: set[str]) -> None:
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         source = Path(entry)
         if not source.is_dir():
@@ -161,6 +159,16 @@ def _path_without_python(tmp_path: Path) -> str:
             if tool.name in blocked or link.exists() or not os.access(tool, os.X_OK):
                 continue
             link.symlink_to(tool)
+
+
+def _path_without_python(tmp_path: Path) -> str:
+    """A PATH with the usual tools (``bash`` etc.) but no ``python``/``python3``,
+    reproducing a clean CI sandbox / stock-macOS environment. Built by symlinking
+    every executable on the current PATH except the Python interpreters into a
+    single bin dir."""
+    bin_dir = tmp_path / "no-python-bin"
+    bin_dir.mkdir()
+    _link_executables_except(bin_dir, {"python", "python3"})
 
     assert shutil.which("python", path=str(bin_dir)) is None
     assert shutil.which("python3", path=str(bin_dir)) is None
@@ -179,18 +187,11 @@ def test_bundled_python_sensor_runs_without_python_on_path(
     project.mkdir()
     _oversized_fixture(project)
 
-    result = subprocess.run(
-        [str(installed_habit_sensors), "--all"],
-        cwd=project,
-        capture_output=True,
-        text=True,
+    findings = _run_and_collect_findings(
+        installed_habit_sensors,
+        project,
         env={"PATH": _path_without_python(tmp_path)},
     )
-
-    assert "is not installed" not in result.stderr, result.stderr
-    assert result.returncode == 0, result.stderr
-
-    findings = json.loads(result.stdout)
     assert findings == [
         {
             "smell": "oversized-file",
@@ -222,18 +223,7 @@ def test_installing_core_by_name_pulls_generic_and_finds_a_smell(
     project.mkdir()
     _oversized_fixture(project)
 
-    result = subprocess.run(
-        [str(habit_sensors), "--all"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-    )
-
-    assert "is not installed" not in result.stderr, result.stderr
-    assert "could not locate" not in result.stderr.lower(), result.stderr
-    assert result.returncode == 0, result.stderr
-
-    findings = json.loads(result.stdout)
+    findings = _run_and_collect_findings(habit_sensors, project)
     assert findings == [
         {
             "smell": "oversized-file",
@@ -290,18 +280,7 @@ def test_installed_php_plugin_locates_its_bundled_phar(
     project.mkdir()
     _php_fixture(project)
 
-    result = subprocess.run(
-        [str(installed_habit_sensors), "--all"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-    )
-
-    assert "is not installed" not in result.stderr, result.stderr
-    assert "could not locate" not in result.stderr.lower(), result.stderr
-    assert result.returncode == 0, result.stderr
-
-    findings = json.loads(result.stdout)
+    findings = _run_and_collect_findings(installed_habit_sensors, project)
     by_smell = {finding["smell"]: finding for finding in findings}
     assert by_smell.keys() == {"too-many-parameters", "unused-variable"}
     for finding in findings:
