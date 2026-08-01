@@ -44,13 +44,14 @@ class PluginLoader:
         return Plugin(name, spec.get("language"), sensors, transformers)
 
     def resolve_part(self, plugins: list[str], kind: str, name: str) -> Part:
-        for plugin in plugins:
-            path = self.resolver.in_plugin(plugin, f"{kind}/{name}.toml")
-            if path is not None:
-                spec = _read_toml(path)
-                args = self._sensor_args(name, spec) if kind == "sensors" else []
-                return Part(name, spec["command"], path.parent, args)
-        raise SystemExit(f"habit-sensors: no {kind[:-1]} {name!r} in {plugins}")
+        path = self.resolver.part(plugins, f"{kind}/{name}.toml")
+        if path is None:
+            raise SystemExit(
+                f"habit-sensors: no {kind[:-1]} {name!r} in {plugins} or the core"
+            )
+        spec = _read_toml(path)
+        args = self._sensor_args(name, spec) if kind == "sensors" else []
+        return Part(name, spec["command"], path.parent, args)
 
     def _sensor_args(self, name: str, spec: dict) -> list[str]:
         override = self.config.sensors.get(name)

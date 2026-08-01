@@ -194,6 +194,62 @@ habit-snooze | jq .
 []
 ```
 
+## An empty index changes nothing
+
+Snooze runs by default ([habit-sensors.spec.md](habit-sensors.spec.md)), so a
+project that has never snoozed anything must get its findings back byte for
+byte. Dropping happens only where a key matched: a finding that arrives with no
+issues has nothing snoozed in it and passes through, unlike one whose last issue
+*was* snoozed above.
+
+⌨️
+```json
+[
+  {
+    "smell": "loose-equality",
+    "details": { "maxAllowed": 0 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 1 } }
+    ]
+  },
+  {
+    "smell": "duplicated-code",
+    "details": {},
+    "issues": []
+  }
+]
+```
+
+```bash
+habit-snooze | jq .
+```
+
+🖥️ ✅
+```json
+[
+  {
+    "smell": "loose-equality",
+    "details": {
+      "maxAllowed": 0
+    },
+    "issues": [
+      {
+        "key": "src/x.ts",
+        "details": {
+          "file": "src/x.ts",
+          "line": 1
+        }
+      }
+    ]
+  },
+  {
+    "smell": "duplicated-code",
+    "details": {},
+    "issues": []
+  }
+]
+```
+
 ## `--prune` drops keys that didn't appear in the latest run
 
 A snoozed key whose issue no longer shows up — the smell was fixed, or the file

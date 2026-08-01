@@ -36,7 +36,7 @@ These live at the top level of the **project** `config.toml`.
 | Key            | Meaning |
 |----------------|---------|
 | `plugins`      | An **ordered** list of plugins to activate, **selecting among the installed plugin packages** by name. The order is a priority: it is the order sensors run and the order the mapper looks up guides (earlier wins, `generic` last). A listed plugin that is neither installed nor overridden under `.habit-hooks/<plugin>/` fails with an error naming its `pip install habit-hooks-<plugin>` command. `generic` is listed explicitly like any other plugin, so a project can drop it. |
-| `transformers` | An ordered list of transformers applied to the concatenated findings of the whole run, in order. |
+| `transformers` | An ordered list of transformers applied to the concatenated findings of the whole run, in order. **Defaults to `["snooze"]`**, so a checked-in snooze index takes effect with no wiring; the core ships that transformer, so the default resolves whatever `plugins` names. Naming the key replaces the list wholesale — write `transformers = []` to drop snooze. |
 | `files`        | Discovery globs (pathspec / gitwildmatch). Defaults come from the loaded plugins. |
 | `[scope]`      | Git-scoping defaults for a run with no scope flag. |
 

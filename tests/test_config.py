@@ -27,7 +27,7 @@ def _write(tmp_path: Path, body: str) -> Path:
 def test_missing_config_yields_defaults(tmp_path: Path) -> None:
     config = load_config(tmp_path)
     assert config.plugins == ["generic"]
-    assert config.transformers == []
+    assert config.transformers == ["snooze"]
     assert config.files is None
     assert config.runners == {}
     assert config.sensors == {}

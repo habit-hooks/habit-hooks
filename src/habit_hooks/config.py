@@ -40,7 +40,10 @@ class SensorOverride:
 @define
 class Config:
     plugins: list[str] = field(factory=lambda: ["generic"])
-    transformers: list[str] = field(factory=list)
+    # Snooze is on by default so a checked-in index takes effect without wiring;
+    # naming `transformers` replaces the list wholesale, which is how a project
+    # drops it or orders it against its own steps.
+    transformers: list[str] = field(factory=lambda: ["snooze"])
     files: list[str] | None = None
     scope: ScopeDefaults = field(factory=ScopeDefaults)
     sensors: dict[str, SensorOverride] = field(factory=dict)

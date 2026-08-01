@@ -281,11 +281,13 @@ habit-sensors --all | habit-snooze --prune    # drop keys that no longer show up
 habit-snooze --list                            # print the snoozed keys, one per line
 ```
 
-To fold snoozing into a plain `habit-hooks` run, register it as a root transformer in your config and ship a
-matching transformer file (`.habit-hooks/<plugin>/transformers/snooze.toml` whose `command = "habit-snooze"`):
+Snoozing is already folded into a plain `habit-hooks` run: `transformers` defaults to `["snooze"]`, and the
+transformer ships with the core, so a checked-in index takes effect with no wiring. Naming the key replaces
+that list wholesale, which is how you drop snoozing or order it against your own steps:
 
 ```toml
-transformers = ["snooze"]
+transformers = []              # no snoozing; every finding reports
+transformers = ["snooze", "…"] # snooze first, then your own transformer
 ```
 
 ## What it catches

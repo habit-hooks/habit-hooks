@@ -33,10 +33,17 @@ def finding_keys(findings: list[dict]) -> list[str]:
 
 
 def transform(findings: list[dict], snoozed: set[str]) -> list[dict]:
+    """Drop snoozed issues, and any finding whose last issue we just dropped.
+
+    A finding that arrives with no issues is passed through rather than dropped:
+    nothing in it was snoozed. That keeps an empty index a true no-op, which
+    matters now that snooze runs by default.
+    """
     kept = []
     for finding in findings:
         issues = [issue for issue in finding["issues"] if issue["key"] not in snoozed]
-        if issues:
+        snoozed_them_all = finding["issues"] and not issues
+        if not snoozed_them_all:
             kept.append({**finding, "issues": issues})
     return kept
 

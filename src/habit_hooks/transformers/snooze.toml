@@ -1,0 +1,9 @@
+# The default transformer, shipped by the core because `habit-snooze` is a core
+# console script. A plugin (or a project's `.habit-hooks/<plugin>/transformers/`)
+# may override it by name; this is the last link in the chain, so the default
+# still resolves for a project that lists no plugin shipping one.
+#
+# `${python} -m`, not the bare console script: the bin directory is not always on
+# PATH (an installed `habit-hooks` invoked by absolute path — see
+# habit-hooks.spec.md), and the default must not depend on it.
+command = "${python} -m habit_hooks.snooze"

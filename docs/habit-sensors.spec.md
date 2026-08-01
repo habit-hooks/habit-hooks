@@ -213,6 +213,136 @@ habit-sensors --all | jq '.[0].details.steps'
 ]
 ```
 
+### Snooze runs by default, with no `transformers` key at all
+
+`transformers` defaults to `["snooze"]`, so a project's checked-in snooze index
+takes effect without any wiring. The config below never mentions transformers,
+yet the snoozed key is dropped and the other survives.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["alpha"]
+```
+
+📄.habit-hooks/generic/sensors/alpha.toml
+```toml
+command = "cat ${dir}/alpha.json"
+```
+
+📄.habit-hooks/generic/sensors/alpha.json
+```json
+[{"smell":"oversized-file","details":{},"issues":[{"key":"src/big.py","details":{"file":"src/big.py"}},{"key":"src/ok.py","details":{"file":"src/ok.py"}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/big.py"]
+```
+
+```bash
+habit-sensors --all | jq '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[
+  "src/ok.py"
+]
+```
+
+### The core supplies `snooze` when no plugin ships it
+
+A default that a plugin owned could be switched off by dropping that plugin.
+`snooze` is a core console script, so the core supplies its transformer spec as
+the last link in the resolution chain — the same fallback the mapper uses for
+its baseline guides. Here `generic` is not listed and no plugin ships a
+transformer, and the default still resolves.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+```
+
+📄.habit-hooks/python/config.toml
+```toml
+language = "python"
+sensors  = ["p"]
+```
+
+📄.habit-hooks/python/sensors/p.toml
+```toml
+command = "cat ${dir}/p.json"
+```
+
+📄.habit-hooks/python/sensors/p.json
+```json
+[{"smell":"too-many-parameters","details":{},"issues":[{"key":"src/a.py","details":{"file":"src/a.py"}},{"key":"src/b.py","details":{"file":"src/b.py"}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/a.py"]
+```
+
+```bash
+habit-sensors --all | jq '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[
+  "src/b.py"
+]
+```
+
+### A project overrides the default by listing `transformers` itself
+
+The default is a default, not a policy: naming `transformers` replaces it
+wholesale, so a project can drop snooze or order it against its own steps. Here
+the list omits `snooze`, and the snoozed key comes through untouched.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = []
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["alpha"]
+```
+
+📄.habit-hooks/generic/sensors/alpha.toml
+```toml
+command = "cat ${dir}/alpha.json"
+```
+
+📄.habit-hooks/generic/sensors/alpha.json
+```json
+[{"smell":"oversized-file","details":{},"issues":[{"key":"src/big.py","details":{"file":"src/big.py"}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/big.py"]
+```
+
+```bash
+habit-sensors --all | jq '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[
+  "src/big.py"
+]
+```
+
 ## Plugins compose
 
 ### Active plugins concatenate; dropping one drops its findings
@@ -324,10 +454,9 @@ habit-sensors: sensor 'broken' failed: this-tool-does-not-exist
 
 A transformer that dies must never be able to shrink the run. Empty stdout would
 otherwise parse as "no findings", so a crash would discard everything the
-sensors found and report a clean pass — a failing *sensor* loses one sensor's
-findings, a failing *root transformer* loses all of them. A transformer that
-exits non-zero, or prints nothing, is therefore a failed run whose findings pass
-through **untransformed**.
+sensors found and report a clean pass — the failure mode that matters most, now
+that `snooze` runs by default. A transformer that exits non-zero, or prints
+nothing, is therefore a failed run whose findings pass through **untransformed**.
 
 Unlike a sensor, a transformer has no convention for exiting non-zero: it must
 exit 0 and print its array, printing `[]` when it drops everything.
@@ -462,6 +591,39 @@ habit-sensors --all | jq '[.[].smell]'
 🖥️ ✅
 ```json
 []
+```
+
+### A transformer no plugin and no core ships fails by name
+
+Resolution walks the configured plugins and then the core. When none supplies
+the named part the run stops with an error saying where it looked, rather than
+carrying on with a step the project asked for and did not get.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["nope"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "echo []"
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ❌ 1
+
+🚨
+```text
+habit-sensors: no transformer 'nope' in ['generic'] or the core
 ```
 
 ## Plugin recommendation

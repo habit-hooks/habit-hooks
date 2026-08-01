@@ -26,6 +26,11 @@ PLUGIN_ENTRY_POINT_GROUP = "habit_hooks.plugins"
 # (for example a project that drops the generic plugin).
 CORE_GUIDES = Path(__file__).parent / "guides"
 
+# The core package root, searched last for a `<kind>/<name>.toml` part. It is what
+# lets the default `transformers = ["snooze"]` resolve whichever plugins a project
+# happens to configure; `transformers/snooze.toml` is the only part shipped here.
+CORE_PACKAGE_DIR = Path(__file__).parent
+
 
 @cache
 def installed_plugin_dirs() -> dict[str, Path]:
@@ -79,6 +84,20 @@ class Resolver:
             if candidate.is_file():
                 return candidate
         return None
+
+    def part(self, plugins: list[str], relative: str) -> Path | None:
+        """First existing ``<plugin>/<relative>`` across plugins, else the core's own.
+
+        The core fallback keeps a default part (``transformers/snooze.toml``)
+        resolvable no matter which plugins a project configures, mirroring the
+        guide fallback in :meth:`first`.
+        """
+        for plugin in plugins:
+            found = self.in_plugin(plugin, relative)
+            if found is not None:
+                return found
+        candidate = CORE_PACKAGE_DIR / relative
+        return candidate if candidate.is_file() else None
 
     def guide(self, guide: str, plugins: list[str]) -> Path | None:
         return self.first(plugins, [guide])
