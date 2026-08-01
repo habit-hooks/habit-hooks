@@ -16,7 +16,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
       - name: Lint (ruff)
-        run: uv run ruff check src tests
+        # --config is required: plugins/python ships files literally named
+        # ruff.toml (sensor specs), which ruff's upward discovery would load as
+        # its own config and reject. See CLAUDE.md.
+        run: uv run ruff check --config pyproject.toml src tests plugins
       - name: Setup Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
