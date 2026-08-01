@@ -93,6 +93,8 @@ Pinned in [habit-sensors.spec.md](habit-sensors.spec.md).
   so the common case snoozes a whole file). The sensor chooses the key, so
   lapse-on-change becomes a key-design choice (embed content to auto-lapse), not
   a core feature. `--prune` drops keys absent from the latest run.
+  _(AMENDED by "Lapse-on-change is a second transformer" below — the index is
+  still keyed on `key` alone, but lapse-on-change is available from the core.)_
 
 - **`produces` dropped from sensor specs** — it only fed ordering/activation;
   ordering is gone, so sensors always run.
@@ -158,3 +160,34 @@ mapping, config validation) are resolved and recorded above / in
 - **Deleted** the stale `prompts/build-habit-hooks-overnight.md` overnight
   build-scaffold prompt, which had documented the (now-removed) test exemption as
   intended behaviour.
+
+## Lapse-on-change is a second transformer (2026-08, issue #80, Ivett's call)
+
+- **The default `snooze` does not change, and stays the default.** A project
+  upgrading from 1.0.x must never find its snoozes re-arming by themselves; a
+  recorded snooze still lasts until someone takes the key out of the index.
+- **`snooze-until-changed` is the opt-in ratchet.** Same index, same key
+  semantics, but an exemption holds only while its file is unchanged against
+  `[scope] branchBase`. That is what the npm predecessor's `snoozedAtCommit`
+  gave, and what makes a baseline a ratchet rather than a permanent exemption
+  list: debt is exempt until you are editing the file anyway. It ships from the
+  core next to `snooze`, so opting in is one word in `transformers`.
+- **Why not just design better keys** (the amended decision above): no sensor
+  ever encoded content in a key, so the ratchet simply vanished. Keeping the
+  index keyed on `key` alone and moving the question into the drop decision
+  leaves the index format and `--prune` untouched.
+- **An issue is anchored to `details.file`, falling back to `key`.** A sensor
+  keys by whatever groups issues best — `deptry` by module, `knip` by export —
+  so the key is not always a path; all eight shipped sensors carry
+  `details.file`.
+- **Measured from the merge base of `branchBase` and `HEAD`**, not the base ref's
+  tip, so a branch is only ever judged on the debt it touched itself; work landed
+  on the base ref afterwards lapses nothing.
+- **A path git cannot place means "unchanged"; a ref it cannot resolve is fatal.**
+  Untracked files and projects without a repository keep their snoozes — the
+  opposite would re-arm a whole index on an answer git never gave. But a
+  `branchBase` missing from a real repository (a shallow CI checkout, a `master`
+  trunk) would answer "unchanged" for *every* file and make every snooze
+  permanent with no signal — the exact silent green #80 was filed about — so it
+  exits non-zero instead. `execution._transform` turns that into a failed run
+  that keeps the findings untransformed.

@@ -28,7 +28,8 @@ CORE_GUIDES = Path(__file__).parent / "guides"
 
 # The core package root, searched last for a `<kind>/<name>.toml` part. It is what
 # lets the default `transformers = ["snooze"]` resolve whichever plugins a project
-# happens to configure; `transformers/snooze.toml` is the only part shipped here.
+# happens to configure; the two `transformers/snooze*.toml` specs are the only
+# parts shipped here.
 CORE_PACKAGE_DIR = Path(__file__).parent
 
 

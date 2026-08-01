@@ -300,6 +300,69 @@ habit-sensors --all | jq '[.[].issues[].key]'
 ]
 ```
 
+### The core also supplies the opt-in `snooze-until-changed`
+
+The core ships a second snooze transformer whose exemptions lapse as soon as the
+file changes ([habit-snooze.spec.md](habit-snooze.spec.md)); a project opts in
+by naming it. Both keys below are snoozed and both files are committed, but only
+`src/big.py` is then edited — so only its issue comes back.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["snooze-until-changed"]
+files        = ["src/**"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["alpha"]
+```
+
+📄.habit-hooks/generic/sensors/alpha.toml
+```toml
+command = "cat ${dir}/alpha.json"
+```
+
+📄.habit-hooks/generic/sensors/alpha.json
+```json
+[{"smell":"oversized-file","details":{},"issues":[{"key":"src/big.py","details":{"file":"src/big.py"}},{"key":"src/ok.py","details":{"file":"src/ok.py"}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/big.py", "src/ok.py"]
+```
+
+📄src/big.py
+```python
+VALUES = [1]
+```
+
+📄src/ok.py
+```python
+VALUES = [2]
+```
+
+```bash
+git init -q -b main . &&
+  git config user.email spec@example.com &&
+  git config user.name "Spec Runner" &&
+  git config commit.gpgsign false &&
+  git add src &&
+  git commit -q -m baseline &&
+  printf 'VALUES.append(2)\n' >> src/big.py
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/big.py"]
+```
+
 ### A project overrides the default by listing `transformers` itself
 
 The default is a default, not a policy: naming `transformers` replaces it

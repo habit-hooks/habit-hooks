@@ -1,0 +1,9 @@
+# The opt-in ratchet: the same index as `snooze`, but an exemption holds only
+# while its file is unchanged against `[scope] branchBase`. Shipped next to
+# `snooze` rather than replacing it — an upgrade must never make a project's
+# existing snoozes start re-arming by themselves; naming this transformer is how
+# a project asks for that.
+#
+# `${python} -m`, not the bare console script, for the same reason as snooze.toml:
+# the bin directory is not always on PATH.
+command = "${python} -m habit_hooks.snooze --until-changed"

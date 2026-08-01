@@ -290,6 +290,27 @@ transformers = []              # no snoozing; every finding reports
 transformers = ["snooze", "…"] # snooze first, then your own transformer
 ```
 
+### Make the index a ratchet
+
+A plain snooze lasts until someone takes the key back out of the index — so a snoozed file stays exempt even
+after it doubles in size. The core ships a second transformer for projects that want the index to be a
+**ratchet** instead:
+
+```toml
+transformers = ["snooze-until-changed"]
+```
+
+It reads the same index, but an exemption holds only while its file is unchanged since your branch left
+`[scope] branchBase`. Change that file — a commit on your branch, or an edit still in the working tree — and
+its issues come back, which is exactly when you are in a position to clear them. The comparison starts at the
+merge base, so work someone else lands on the base branch afterwards never lapses a snooze you did not touch.
+An issue is matched to its file through `details.file`, falling back to its `key`.
+
+A path git cannot place — untracked, or no repository at all — counts as unchanged, so snoozes hold rather
+than all re-arming at once. A **base ref that a real repository cannot resolve fails the run** instead, naming
+the ref: a shallow CI checkout with no local `main`, or a trunk called `master` with `branchBase` left at its
+default, would otherwise answer "unchanged" for every file and make every snooze permanent with no signal.
+
 ## What it catches
 
 The smell vocabulary is tool-independent: sensors translate raw rule IDs into these keys, and the mapper routes
