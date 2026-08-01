@@ -2,8 +2,9 @@
 
 `habit-hooks` is the whole tool: the two stages composed over a Unix pipe,
 `habit-sensors $ARGS | habit-mapper`. The arguments scope the sensors stage, the
-findings flow through the pipe, and the mapper's exit code becomes the
-pipeline's. This document specs only that composition — argument forwarding and
+findings flow through the pipe, and the pipeline fails when **either** stage
+fails — the mapper's code when it is non-zero, the sensors' otherwise. This
+document specs only that composition — argument forwarding and
 exit-code propagation; the stages' own behaviour lives in
 [habit-sensors.spec.md](habit-sensors.spec.md) and
 [habit-mapper.spec.md](habit-mapper.spec.md), and the big picture in
@@ -97,7 +98,7 @@ src/billing.py:2
 Bundle related arguments into an object.
 ```
 
-## The mapper's exit code propagates
+## Either stage's failure propagates
 
 ### An enforced smell fails the whole pipeline
 
@@ -131,3 +132,22 @@ habit-hooks --all
 ```text
 ✅ Habit Hooks: automated checks passed.
 ```
+
+### A failed sensor fails the pipeline, even when the mapper is clean
+
+Broken tooling can never report a clean run. A sensor that dies contributes no
+findings, so the mapper sees an empty array and renders the clean guide — but
+`habit-sensors` exits non-zero for the failure ([habit-sensors.spec.md](habit-sensors.spec.md)),
+and the pipeline propagates that. This leaf overrides the sensor to crash without
+printing findings.
+
+📄.habit-hooks/generic/sensors/params.toml
+```toml
+command = "echo 'params: boom' >&2; exit 7"
+```
+
+```bash
+habit-hooks --all
+```
+
+🖥️ ❌ 1

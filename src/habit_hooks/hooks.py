@@ -20,7 +20,9 @@ def main(argv: list[str] | None = None) -> int:
     sensors.stdout.close()
     mapper.wait()
     sensors.wait()
-    return mapper.returncode
+    # A failed sensor contributes no findings, so a clean mapper alone would
+    # report a green run over broken tooling; either stage failing fails the run.
+    return mapper.returncode or sensors.returncode
 
 
 if __name__ == "__main__":
