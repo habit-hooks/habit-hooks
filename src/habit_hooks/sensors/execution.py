@@ -52,12 +52,39 @@ class Execution:
 
     def apply_transformers(
         self, transformers: list[Part], findings: list[dict]
-    ) -> list[dict]:
+    ) -> tuple[list[dict], list[str]]:
+        """Pipe the findings through each transformer, surviving a broken one.
+
+        A failed transformer keeps the findings it was given: its stdout cannot
+        be trusted, and treating silence as "no findings" would let one crash
+        discard the whole run and report clean.
+        """
+        notices = []
         for transformer in transformers:
-            command = self._expand(transformer)
-            result = self._run(command, json.dumps(findings))
-            findings = _parse_findings(result.stdout)
-        return findings
+            try:
+                findings = self._transform(transformer, findings)
+            except SensorError as error:
+                notices.append(f"habit-sensors: {error}")
+        return findings, notices
+
+    def _transform(self, transformer: Part, findings: list[dict]) -> list[dict]:
+        """One transformer's output, or ``SensorError`` if it cannot be trusted.
+
+        Stricter than a sensor: a transformer has no convention for exiting
+        non-zero, and must print its array explicitly. An empty stdout is a
+        crash, whereas a literal ``[]`` is a legitimate "everything dropped".
+        """
+        command = self._expand(transformer)
+        result = self._run(command, json.dumps(findings))
+        failure = SensorError(
+            f"transformer {transformer.name!r} failed: {transformer.command}"
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            raise failure
+        try:
+            return _parse_findings(result.stdout)
+        except (ValueError, json.JSONDecodeError):
+            raise failure from None
 
     def run_sensor(self, sensor: Part) -> list[dict]:
         command = self._expand(sensor)

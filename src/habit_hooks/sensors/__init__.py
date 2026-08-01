@@ -31,8 +31,12 @@ def _stamp_language(findings: list[dict], language: str | None) -> list[dict]:
 
 def _run_plugin(plugin: Plugin, execution: Execution) -> Run:
     sensed = execution.run_sensors(plugin.sensors)
-    transformed = execution.apply_transformers(plugin.transformers, sensed.findings)
-    return Run(_stamp_language(transformed, plugin.language), sensed.notices)
+    findings, notices = execution.apply_transformers(
+        plugin.transformers, sensed.findings
+    )
+    return Run(
+        _stamp_language(findings, plugin.language), [*sensed.notices, *notices]
+    )
 
 
 def run_sensors(loader: PluginLoader, execution: Execution) -> Run:
@@ -48,7 +52,8 @@ def run_sensors(loader: PluginLoader, execution: Execution) -> Run:
         loader.resolve_part(loader.config.plugins, "transformers", name)
         for name in loader.config.transformers
     ]
-    run.findings = execution.apply_transformers(transformers, run.findings)
+    run.findings, notices = execution.apply_transformers(transformers, run.findings)
+    run.notices.extend(notices)
     return run
 
 

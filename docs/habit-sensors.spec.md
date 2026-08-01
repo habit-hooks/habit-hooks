@@ -320,6 +320,150 @@ habit-sensors --all | jq '[.[].smell]'
 habit-sensors: sensor 'broken' failed: this-tool-does-not-exist
 ```
 
+### A broken transformer fails the run and keeps the findings it was given
+
+A transformer that dies must never be able to shrink the run. Empty stdout would
+otherwise parse as "no findings", so a crash would discard everything the
+sensors found and report a clean pass — a failing *sensor* loses one sensor's
+findings, a failing *root transformer* loses all of them. A transformer that
+exits non-zero, or prints nothing, is therefore a failed run whose findings pass
+through **untransformed**.
+
+Unlike a sensor, a transformer has no convention for exiting non-zero: it must
+exit 0 and print its array, printing `[]` when it drops everything.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["boom"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "cat ${dir}/ok.json"
+```
+
+📄.habit-hooks/generic/sensors/ok.json
+```json
+[{"smell":"warning-comment","details":{},"issues":[{"key":"src/x.py","details":{}}]}]
+```
+
+📄.habit-hooks/generic/transformers/boom.toml
+```toml
+command = "exit 1"
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ❌ 1
+```json
+[
+  "warning-comment"
+]
+```
+
+🚨
+```text
+habit-sensors: transformer 'boom' failed: exit 1
+```
+
+### A transformer that prints nothing is a failure, not an empty run
+
+Exiting 0 is not enough — a transformer killed mid-write, or one whose command
+silently produces no output, also has nothing trustworthy to say. Only an
+explicit array counts, so `[]` still means "everything dropped" and silence
+means "broken".
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["mute"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "cat ${dir}/ok.json"
+```
+
+📄.habit-hooks/generic/sensors/ok.json
+```json
+[{"smell":"warning-comment","details":{},"issues":[{"key":"src/x.py","details":{}}]}]
+```
+
+📄.habit-hooks/generic/transformers/mute.toml
+```toml
+command = "true"
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ❌ 1
+```json
+[
+  "warning-comment"
+]
+```
+
+🚨
+```text
+habit-sensors: transformer 'mute' failed: true
+```
+
+### A transformer that drops everything prints `[]` and is trusted
+
+The counterpart to the two cases above: an explicit empty array is a legitimate
+result, so a transformer is still free to clear the run — that is exactly what
+`snooze` does when every issue is snoozed.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["clear"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "cat ${dir}/ok.json"
+```
+
+📄.habit-hooks/generic/sensors/ok.json
+```json
+[{"smell":"warning-comment","details":{},"issues":[{"key":"src/x.py","details":{}}]}]
+```
+
+📄.habit-hooks/generic/transformers/clear.toml
+```toml
+command = "jq '[]'"
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
 ## Plugin recommendation
 
 When the project clearly uses a language no active plugin covers, the runner
