@@ -10,73 +10,29 @@ plugin-not-found error.
 The php case additionally proves the plugin's bundled ``phpmd.phar`` ships as
 package data: the sensor must locate it next to itself inside the installed
 wheel, with no source tree on disk.
+
+Building and installing is ``installed_env``; this module is only what an
+installed run must produce.
 """
 
 from __future__ import annotations
 
-import json
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from installed_env import (
+    build_wheels,
+    install_by_name,
+    install_wheels,
+    installed_packages,
+    path_without_python,
+    require_php,
+    run_and_collect_findings,
+)
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-
-
-def _uv() -> str:
-    uv = shutil.which("uv")
-    if uv is None:
-        pytest.skip("uv is not on PATH")
-    return uv
-
-
-def _php() -> str:
-    php = shutil.which("php")
-    if php is None:
-        pytest.skip("php is not on PATH")
-    return php
-
-
-def _run_and_collect_findings(
-    habit_sensors: Path, project: Path, env: dict[str, str] | None = None
-) -> list[dict]:
-    result = subprocess.run(
-        [str(habit_sensors), "--all"],
-        cwd=project,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    assert "is not installed" not in result.stderr, result.stderr
-    assert "could not locate" not in result.stderr.lower(), result.stderr
-    assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
-
-
-def _build_wheels(out_dir: Path, packages: tuple[str, ...]) -> None:
-    for package in packages:
-        subprocess.run(
-            [_uv(), "build", "--wheel", "--package", package, "--out-dir", str(out_dir)],
-            cwd=_REPO_ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-
-
-def _install_into_venv(venv: Path, wheels_dir: Path) -> Path:
-    subprocess.run([_uv(), "venv", str(venv)], check=True, capture_output=True, text=True)
-    python = venv / "bin" / "python"
-    wheels = [str(p) for p in sorted(wheels_dir.glob("*.whl"))]
-    subprocess.run(
-        [_uv(), "pip", "install", "--python", str(python), *wheels],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return venv / "bin" / "habit-sensors"
+OVERSIZED_LINES = 205
+MAX_ALLOWED_LINES = 200
 
 
 @pytest.fixture(scope="module")
@@ -84,8 +40,8 @@ def installed_habit_sensors(tmp_path_factory) -> Path:
     root = tmp_path_factory.mktemp("wheel-smoke")
     wheels_dir = root / "wheels"
     wheels_dir.mkdir()
-    _build_wheels(wheels_dir, ("habit-hooks", "habit-hooks-generic", "habit-hooks-php"))
-    return _install_into_venv(root / "venv", wheels_dir)
+    build_wheels(wheels_dir, ("habit-hooks", "habit-hooks-generic", "habit-hooks-php"))
+    return install_wheels(root / "venv", wheels_dir)
 
 
 @pytest.fixture(scope="module")
@@ -93,29 +49,16 @@ def default_install(tmp_path_factory) -> tuple[Path, Path]:
     root = tmp_path_factory.mktemp("default-install")
     wheelhouse = root / "wheelhouse"
     wheelhouse.mkdir()
-    _build_wheels(wheelhouse, ("habit-hooks", "habit-hooks-generic"))
+    build_wheels(wheelhouse, ("habit-hooks", "habit-hooks-generic"))
     venv = root / "venv"
-    subprocess.run([_uv(), "venv", str(venv)], check=True, capture_output=True, text=True)
-    python = venv / "bin" / "python"
-    subprocess.run(
-        [
-            _uv(),
-            "pip",
-            "install",
-            "--python",
-            str(python),
-            "--find-links",
-            str(wheelhouse),
-            "habit-hooks",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    python = install_by_name(venv, wheelhouse, "habit-hooks")
     return python, venv / "bin" / "habit-sensors"
 
 
-def _oversized_fixture(project: Path) -> None:
+def _oversized_project(tmp_path: Path, name: str) -> Path:
+    """A project whose only smell is one file over the line-count threshold."""
+    project = tmp_path / name
+    project.mkdir()
     config = project / ".habit-hooks"
     config.mkdir()
     (config / "config.toml").write_text(
@@ -124,56 +67,38 @@ def _oversized_fixture(project: Path) -> None:
         "[sensors.jscpd]\n"
         "disabled = true\n"
     )
-    (project / "big.py").write_text("".join(f"x{n} = 0\n" for n in range(1, 206)))
+    lines = "".join(f"x{n} = 0\n" for n in range(1, OVERSIZED_LINES + 1))
+    (project / "big.py").write_text(lines)
+    return project
 
 
-def test_installed_generic_plugin_emits_a_real_finding(
-    installed_habit_sensors: Path, tmp_path: Path
-) -> None:
-    project = tmp_path / "proj"
-    project.mkdir()
-    _oversized_fixture(project)
-
-    findings = _run_and_collect_findings(installed_habit_sensors, project)
+def _assert_only_the_oversized_file(findings: list[dict]) -> None:
     assert findings == [
         {
             "smell": "oversized-file",
-            "details": {"maxAllowed": 200},
+            "details": {"maxAllowed": MAX_ALLOWED_LINES},
             "issues": [
                 {
                     "key": "big.py",
-                    "details": {"file": "big.py", "lines": 205, "source": "line-count"},
+                    "details": {
+                        "file": "big.py",
+                        "lines": OVERSIZED_LINES,
+                        "source": "line-count",
+                    },
                 }
             ],
         }
     ]
 
 
-def _link_executables_except(bin_dir: Path, blocked: set[str]) -> None:
-    for entry in os.environ.get("PATH", "").split(os.pathsep):
-        source = Path(entry)
-        if not source.is_dir():
-            continue
-        for tool in source.iterdir():
-            link = bin_dir / tool.name
-            if tool.name in blocked or link.exists() or not os.access(tool, os.X_OK):
-                continue
-            link.symlink_to(tool)
+def test_installed_generic_plugin_emits_a_real_finding(
+    installed_habit_sensors: Path, tmp_path: Path
+) -> None:
+    project = _oversized_project(tmp_path, "proj")
 
-
-def _path_without_python(tmp_path: Path) -> str:
-    """A PATH with the usual tools (``bash`` etc.) but no ``python``/``python3``,
-    reproducing a clean CI sandbox / stock-macOS environment. Built by symlinking
-    every executable on the current PATH except the Python interpreters into a
-    single bin dir."""
-    bin_dir = tmp_path / "no-python-bin"
-    bin_dir.mkdir()
-    _link_executables_except(bin_dir, {"python", "python3"})
-
-    assert shutil.which("python", path=str(bin_dir)) is None
-    assert shutil.which("python3", path=str(bin_dir)) is None
-    assert shutil.which("bash", path=str(bin_dir)) is not None
-    return str(bin_dir)
+    _assert_only_the_oversized_file(
+        run_and_collect_findings(installed_habit_sensors, project)
+    )
 
 
 def test_bundled_python_sensor_runs_without_python_on_path(
@@ -183,59 +108,29 @@ def test_bundled_python_sensor_runs_without_python_on_path(
     ``python`` in the command this fails on any environment that ships only
     ``python3`` (or none). The ``${python}`` placeholder must run it via the
     interpreter behind ``habit-sensors`` regardless of PATH."""
-    project = tmp_path / "no-python-proj"
-    project.mkdir()
-    _oversized_fixture(project)
+    project = _oversized_project(tmp_path, "no-python-proj")
 
-    findings = _run_and_collect_findings(
+    findings = run_and_collect_findings(
         installed_habit_sensors,
         project,
-        env={"PATH": _path_without_python(tmp_path)},
+        env={"PATH": path_without_python(tmp_path)},
     )
-    assert findings == [
-        {
-            "smell": "oversized-file",
-            "details": {"maxAllowed": 200},
-            "issues": [
-                {
-                    "key": "big.py",
-                    "details": {"file": "big.py", "lines": 205, "source": "line-count"},
-                }
-            ],
-        }
-    ]
+
+    _assert_only_the_oversized_file(findings)
 
 
 def test_installing_core_by_name_pulls_generic_and_finds_a_smell(
     default_install: tuple[Path, Path], tmp_path: Path
 ) -> None:
     python, habit_sensors = default_install
+    packages = installed_packages(python)
+    assert "habit-hooks-generic" in packages, packages
 
-    pip_list = subprocess.run(
-        [_uv(), "pip", "list", "--python", str(python)],
-        check=True,
-        capture_output=True,
-        text=True,
+    project = _oversized_project(tmp_path, "default-proj")
+
+    _assert_only_the_oversized_file(
+        run_and_collect_findings(habit_sensors, project)
     )
-    assert "habit-hooks-generic" in pip_list.stdout, pip_list.stdout
-
-    project = tmp_path / "default-proj"
-    project.mkdir()
-    _oversized_fixture(project)
-
-    findings = _run_and_collect_findings(habit_sensors, project)
-    assert findings == [
-        {
-            "smell": "oversized-file",
-            "details": {"maxAllowed": 200},
-            "issues": [
-                {
-                    "key": "big.py",
-                    "details": {"file": "big.py", "lines": 205, "source": "line-count"},
-                }
-            ],
-        }
-    ]
 
 
 def test_configured_but_uninstalled_plugin_names_its_install_command(
@@ -259,7 +154,9 @@ def test_configured_but_uninstalled_plugin_names_its_install_command(
     assert "pip install habit-hooks-python" in result.stderr
 
 
-def _php_fixture(project: Path) -> None:
+def _php_project(tmp_path: Path) -> Path:
+    project = tmp_path / "php-proj"
+    project.mkdir()
     config = project / ".habit-hooks"
     config.mkdir()
     (config / "config.toml").write_text('plugins = ["php"]\n')
@@ -270,17 +167,17 @@ def _php_fixture(project: Path) -> None:
         "    return $a + $b + $c + $d + $e + $f + $g + $h + $i + $j + $k;\n"
         "}\n"
     )
+    return project
 
 
 def test_installed_php_plugin_locates_its_bundled_phar(
     installed_habit_sensors: Path, tmp_path: Path
 ) -> None:
-    _php()
-    project = tmp_path / "php-proj"
-    project.mkdir()
-    _php_fixture(project)
+    require_php()
+    project = _php_project(tmp_path)
 
-    findings = _run_and_collect_findings(installed_habit_sensors, project)
+    findings = run_and_collect_findings(installed_habit_sensors, project)
+
     by_smell = {finding["smell"]: finding for finding in findings}
     assert by_smell.keys() == {"too-many-parameters", "unused-variable"}
     for finding in findings:
