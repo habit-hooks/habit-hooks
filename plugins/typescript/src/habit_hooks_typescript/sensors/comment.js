@@ -75,4 +75,6 @@ function main() {
   return 0;
 }
 
-process.exit(main());
+// Not process.exit(): stdout is a pipe under the runner and writes to it are
+// async, so exiting here truncates the payload at the pipe buffer.
+process.exitCode = main();
