@@ -17,6 +17,7 @@ files = [
   "tests/**/*.py",
   "conftest.py",
   "plugins/*/src/**/*.py",
+  "plugins/*/tests/**/*.py",
   "!plugins/python/**",
   "!**/__pycache__/**",
 ]

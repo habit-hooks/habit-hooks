@@ -30,3 +30,10 @@ jobs:
           npm ci --prefix plugins/generic
       - name: Test
         run: uv run pytest
+      # Dogfooding: habit-hooks gates its own source. Without this the tool can
+      # drift red on the repo that ships it — which is exactly what happened
+      # (tests/test_installed_wheel_smoke.py sat over the line-count threshold
+      # with nothing to notice). Runs last so a real failure is reported before
+      # a coaching one.
+      - name: Habit Hooks (dogfooding)
+        run: uv run habit-hooks --all
