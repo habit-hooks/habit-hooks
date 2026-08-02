@@ -37,18 +37,6 @@ class Scope:
     notices: list[str] = field(default_factory=list)
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="habit-sensors")
-    parser.add_argument("--config", type=Path)
-    modes = parser.add_mutually_exclusive_group()
-    modes.add_argument("--all", action="store_true")
-    modes.add_argument("--file")
-    modes.add_argument("--branch", nargs="?", const="", metavar="base")
-    modes.add_argument("--last", type=int)
-    modes.add_argument("--since")
-    return parser.parse_args(argv)
-
-
 def resolve_scope(
     args: argparse.Namespace, config: Config, project_dir: Path
 ) -> Scope:

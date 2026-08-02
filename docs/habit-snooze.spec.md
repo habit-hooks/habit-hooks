@@ -309,46 +309,82 @@ habit-snooze | jq .
 ]
 ```
 
-## `--prune` drops keys that didn't appear in the latest run
+## `--prune` reads a snooze-free view of the run
 
 A snoozed key whose issue no longer shows up — the smell was fixed, or the file
-deleted — is stale. `--prune` reads the latest findings and keeps only the index
-keys that appear in them, so a fixed snooze doesn't linger forever. Here two keys
-are snoozed but only `src/x.ts` recurs, so `src/y.ts` is pruned away.
+deleted — is stale, and `--prune` drops it. But `--prune` must read the findings
+**before** the snooze transformer filtered them: the default pipe has already
+stripped every snoozed issue, so a naive `--prune` would see none of them and
+empty the whole index (#94). The documented pipeline therefore runs
+`habit-sensors --no-snooze`, so `--prune` compares the index against everything
+the run still finds — snoozed or not.
 
-⌨️
+These cases drive that real pipeline through a stub sensor rather than hand-fed
+findings, so the bypass that hid the bug cannot come back.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["alpha"]
+```
+
+📄.habit-hooks/generic/sensors/alpha.toml
+```toml
+command = "cat ${dir}/alpha.json"
+```
+
+### It keeps a still-violating key and drops one that no longer appears
+
+Two keys are snoozed, but the run only still reports `src/x.ts` (the `src/y.ts`
+smell was fixed). Pruning keeps `src/x.ts` and reaps `src/y.ts`.
+
+📄.habit-hooks/generic/sensors/alpha.json
 ```json
-[
-  {
-    "smell": "loose-equality",
-    "details": { "maxAllowed": 0 },
-    "issues": [
-      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 1 } },
-      { "key": "src/y.ts", "details": { "file": "src/y.ts", "line": 9 } }
-    ]
-  }
-]
+[{"smell":"loose-equality","details":{"maxAllowed":0},"issues":[{"key":"src/x.ts","details":{"file":"src/x.ts","line":1}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/x.ts", "src/y.ts"]
 ```
 
 ```bash
-habit-snooze --snooze
+habit-sensors --all --no-snooze | habit-snooze --prune && habit-snooze --list
 ```
 
-⌨️
+🖥️ ✅
+```text
+src/x.ts
+```
+
+### It refuses to empty a populated index when the run measured nothing
+
+An empty run means "nothing was measured", not "every exemption is obsolete", so
+`--prune` refuses to touch a populated index and says why (the false-clean class
+of #78/#84). Here the sensor reports nothing, yet the snooze survives.
+
+📄.habit-hooks/generic/sensors/alpha.json
 ```json
-[
-  {
-    "smell": "loose-equality",
-    "details": { "maxAllowed": 0 },
-    "issues": [
-      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 1 } }
-    ]
-  }
-]
+[]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/x.ts"]
 ```
 
 ```bash
-habit-snooze --prune && habit-snooze --list
+habit-sensors --all --no-snooze | habit-snooze --prune
+```
+
+🖥️ ❌ 1
+
+```bash
+habit-snooze --list
 ```
 
 🖥️ ✅

@@ -340,3 +340,29 @@ mapping, config validation) are resolved and recorded above / in
   fails the run even when no plugin supplies a guide, and needs no new awareness
   of the sensors stage. The finding is appended **after every transformer runs**,
   so a snooze can never mute it; the notices still reach stderr for humans.
+
+## `--prune` reads a snooze-free run, and never empties on nothing (#94, agent decision)
+
+- **`--prune` must not read the snooze-filtered pipe.** `transformers` defaults
+  to `["snooze"]`, so a plain `habit-sensors` has already stripped every snoozed
+  finding before `--prune` sees stdin. The documented
+  `habit-sensors --all | habit-snooze --prune` therefore kept only the index keys
+  present in a stream that by construction held none of them, rewriting the whole
+  index to `[]` with exit 0 — one run silently destroying a team's baseline.
+- **The seam is a `habit-sensors --no-snooze` flag**, not `--prune` re-scanning
+  itself. The flag drops the snooze transformers (`SNOOZE_TRANSFORMERS`) from the
+  run so the pipe carries the pre-snooze findings, and the README pipeline uses
+  it. Chosen over `transformers = [] via --config` because a documented one-liner
+  should not need a config file, and over teaching `--prune` to shell out to the
+  runner because the stages still talk only through the pipe.
+- **An empty run never empties a populated index.** No findings means "nothing
+  was measured" (an empty scope, a snooze-filtered pipe, a crashed sensor), not
+  "every exemption is obsolete" — the false-clean class of #78/#84. `--prune`
+  refuses and says why (exit 1, index untouched) rather than wiping it.
+- **A malformed index fails by name.** `load_index` was `json.loads` with no
+  type check: `null` iterated as `None`, a bare `"src/a.py"` iterated per
+  character (a silent index of nothing), an object survived only to be flattened
+  on the next `--snooze`. It now demands a JSON list of strings and raises
+  `SnoozeError` naming the file — a checked-in file a human edits must not fail
+  as a traceback or, worse, quietly. `save_index` writes a sibling temp file and
+  `os.replace`s it, so two concurrent hook runs cannot tear the file.

@@ -288,10 +288,17 @@ It drops any issue whose `key` (the filename by default) is in a checked-in inde
 When a finding loses its last issue, the finding goes with it. Maintain the index by piping findings into it:
 
 ```sh
-habit-sensors --all | habit-snooze --snooze   # add the current run's keys to the index
-habit-sensors --all | habit-snooze --prune    # drop keys that no longer show up
-habit-snooze --list                            # print the snoozed keys, one per line
+habit-sensors --all | habit-snooze --snooze              # add the current run's keys to the index
+habit-sensors --all --no-snooze | habit-snooze --prune   # drop keys that no longer show up
+habit-snooze --list                                       # print the snoozed keys, one per line
 ```
+
+`--prune` needs `--no-snooze`: a plain `habit-sensors` has already dropped every
+snoozed finding, so pruning against it would see none of them and empty the whole
+index. `--no-snooze` emits the run before the snooze transformer filters it, so
+`--prune` keeps every key still exempting a live finding and reaps only the
+obsolete ones. If it is ever fed an empty run it refuses to touch a populated
+index rather than wiping it.
 
 The index is portable by construction: every path a sensor reports is re-expressed relative to the project
 before a key is formed, so an index recorded on one machine matches on a teammate's checkout and in CI —

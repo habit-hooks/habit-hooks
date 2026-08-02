@@ -8,15 +8,17 @@ its declared ``language`` onto its findings.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
 
 from ..catalogue import INCOMPLETE_RUN
-from ..config import load_config
+from ..config import Config, load_config
 from ..recommend import recommendations
 from ..resolve import Resolver
-from ..scope import parse_args, resolve_scope
+from ..scope import resolve_scope
+from ..snooze import SNOOZE_TRANSFORMERS
 from .execution import Execution
 from .loader import PluginLoader
 from .model import Plugin, Run, SensorError
@@ -29,7 +31,23 @@ __all__ = [
     "SensorError",
     "incomplete_run_finding",
     "main",
+    "parse_args",
 ]
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="habit-sensors")
+    parser.add_argument("--config", type=Path)
+    # Emit findings before the snooze transformers filter them, so `--prune` sees
+    # a snooze-free view of the run instead of one snooze already emptied (#94).
+    parser.add_argument("--no-snooze", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--all", action="store_true")
+    modes.add_argument("--file")
+    modes.add_argument("--branch", nargs="?", const="", metavar="base")
+    modes.add_argument("--last", type=int)
+    modes.add_argument("--since")
+    return parser.parse_args(argv)
 
 
 def incomplete_run_finding(notices: list[str]) -> dict:
@@ -84,10 +102,24 @@ def run_sensors(loader: PluginLoader, execution: Execution) -> Run:
     return run
 
 
+def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
+    """The run's config, minus the snooze transformers when ``--no-snooze`` asks.
+
+    Stripping them here emits the run before snooze filters it, which is what
+    ``habit-snooze --prune`` needs to compare its index against (#94).
+    """
+    config = load_config(project_dir, args.config)
+    if args.no_snooze:
+        config.transformers = [
+            name for name in config.transformers if name not in SNOOZE_TRANSFORMERS
+        ]
+    return config
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
     project_dir = Path.cwd()
-    config = load_config(project_dir, args.config)
+    config = _configure(args, project_dir)
     scope = resolve_scope(args, config, project_dir)
     loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope, args.config))

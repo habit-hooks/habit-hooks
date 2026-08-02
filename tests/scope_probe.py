@@ -10,7 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from habit_hooks.config import Config
-from habit_hooks.scope import Scope, parse_args, resolve_scope
+from habit_hooks.scope import Scope, resolve_scope
+from habit_hooks.sensors import parse_args
 
 
 def scope(argv: list[str], project_dir: Path, config: Config | None = None) -> Scope:

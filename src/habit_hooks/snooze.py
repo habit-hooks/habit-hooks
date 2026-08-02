@@ -21,21 +21,14 @@ from pathlib import Path
 
 from .changed_files import changed_against_base
 from .config import load_config
+from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
 
-INDEX_PATH = Path(".habit-hooks") / "snooze.json"
+__all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 
-
-def load_index(project_dir: Path) -> list[str]:
-    path = project_dir / INDEX_PATH
-    if not path.exists():
-        return []
-    return json.loads(path.read_text())
-
-
-def save_index(keys: list[str], project_dir: Path) -> None:
-    path = project_dir / INDEX_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(sorted(set(keys))) + "\n")
+# The transformers that filter findings through this index. `habit-sensors
+# --no-snooze` strips them so `--prune` can compare the index against a
+# snooze-free view of the run instead of one snooze already emptied (#94).
+SNOOZE_TRANSFORMERS = frozenset({"snooze", "snooze-until-changed"})
 
 
 def finding_keys(findings: list[dict]) -> list[str]:
@@ -104,10 +97,30 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
         save_index(load_index(project_dir) + finding_keys(read_findings()), project_dir)
         return 0
     if args.prune:
-        present = set(finding_keys(read_findings()))
-        save_index([k for k in load_index(project_dir) if k in present], project_dir)
-        return 0
+        return _prune(project_dir)
     return _write_transformed(project_dir, args.until_changed, args.config)
+
+
+def _prune(project_dir: Path) -> int:
+    """Drop index keys the latest run no longer reports — but never on an empty
+    run. Empty findings mean "nothing was measured" (an empty scope, or a
+    snooze-filtered pipe), not "every exemption is obsolete"; emptying the whole
+    index on that is the false-clean class of #78/#84, so it is refused (#94).
+    The run must be fed snooze-free (`habit-sensors --no-snooze`), else every
+    still-violating key is missing from stdin and would be pruned away.
+    """
+    present = set(finding_keys(read_findings()))
+    index = load_index(project_dir)
+    if index and not present:
+        sys.stderr.write(
+            "habit-snooze: --prune read no findings; refusing to empty a "
+            "populated index. Nothing was measured — feed it a snooze-free run "
+            "(`habit-sensors --no-snooze | habit-snooze --prune`). "
+            "Index left unchanged.\n"
+        )
+        return 1
+    save_index([key for key in index if key in present], project_dir)
+    return 0
 
 
 def _write_transformed(
@@ -158,7 +171,11 @@ def _reject_until_changed_with_index_op(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
-    return run(args, Path.cwd())
+    try:
+        return run(args, Path.cwd())
+    except SnoozeError as error:
+        sys.stderr.write(f"habit-snooze: {error}\n")
+        return 1
 
 
 if __name__ == "__main__":
