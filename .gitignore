@@ -17,3 +17,7 @@ __pycache__/
 # Workflow orchestration script (run from ~/.claude, never a repo deliverable)
 .claude/workflows-build-overnight.js
 /scratches/
+
+# unsupervised-issues run signals (live mode switch + stop flag)
+.unsupervised-issues.mode
+.unsupervised-issues.stop
