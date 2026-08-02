@@ -17,6 +17,9 @@ class Part:
     command: str
     directory: Path
     args: list[str] = field(default_factory=list)
+    # A sensor's own discovery globs: when set, the run's scope is narrowed to
+    # this subset for this sensor alone. ``None`` means "the whole scope".
+    files: list[str] | None = None
 
 
 @dataclass

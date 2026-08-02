@@ -201,28 +201,32 @@ transformers = []
 
 ## `[sensors.<name>]`
 
-A sensor spec is just a **`command`** plus an optional **`language`** and
-**`files`** — that is the whole sensor interface
-([sensor-interface.spec.md](sensor-interface.spec.md)). The full spec for a
-sensor lives in the plugin's `sensors/<name>.toml`; the `[sensors.<name>]` block
-in a config only *overrides* a sensor the plugin already defines.
+The full spec for a sensor lives in the plugin's `sensors/<name>.toml`
+([sensor-interface.spec.md](sensor-interface.spec.md)); the `[sensors.<name>]`
+block in a project config only *overrides* a sensor the plugin already defines.
+Each key replaces the sensor spec's default wholesale — to change anything a key
+below does not cover, drop a whole `.habit-hooks/<plugin>/sensors/<name>.toml`
+replacement instead.
 
 | Field      | Meaning |
 |------------|---------|
 | `disabled` | Drop the sensor entirely. |
-| `files`    | Override the sensor's file globs (list form — no brace expansion). |
-| `command`  | Override the sensor's command. |
-| `language` | Override the language stamped on the sensor's findings. |
+| `files`    | Narrow the run's scope to these globs for this sensor alone (list form — no brace expansion). |
+| `args`     | Replace the sensor's default CLI args, expanded into its command via `${args}`. |
 
 ```toml
 # Turn off a sensor the plugin ships.
 [sensors.knip]
 disabled = true
 
-# Narrow a sensor to a subset of the tree.
+# Narrow the generic line-count sensor to a subset of the tree.
 [sensors.line-count]
 files = ["src/**/*.py"]
 ```
+
+`files` does not widen a run: it selects a subset of the files the run's scope
+already picked ([scope]/[files] and the scope flags), so a sensor still never
+sees a path the run as a whole was not measuring.
 
 ## `[smells.<name>]`
 
@@ -265,14 +269,12 @@ by default, without the project configuring anything.
 ## Custom smells
 
 A project (or plugin) sensor may emit a smell that is not in the catalogue.
-Declare it under `[smells.<name>]` with a `title` and `severity` so it routes the
-way you want instead of escalating with the generic uncoached prompt:
+Declare it under `[smells.<name>]` with a `severity` so it routes the way you want
+instead of escalating with the generic uncoached prompt:
 
 ```toml
 [smells.custom-marker]
 severity = "enforced"
-title = "Custom marker"
-description = "flagged by the project's own sensor"
 ```
 
 Pair the declaration with a sensor that emits the smell (a `sensors/<name>.toml`
@@ -321,6 +323,4 @@ guide = "style-nit.md"
 # .habit-hooks/typescript/sensors/marker.toml and guides/custom-marker.md).
 [smells.custom-marker]
 severity = "enforced"
-title = "Custom marker"
-description = "flagged by the project's own sensor"
 ```

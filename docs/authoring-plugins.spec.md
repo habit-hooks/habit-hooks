@@ -91,9 +91,9 @@ files = ["**/*.lua"]                                        # optional; override
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). |
-| `language` | no | Language stamped on every finding this sensor emits. Usually inherited from the plugin's `config.toml` rather than set here. |
-| `files` | no | Per-sensor discovery globs, overriding the plugin's. |
+| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${args}` to this sensor's `args`; `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). |
+| `args` | no | Default CLI args, expanded into `command` via `${args}`. They live here, not in the plugin `config.toml` (where `sensors` as a list and `[sensors.<name>]` as a table would collide). A project replaces them via `[sensors.<name>] args`. |
+| `files` | no | Narrows the run's scope to these globs for this sensor alone — a subset of what the scope already picked, never a second discovery pass. A project replaces them via `[sensors.<name>] files`. |
 
 Whatever the command prints is taken verbatim as the sensor's findings; a clean
 run prints `[]`, never nothing ([sensor-interface.spec.md](sensor-interface.spec.md)).
@@ -441,6 +441,53 @@ py = "python"                  # guides/<smell>.py -> python guides/<smell>.py
 Author a guide only where the language needs its own wording; otherwise the smell
 falls back to the generic guide, or the `uncoached.md` default. Keep prompts short
 and outcome-focused — use the `habit-hooks-prompting` skill's ROSE pattern.
+
+### A plugin's own `[runners]` runs its guide with no project config
+
+A plugin's `[runners]` is merged into the run (project last), so a
+language-specific fixer runs without the project registering it. Here the project
+only names the plugin; the `sh` runner and the `.sh` guide both ship inside the
+plugin, and the fixer's output reaches the agent.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["demo"]
+```
+
+📄.habit-hooks/demo/config.toml
+```toml
+[runners]
+sh = "bash"
+```
+
+📄.habit-hooks/demo/guides/oversized-file.sh
+```sh
+echo "src/legacy.ts is too large — split it into focused modules."
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "lines": 800 },
+    "issues": [
+      { "key": "src/legacy.ts", "details": { "file": "src/legacy.ts" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+── oversized-file (1 issue) ──
+
+src/legacy.ts is too large — split it into focused modules.
+```
 
 ## 6. Build it, install it, run it
 

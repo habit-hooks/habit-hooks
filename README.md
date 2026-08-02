@@ -229,7 +229,9 @@ mainBranch = "main"        # the branch on which autoBranchOffMain does not kick
 
 ### `[sensors.<name>]`
 
-Override a sensor a plugin already ships:
+Override a sensor a plugin already ships. Each key replaces the sensor spec's
+default wholesale; to change anything the keys below do not cover, drop a whole
+`.habit-hooks/<plugin>/sensors/<name>.toml` replacement instead.
 
 ```toml
 # Turn off a sensor the plugin ships.
@@ -241,7 +243,8 @@ disabled = true
 files = ["src/**/*.py"]
 ```
 
-Fields: `disabled`, `files`, `command`, `language`.
+Fields: `disabled`, `files` (narrows the run's scope for this sensor alone), `args`
+(replaces the sensor's default CLI args, expanded via `${args}`).
 
 ### `[smells.<name>]`
 

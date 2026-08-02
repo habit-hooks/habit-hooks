@@ -57,7 +57,7 @@ disabled = true
 
 [smells.long-file]
 severity = "error"
-title = "Too long"
+guide = "style-nit.md"
 """
 
 
@@ -88,15 +88,15 @@ def test_populated_sensor_override_loads(tmp_path: Path) -> None:
     assert isinstance(override, SensorOverride)
     assert override.args == ["--max", "300"]
     assert override.disabled is True
-    assert override.command is None
+    assert override.files is None
 
 
 def test_populated_smell_override_loads(tmp_path: Path) -> None:
     smell = _load_populated(tmp_path).smells["long-file"]
     assert isinstance(smell, SmellOverride)
     assert smell.severity == "error"
-    assert smell.title == "Too long"
-    assert smell.guide is None
+    assert smell.guide == "style-nit.md"
+    assert smell.disabled is None
 
 
 def test_unknown_keys_are_ignored_at_every_level(tmp_path: Path) -> None:
@@ -154,6 +154,27 @@ def test_a_plugin_declaring_no_files_states_no_opinion(tmp_path: Path) -> None:
     project = _write(tmp_path, 'plugins = ["alpha"]')
     _plugin_config(project, "alpha", 'sensors = ["noop"]')
     assert load_config(project).files is None
+
+
+def test_plugin_runners_merge_under_the_project(tmp_path: Path) -> None:
+    """A plugin ships its own ``[runners]``; the project's win per extension."""
+    project = _write(tmp_path, 'plugins = ["alpha"]\n[runners]\npy = "python3"')
+    _plugin_config(project, "alpha", '[runners]\npy = "python2"\nlua = "lua"')
+    assert load_config(project).runners == {"py": "python3", "lua": "lua"}
+
+
+def test_plugin_runners_apply_when_the_project_declares_none(tmp_path: Path) -> None:
+    project = _write(tmp_path, 'plugins = ["alpha"]')
+    _plugin_config(project, "alpha", '[runners]\npy = "python3"')
+    assert load_config(project).runners == {"py": "python3"}
+
+
+def test_the_first_plugin_wins_a_runner_extension(tmp_path: Path) -> None:
+    """``plugins`` order is a priority, as it is for guide lookup."""
+    project = _write(tmp_path, 'plugins = ["alpha", "beta"]')
+    _plugin_config(project, "alpha", '[runners]\npy = "alpha-py"')
+    _plugin_config(project, "beta", '[runners]\npy = "beta-py"')
+    assert load_config(project).runners == {"py": "alpha-py"}
 
 
 def test_direct_defaults_are_independent_instances() -> None:

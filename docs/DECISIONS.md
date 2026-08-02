@@ -112,6 +112,36 @@ Pinned in [habit-sensors.spec.md](habit-sensors.spec.md).
   override a runner the same way. No arbitrary execution ships unless a plugin or
   the project opts in.
 
+- **Every documented config key has a consumer, or is gone (#87).** Four keys the
+  docs described as working were read by nothing. Dispositions:
+  - **Plugin `[runners]` — implemented.** `config.load_config` now merges each
+    active plugin's `[runners]` under the project's, the way `files` is merged
+    (earlier plugin wins a key, project wins over all). This is what the decision
+    above always promised; the merge finally exists, so a third-party plugin
+    shipping `guides/<smell>.<ext>` plus a `[runners]` entry has its fixer run.
+  - **`[sensors.<name>] files` (and a sensor spec's own `files`) — implemented as
+    a narrowing.** The `Part` carries the sensor's globs; `Execution` filters the
+    already-resolved `scope.files` to that subset for the sensor alone (shared
+    `scope.matching`). This is **not** a second scope mechanism: the scope is
+    still derived once in `resolve_scope`, and a sensor's `files` can only select
+    a subset of what it picked — never widen, never re-derive. `args` and `files`
+    override the sensor spec's default wholesale, through one `_sensor_setting`.
+  - **`[sensors.<name>] command` / `language`, and a sensor spec's own
+    `language` — deleted.** A project wanting a different command or stamped
+    language replaces the whole `sensors/<name>.toml` via the override chain, and
+    a sensor's language is inherited from its plugin's `config.toml`; per-sensor
+    copies read by nothing were removed from `SensorOverride` and the docs.
+  - **`SmellOverride.title` — deleted.** Surfaced by the field-has-a-consumer
+    test: `title` (and a `description` shown alongside it in an example) routed
+    nothing — `severity` does — so both left the docs and `title` left the
+    dataclass. `args` was added to the `[sensors.<name>]` doc tables, which had
+    omitted the one per-sensor override that always worked.
+
+  The guard against the class recurring is #102 (reject unknown keys); this
+  cleared the existing instances. `tests/test_config.py` asserts, parameterised
+  over `SensorOverride`/`SmellOverride` fields, that each has a consumer, so a
+  future dead field fails the build.
+
 - **Scope surface = main's, restored, plus `--file`** — `--all`, `--branch
   [base]`, `--last <n>`, `--since <ref>`, `--file <path>`, `--config <path>`;
   default from `[scope]` (`changedOnly` → uncommitted; else `autoBranchOffMain`

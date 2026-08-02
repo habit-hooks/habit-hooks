@@ -107,8 +107,17 @@ def _source_files(paths: list[str], config: Config, project_dir: Path) -> list[s
     present = [path for path in placed if path and (project_dir / path).is_file()]
     if config.files is None:
         return present
-    spec = pathspec.PathSpec.from_lines("gitignore", config.files)
-    return [path for path in present if spec.match_file(path)]
+    return matching(present, config.files)
+
+
+def matching(paths: list[str], globs: list[str]) -> list[str]:
+    """The ``paths`` kept by pathspec (gitignore) ``globs``, order preserved.
+
+    The one place a path list is filtered by a glob list: the run's ``[files]``
+    here, and a single sensor's own ``files`` narrowing in ``execution.py``.
+    """
+    spec = pathspec.PathSpec.from_lines("gitignore", globs)
+    return [path for path in paths if spec.match_file(path)]
 
 
 def _named_file_notices(

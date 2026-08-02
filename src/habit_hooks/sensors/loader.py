@@ -50,14 +50,25 @@ class PluginLoader:
                 f"habit-sensors: no {kind[:-1]} {name!r} in {plugins} or the core"
             )
         spec = _read_toml(path)
-        args = self._sensor_args(name, spec) if kind == "sensors" else []
-        return Part(name, spec["command"], path.parent, args)
+        if kind != "sensors":
+            return Part(name, spec["command"], path.parent)
+        return Part(
+            name,
+            spec["command"],
+            path.parent,
+            self._sensor_setting(name, spec, "args") or [],
+            self._sensor_setting(name, spec, "files"),
+        )
 
-    def _sensor_args(self, name: str, spec: dict) -> list[str]:
+    def _sensor_setting(self, name: str, spec: dict, key: str) -> list[str] | None:
+        """The project's ``[sensors.<name>]`` override for ``key``, else the spec's.
+
+        One override rule for every per-sensor setting: a project value replaces
+        the sensor spec's default wholesale, and absent either it is unset.
+        """
         override = self.config.sensors.get(name)
-        if override is not None and override.args is not None:
-            return override.args
-        return spec.get("args", [])
+        value = getattr(override, key) if override is not None else None
+        return value if value is not None else spec.get(key)
 
     def _disabled(self, sensor: str) -> bool:
         override = self.config.sensors.get(sensor)

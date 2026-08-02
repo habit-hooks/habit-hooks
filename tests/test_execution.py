@@ -87,6 +87,35 @@ def test_expand_drops_config_when_the_run_named_none(tmp_path: Path) -> None:
     assert shlex.split(expanded) == ["run"]
 
 
+def test_sensor_files_narrow_the_expanded_file_list(tmp_path: Path) -> None:
+    """A sensor's own ``files`` selects a subset of the run's scope for it alone.
+
+    The scope is still resolved once; this is a central filter over the files that
+    scope already picked, never a second scope derivation.
+    """
+    part = Part(
+        name="probe",
+        command="${files}",
+        directory=tmp_path,
+        args=[],
+        files=["src/**"],
+    )
+    execution = Execution(
+        project_dir=tmp_path, scope=Scope(files=["src/a.py", "tests/b.py"])
+    )
+
+    assert execution._expand(part) == "src/a.py"
+
+
+def test_no_sensor_files_leaves_the_whole_scope(tmp_path: Path) -> None:
+    part = Part(name="probe", command="${files}", directory=tmp_path, args=[])
+    execution = Execution(
+        project_dir=tmp_path, scope=Scope(files=["src/a.py", "tests/b.py"])
+    )
+
+    assert execution._expand(part) == "src/a.py tests/b.py"
+
+
 def test_a_plugin_directory_containing_a_space_still_runs(tmp_path: Path) -> None:
     directory = tmp_path / "my plugin"
     directory.mkdir()

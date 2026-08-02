@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..scope import Scope
+from ..scope import Scope, matching
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
@@ -118,7 +118,7 @@ class Execution:
         A path is the dangerous one: it comes from the work tree, so an
         unquoted ``${files}`` lets a filename execute its own contents.
         """
-        files = " ".join(shlex.quote(f) for f in self.scope.files)
+        files = " ".join(shlex.quote(f) for f in self._scoped_files(part))
         args = " ".join(shlex.quote(arg) for arg in part.args)
         return (
             part.command.replace("${python}", shlex.quote(sys.executable))
@@ -127,6 +127,17 @@ class Execution:
             .replace("${files}", files)
             .replace("${config}", self._config_flag())
         )
+
+    def _scoped_files(self, part: Part) -> list[str]:
+        """The run's scope, narrowed to this sensor's own ``files`` if it has any.
+
+        The scope is still derived once (``scope.resolve_scope``); a sensor's
+        ``files`` only selects a subset of what that scope already picked, never a
+        second, competing scope derivation. A sensor stating none sees all of it.
+        """
+        if part.files is None:
+            return self.scope.files
+        return matching(self.scope.files, part.files)
 
     def _config_flag(self) -> str:
         """``--config <path>`` when the run named a config, else nothing.
