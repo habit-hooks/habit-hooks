@@ -281,6 +281,12 @@ habit-sensors --all | habit-snooze --prune    # drop keys that no longer show up
 habit-snooze --list                            # print the snoozed keys, one per line
 ```
 
+The index is portable by construction: every path a sensor reports is re-expressed relative to the project
+before a key is formed, so an index recorded on one machine matches on a teammate's checkout and in CI —
+even though `ruff` and `eslint` report absolute paths. A key that is not a path (a module or export name)
+is left alone. Two things fail the run rather than going quiet: a path the project cannot place at all, and
+a key that is one of its own files while covering others too, where one snooze would exempt them all.
+
 Snoozing is already folded into a plain `habit-hooks` run: `transformers` defaults to `["snooze"]`, and the
 transformer ships with the core, so a checked-in index takes effect with no wiring. Naming the key replaces
 that list wholesale, which is how you drop snoozing or order it against your own steps:

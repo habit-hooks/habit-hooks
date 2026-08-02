@@ -62,6 +62,12 @@ an exemption lasts, so list **one** of them.
 transformers = ["snooze-until-changed"]
 ```
 
+Both read an index of keys the runner has already **anchored**: a sensor's paths
+are re-expressed relative to the project before any key reaches the index
+([sensor-interface.spec.md](sensor-interface.spec.md)), so a key recorded on one
+machine matches on every other. Nothing in a project's config has to arrange
+that, and a sensor a project writes itself gets it without knowing it exists.
+
 ### Installing the plugins you list
 
 `plugins` only **selects** among plugins that are installed; each name must

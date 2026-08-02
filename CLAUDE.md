@@ -35,6 +35,26 @@ in the plugin `config.toml` because `sensors = [...]` (the ordered list) and a
 wholesale via `.habit-hooks/config.toml` `[sensors.<name>] args = [...]`
 (replace-on-override — `SensorOverride.args`, threaded in `sensors._sensor_args`).
 
+### Finding paths are anchored at the sensor boundary, never per sensor (agent decision, issue #79)
+
+`Execution.run_sensor` pipes every parsed sensor's findings through
+`sensors/finding_paths.anchored()`, which re-expresses each `issue.details.file`
+**and** `issue.key` relative to the project (`project_paths.project_relative`,
+shared with `changed_files.py`). Anchoring the key needs no carve-out: a key
+that is not a path (`deptry` keys by module, `knip` by export name) has nothing
+to resolve and comes back unchanged. Do not tie the key rewrite to "the key
+equals the file" — that leaves `./src/a.py` un-anchored and splits one sensor
+key into two spellings, which hides aliasing. Do not add anchoring to a sensor
+either: the point is that a third-party sensor obeys a convention it never heard
+of, so a snooze index stays portable between a checkout and CI
+(`ruff`/`eslint`/`ts-morph` all report absolute paths). Anchoring is **lexical**
+— no existence check, because git-scoped runs still pass deleted paths to
+sensors (#81), so a key matching none of its files cannot be caught here.
+Failures: unanchorable path, or output the contract has no shape for (a
+non-object `details`, a non-list `issues`) → `SensorError` (notice, failed run,
+that sensor's findings dropped); a key that is one of its own files while
+covering others → notice + failed run with the findings kept.
+
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
 When `jscpd --config <abs path>` loads `.jscpd.json`, its `path: ["src"]` resolves
@@ -44,6 +64,34 @@ out of the config and passes those as positional args (resolved against cwd),
 keeping the config the single source for threshold/ignore/minLines/minTokens.
 
 ## Gotchas
+
+### `git diff --name-only` answers from the repo root, and quotes odd names
+
+`changed_files._changed_paths` asks one batched `git diff` per run instead of
+one per file (~39 ms each, in a tool that runs inside a hook loop). Comparing
+its output to the paths we asked about needs three flags: `--relative` (else
+git answers from the repository root and a project in a subdirectory matches
+nothing), `-z` (else `café.py` comes back as `"caf\303\251.py"` and silently
+matches nothing), and `--literal-pathspecs` — **not** for globs (exact-name
+matching already makes over-matching harmless) but for pathspec *magic*: a key
+like `:!src/a.py` otherwise reads as "exclude `src/a.py`" and silently drops it
+from the answer, and `:(bad)x` makes git fail the whole call. Paths outside the
+project are left out of the batch for the same reason: one of them fails the
+call, which reads as "nothing changed" for every file in it. Pathspecs are also
+chunked to ~100KB of argv — 24k paths in one call overflows ARG_MAX on macOS,
+and `subprocess` raising `OSError` degrades to "nothing changed", i.e. every
+snooze permanent, which is what batching had to avoid in the first place.
+
+### A tool that resolves symlinks now hard-fails its sensor
+
+Anchoring refuses a path outside the project. A source tree symlinked in from
+outside the repo (`src/shared -> ../../shared-lib`) reported by a tool that
+resolves paths before printing them (`ruff` prints `/private/...` on macOS for
+exactly this reason) therefore fails that sensor — notice, findings dropped —
+where before it merely produced an unportable key. `project_relative` retries
+through `realpath` so a *project* reached via a symlink still anchors; a source
+tree pointing outside the project cannot, and there is no correct repo-relative
+name for it. Point the sensor at the real directory, or scope it out.
 
 ### knip runs a gated second pass in production mode (issue #59)
 

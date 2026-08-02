@@ -566,6 +566,73 @@ habit-sensors --all | jq '[.[].smell]'
 habit-sensors: transformer 'boom' failed: exit 1
 ```
 
+### A failing transformer's own message reaches the user
+
+Naming the transformer and its command says *what* broke, never *why* — and the
+why is often the only actionable part. Whatever the transformer wrote to stderr
+is carried into the notice, so a pipeline user reads the diagnosis instead of
+guessing at it.
+
+The real case: `snooze-until-changed` exits non-zero when `[scope] branchBase`
+is missing from the checkout ([habit-snooze.spec.md](habit-snooze.spec.md)), and
+the setting that fixes it is named in *its* message, not the runner's.
+
+📄.habit-hooks/config.toml
+```toml
+plugins      = ["generic"]
+transformers = ["snooze-until-changed"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "cat ${dir}/ok.json"
+```
+
+📄.habit-hooks/generic/sensors/ok.json
+```json
+[{"smell":"oversized-file","details":{},"issues":[{"key":"src/notes.txt","details":{"file":"src/notes.txt"}}]}]
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/notes.txt"]
+```
+
+📄src/notes.txt
+```text
+one line
+```
+
+```bash
+git init -q -b main . &&
+  git config user.email spec@example.com &&
+  git config user.name "Spec Runner" &&
+  git config commit.gpgsign false &&
+  git add src &&
+  git commit -q -m baseline &&
+  git branch -m main trunk
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ❌ 1
+```json
+["src/notes.txt"]
+```
+
+🚨
+```text
+habit-sensors: transformer 'snooze-until-changed' failed: ${python} -m habit_hooks.snooze --until-changed
+habit-snooze: base ref 'main' does not resolve in this checkout — set [scope] branchBase to a ref it has
+```
+
 ### A transformer that prints nothing is a failure, not an empty run
 
 Exiting 0 is not enough — a transformer killed mid-write, or one whose command

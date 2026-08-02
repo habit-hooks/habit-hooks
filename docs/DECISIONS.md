@@ -191,3 +191,55 @@ mapping, config validation) are resolved and recorded above / in
   permanent with no signal — the exact silent green #80 was filed about — so it
   exits non-zero instead. `execution._transform` turns that into a failed run
   that keeps the findings untransformed.
+
+## Finding paths are anchored at the sensor boundary (2026-08, issue #79, agent decision)
+
+- **Every `details.file` is re-expressed relative to the project as a sensor's
+  findings enter the run** — `sensors/finding_paths.py`, called from
+  `Execution.run_sensor` — rather than by each sensor. `ruff`, `eslint` and
+  `ts-morph` report absolute paths, so a snooze index recorded from them matched
+  nothing on a teammate's checkout or in CI: machine-specific keys, silently
+  evaporating a whole team's baseline now that snooze runs by default. Anchoring
+  in one place is what makes a sensor obey a convention it never heard of, which
+  is the difference between a framework invariant and a per-project patch.
+- **A `key` is anchored by the same rule as the file**, whatever spelling the
+  sensor used (`./src/a.py`, an absolute path, a redundant `src/../src`). No
+  special case is needed for the carve-out: a key that is not a path (`deptry`
+  keys by module, `knip` by export name) has nothing to resolve and comes back
+  byte for byte. Tying the rewrite to "the key equals the file" instead — the
+  first attempt — left an oddly-spelled key un-anchored *and* split one sensor
+  key into two, which hid the aliasing below.
+- **A path that cannot be anchored fails its sensor** — an absolute path outside
+  the project, or a relative one escaping it. It raises `SensorError`, so it
+  surfaces as a notice and a failed run through the existing contract, and that
+  sensor's findings are dropped rather than keyed on a guess that would match
+  nothing anywhere.
+- **A key that is one of its own files while covering others too fails the run**,
+  but keeps the findings: they are sound, it is snoozing them that is not. It goes through the
+  notice channel — the run's only "somebody has to look at this" channel — since
+  a warning nobody must act on is exactly how #79 stayed invisible for so long.
+  Non-path keys are exempt by the rule above, so `knip` reporting the same unused
+  export name in two files fails nobody's run.
+- **Malformed output fails by name, never as a traceback.** An issue that is not
+  an object, a `details` that is not one, an `issues` that is not a list: this
+  boundary reads programs nobody here wrote, so it must degrade like a broken
+  sensor rather than escape `pool.map` and out of `main`.
+- **No existence check.** Rejecting a path that does not resolve to a file (the
+  issue's option 2) would fail runs over deleted paths, which git-scoped runs
+  still hand to sensors today (#81), so anchoring stays lexical. Two shapes
+  therefore stay undetectable, and the docs say so rather than implying
+  otherwise: a sensor reporting *identical* wrong paths for two files (they look
+  like one file), and a key matching none of its files (indistinguishable from a
+  deliberate grouping key). The shipped `jscpd` sensor was checked against
+  jscpd 4 and reports cwd-relative paths in every invocation shape, so the
+  reported case comes from a project-local sensor, not from ours.
+- **Cross-sensor aliasing is out of scope.** `aliasing_notices` runs per sensor,
+  but `snooze.py` stores bare, un-namespaced keys for the whole run — so two
+  *different* sensors emitting one key for different files (a `deptry` module and
+  a `knip` export both called `requests`) still alias with no notice. Fixing that
+  means namespacing the index (`<sensor>#<key>` or `<smell>#<key>`), which is an
+  index-format migration, not a boundary change.
+- **Migration:** an index entry recorded before this change from an absolute-path
+  sensor no longer matches, so its issues come back. Re-snooze once
+  (`habit-sensors --all | habit-snooze --snooze`), then `--prune` drops the stale
+  absolute keys.

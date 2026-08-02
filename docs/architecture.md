@@ -105,8 +105,11 @@ occurs:
 `smell` is how everything downstream routes — the mapper picks a guide by smell,
 never by which tool reported it. `details` carries facts about the smell, while
 `issues` carries one entry per place it was found, each with its own `key` (what
-snoozing acts on) and its own `details`. The full field-by-field contract — the
-output every sensor must produce and every transformer must preserve — lives in
+snoozing acts on) and its own `details`. The runner **anchors** the paths in
+those as a sensor's findings enter the run — one place for every sensor, so a
+snooze index is portable between checkouts however its tool reports paths. The
+full field-by-field contract — the output every sensor must produce and every
+transformer must preserve — lives in
 [sensor-interface.spec.md](sensor-interface.spec.md).
 
 ## The smell key

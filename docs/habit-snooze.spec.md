@@ -9,7 +9,9 @@ What it drops is decided by a small, checked-in **index** of snoozed keys. An
 issue is snoozed when its `key` is in the index. Because `key` defaults to the
 filename ([sensor-interface.spec.md](sensor-interface.spec.md)), snoozing a key
 snoozes a whole file's issues at once — and a sensor that wants finer control
-just chooses a finer `key`.
+just chooses a finer `key`. A key that is a filename is one the runner has
+already anchored to the project, so an index recorded here matches on a
+teammate's checkout and in CI.
 
 Two rules cover the whole transform:
 
