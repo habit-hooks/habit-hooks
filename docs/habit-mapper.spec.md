@@ -348,17 +348,59 @@ habit-mapper
 1 function(s) over 3 parameters. Bundle arguments into an object.
 ```
 
-### A finding's language selects a plugin's guide
+### A custom smell renders its paired guide
 
-To coach a `(smell, language)`, the mapper walks the `plugins` list in order and
-takes the first plugin that has a guide for that smell and language, falling back
-to `generic` last (see [architecture.md](architecture.md)). Here a finding
-carries `language = "typescript"`, so the `typescript` plugin's guide wins over
-the generic one.
+A smell outside the catalogue, declared under `[smells.<name>]` and paired with a
+`guides/<name>.md`, renders that guide instead of escalating with the generic
+`uncoached.md` prompt.
 
 📄.habit-hooks/config.toml
 ```toml
-plugins = ["typescript", "generic"]
+[smells.custom-marker]
+severity = "enforced"
+```
+
+📄.habit-hooks/generic/guides/custom-marker.md
+```markdown
+Remove the custom marker before shipping.
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "custom-marker",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+```text
+── custom-marker (1 issue) ──
+
+Remove the custom marker before shipping.
+```
+
+### A finding's language selects a plugin's guide
+
+To coach a `(smell, language)`, the mapper takes the first plugin whose declared
+language matches the finding, in `plugins` order, then falls back to the
+languageless `generic` last (see [architecture.md](architecture.md)). Here
+`generic` is listed **first**, yet the finding carries `language = "typescript"`,
+so the `typescript` plugin's guide still wins — a matching language beats list
+order.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic", "typescript"]
 ```
 
 📄.habit-hooks/generic/guides/loose-equality.md

@@ -48,6 +48,10 @@ class Config:
     sensors: dict[str, SensorOverride] = field(factory=dict)
     runners: dict[str, str] = field(factory=dict)
     smells: dict[str, SmellOverride] = field(factory=dict)
+    # Each active plugin's declared language (generic declares none). The mapper
+    # reads it to prefer, for a finding of a given language, a plugin that speaks
+    # it over the languageless fallback.
+    plugin_languages: dict[str, str] = field(factory=dict)
 
 
 def _known(cls: type, data: dict) -> dict:
@@ -109,6 +113,19 @@ def _plugin_files(configs: list[dict]) -> list[str]:
     return globs
 
 
+def _plugin_languages(plugins: list[str], configs: list[dict]) -> dict[str, str]:
+    """Each plugin's declared ``language``, for the plugins that declare one.
+
+    ``generic`` declares none and is absent from the map; the mapper treats a
+    plugin missing here as the languageless fallback (``generic`` last).
+    """
+    return {
+        plugin: config["language"]
+        for plugin, config in zip(plugins, configs)
+        if isinstance(config.get("language"), str)
+    }
+
+
 def _plugin_runners(configs: list[dict]) -> dict[str, str]:
     """Every active plugin's registered fix runners, first plugin winning a key.
 
@@ -137,4 +154,5 @@ def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     if config.files is None:
         config.files = _plugin_files(plugin_configs) or None
     config.runners = {**_plugin_runners(plugin_configs), **config.runners}
+    config.plugin_languages = _plugin_languages(config.plugins, plugin_configs)
     return config

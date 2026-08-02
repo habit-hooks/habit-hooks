@@ -8,6 +8,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 from jinja2 import Environment, FunctionLoader
 
@@ -41,10 +42,27 @@ def guide_names(smell: str, config: Config) -> list[str]:
     override = config.smells.get(smell)
     if override and override.guide:
         return [override.guide]
-    if smell not in DEFAULT_SEVERITY:
-        return [UNCOACHED_GUIDE]
+    # Look up ``<smell>.md`` for any smell — catalogued or not — so a custom
+    # smell paired with a shipped guide is coached (render_finding falls back to
+    # uncoached.md only when no plugin supplies one).
     extensions = ["md", *config.runners.keys()]
     return [f"{smell}.{ext}" for ext in extensions]
+
+
+def plugins_for_language(language: str | None, config: Config) -> list[str]:
+    """``config.plugins`` reordered to coach a finding of ``language``.
+
+    Documented rule: take the first plugin whose declared language matches, in
+    ``plugins`` order, then fall back to the languageless plugin (``generic``)
+    last. A plugin that declares a *different* language does not coach the
+    finding, so its guide is left out.
+    """
+    languages = config.plugin_languages
+    matching = [
+        p for p in config.plugins if language is not None and languages.get(p) == language
+    ]
+    fallback = [p for p in config.plugins if p not in languages]
+    return matching + fallback
 
 
 def include_environment(plugins: list[str], resolver: Resolver) -> Environment:
@@ -74,18 +92,40 @@ def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
     )
 
 
+def _refuse_unconfigured_runner(smell: str, guide: Path, extension: str) -> NoReturn:
+    raise SystemExit(
+        f"habit-mapper: smell {smell!r} routes to guide {guide.name!r}, but the "
+        f"{extension!r} extension has no [runners] command — add one or route to "
+        f"a .md guide"
+    )
+
+
+def _resolve_guide(finding: dict, config: Config, resolver: Resolver) -> Path:
+    plugins = plugins_for_language(finding.get("language"), config)
+    guide = resolver.first(plugins, guide_names(finding["smell"], config))
+    if guide is None:
+        guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
+    return guide
+
+
+def _runner_for(config: Config, guide: Path, smell: str) -> str:
+    """The configured runner command for a non-``.md`` guide, or refuse by name."""
+    extension = guide.suffix.lstrip(".")
+    runner = config.runners.get(extension)
+    if runner is None:
+        _refuse_unconfigured_runner(smell, guide, extension)
+    return runner
+
+
 def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendered:
     smell = finding["smell"]
     enforced = severity_of(smell, config) == ENFORCED
-    guide = resolver.first(config.plugins, guide_names(smell, config))
-    if guide is None:
-        guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
-    extension = guide.suffix.lstrip(".")
-    if extension == "md":
+    guide = _resolve_guide(finding, config, resolver)
+    if guide.suffix == ".md":
         environment = include_environment(config.plugins, resolver)
         rendered = render_markdown(guide, finding, environment)
     else:
-        rendered = render_runner(guide, config.runners[extension], finding)
+        rendered = render_runner(guide, _runner_for(config, guide, smell), finding)
     rendered.blocks = enforced and rendered.blocks
     return rendered
 
