@@ -42,7 +42,7 @@ CLONED_BLOCK = (
 
 def _requires_jscpd() -> None:
     if not (JSCPD_BIN / "jscpd").exists():
-        pytest.skip("jscpd is not installed at the repo root (npm ci)")
+        pytest.skip("jscpd is not installed at the repo root (pnpm install)")
 
 
 def _run_sensor(project: Path, config: Path) -> subprocess.CompletedProcess[str]:

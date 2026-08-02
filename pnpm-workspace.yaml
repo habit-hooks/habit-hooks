@@ -1,0 +1,7 @@
+# One pnpm install covers all three Node dev-tool trees. They stay separate
+# packages (each plugin's node_modules is symlinked into its spec cases), but a
+# single workspace means one lockfile and one root .npmrc — the cooldown setting
+# there applies to every install instead of needing a copy per directory.
+packages:
+  - plugins/typescript
+  - plugins/generic

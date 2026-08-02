@@ -1,4 +1,4 @@
-# Per-plugin Node tool deps (installed via npm ci; see plugins/*/package.json)
+# Per-plugin Node tool deps (installed via pnpm install; see pnpm-workspace.yaml)
 node_modules/
 dist
 coverage

@@ -88,6 +88,29 @@ in the consumer repo. `plugins/generic/sensors/jscpd.py` therefore reads `path`
 out of the config and passes those as positional args (resolved against cwd),
 keeping the config the single source for threshold/ignore/minLines/minTokens.
 
+### The Node dev tools are one pnpm workspace, not three npm installs (agent decision)
+
+`pnpm-workspace.yaml` makes the repo root, `plugins/typescript` and
+`plugins/generic` one install with a single `pnpm-lock.yaml`, so CI runs
+`pnpm install --frozen-lockfile` once instead of three `npm ci --prefix`. The
+driver is supply chain, not tidiness: only pnpm ≥10.16 has an install cooldown,
+and `.npmrc`'s `minimum-release-age=2880` refuses any version published in the
+last 48h — the window in which a compromised-maintainer release is caught and
+yanked. npm has no equivalent, so `package-lock.json` must not come back.
+One workspace also means one root `.npmrc`; separate installs would each need
+their own copy of that setting. `package.json` `pnpm.onlyBuiltDependencies: []`
+blocks dependency install scripts (nothing here needs one — `pnpm
+ignored-builds` reports none); it is an allowlist, so name a package rather than
+lifting the block. That field is pnpm 10's home for it and moves to
+`pnpm-workspace.yaml` in pnpm 11, so it travels with the `packageManager` pin —
+which CI activates through Corepack, per the pnpm 10 → 11 gotcha below.
+
+The layout the spec harnesses rely on survives: each plugin still has its own
+`node_modules` to symlink into a case dir, and every tool the sensors spawn
+(`eslint`, `knip`, `jscpd`) is a direct dependency, so it is still in that
+tree's `.bin`. pnpm does not hoist transitive deps, so `.bin` is now only those
+direct tools — do not add a sensor that spawns a transitive binary.
+
 ## Gotchas
 
 ### A git-backed spec case without a ceiling can rewrite THIS repo

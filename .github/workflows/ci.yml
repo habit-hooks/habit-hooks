@@ -25,14 +25,18 @@ jobs:
         with:
           node-version: '22'
       - name: Install Node tool deps
+        # One workspace install covers plugins/typescript, plugins/generic and
+        # the repo root. The root one is not redundant: the dogfooding step below
+        # resolves detectors the way any consumer does, from the project root's
+        # node_modules/.bin. Without it jscpd is unreachable — and until sensor
+        # crashes became visible, that failure was completely silent.
+        #
+        # pnpm, not npm: only pnpm implements the install cooldown that .npmrc's
+        # minimum-release-age asks for. Corepack (not pnpm's own auto-switch)
+        # installs it, pinned to package.json's packageManager — see CLAUDE.md.
         run: |
-          npm ci --prefix plugins/typescript
-          npm ci --prefix plugins/generic
-          # Root install too: the dogfooding step below resolves detectors the
-          # way any consumer does, from the project root's node_modules/.bin.
-          # Without it jscpd is unreachable — and until sensor crashes became
-          # visible, that failure was completely silent.
-          npm ci
+          corepack enable pnpm
+          pnpm install --frozen-lockfile
       - name: Test
         run: uv run pytest
       # Dogfooding: habit-hooks gates its own source. Without this the tool can

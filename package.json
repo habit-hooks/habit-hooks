@@ -3,7 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "//": "Not shipped. habit-hooks gates its own source (CI's dogfooding step), and a consumer's detectors are resolved from the project root's node_modules/.bin — so the repo needs jscpd installed where its own run looks for it, exactly as a consumer would. plugins/generic/package.json is that plugin's own dev dependency and is not on this path.",
+  "packageManager": "pnpm@10.16.0",
   "devDependencies": {
     "jscpd": "^4.2.4"
+  },
+  "pnpm": {
+    "//": "Empty list = no dependency may run an install script. This is the allowlist, so a dep that genuinely needs to build gets named here rather than the block being lifted. pnpm 10 reads it from package.json; pnpm 11 moves it to pnpm-workspace.yaml, so it has to move with the packageManager pin.",
+    "onlyBuiltDependencies": []
   }
 }
