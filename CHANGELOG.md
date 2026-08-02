@@ -61,6 +61,13 @@ now loud.
 - The **eslint sensor** no longer dies on a `ruleId`-less message. Indexing a jq
   object with `null` aborts the program rather than returning null, so a single
   ignored file in scope killed every eslint finding (#83).
+- **jscpd's own failure is no longer a clean run.** The wrapper discarded jscpd's
+  exit code and reported `[]` when no report appeared, so a duplication check that
+  broke reported clean — including in this repo, where jscpd had never actually
+  run at all.
+- **A failing tool's forwarded output is bounded** to its opening lines plus a
+  count. habit-hooks writes into a coding agent's context, and a sensor dying
+  mid-warning-storm could otherwise emit megabytes.
 - **Sensor-reported paths are anchored to the project** where findings enter the
   run, so a snooze index is portable between a checkout and CI. A path escaping
   the project fails that sensor; a path key standing for more than one file fails
