@@ -1,5 +1,94 @@
 # Changelog
 
+## 1.1.0
+
+Snoozing works again, and a broken tool can no longer report a clean run.
+
+Most of this release comes from migrating a real TypeScript project from the npm
+package to the PyPI tool, which surfaced a family of bugs with one shape: a
+component that failed **silently** and left the gate green. Every one of them is
+now loud.
+
+### ⚠️ Upgrading
+
+- **Snoozing is on by default.** `transformers` now defaults to `["snooze"]`, and
+  the transformer ships with the core, so a checked-in `.habit-hooks/snooze.json`
+  takes effect with no wiring. Previously `transformers = ["snooze"]` — the value
+  the README and `config.md` both documented — failed with
+  `no transformer 'snooze'`, so **nobody had a working index**. Set
+  `transformers = []` to opt out.
+- **Existing snooze indexes recorded from `ruff`, `eslint` or the `comment`
+  sensor will stop matching, and those issues will come back.** Those tools
+  report absolute paths, so the keys were machine-specific and never matched on a
+  teammate's checkout or in CI anyway. Keys are now repo-relative. Re-snooze
+  once, then `habit-snooze --prune` drops the stale absolute keys.
+- **A run that scans nothing, or whose tool crashed, now exits non-zero.** If
+  your CI was passing on a misconfigured `[scope] branchBase`, an unfetched base
+  ref in a shallow clone, or a sensor that could not start, it will now fail —
+  correctly. The message names what to fix.
+- **`[files]` applies to every scope mode**, not just `--all`. Projects relying on
+  git-scoped runs seeing files outside `[files]` will see fewer files.
+
+### Added
+- **`snooze-until-changed`**, an opt-in second transformer that makes the index a
+  ratchet: an exemption holds only while its file is unchanged against
+  `[scope] branchBase`. This restores what the npm package's `snoozedAtCommit`
+  gave — debt stays exempt until you are editing the file anyway. The default
+  `snooze` is unchanged, so upgrading never re-arms an existing index by itself
+  (#80).
+- Plugin-declared `files` defaults are now read. The three language plugins have
+  always declared them and `config.md` documented them as working, but nothing
+  consumed the key — so a project with no `files` of its own scanned
+  `node_modules` (#81).
+
+### Fixes
+- A failing **transformer** no longer empties the whole run. It ignored the exit
+  code, and empty stdout parses as "no findings", so one crash discarded every
+  finding and reported a clean pass. Findings now pass through untransformed with
+  a notice, and the run fails (#84).
+- A **sensor** that crashes with a non-zero exit and no output is no longer
+  indistinguishable from one that found nothing. Sensors also forward their own
+  diagnosis, so the bundled typescript `comment` sensor — dead for every consumer
+  because it cannot resolve `ts-morph` from an installed wheel — now says so
+  instead of staying silent (#78).
+- **`habit-hooks` propagates a sensor-stage failure.** It returned only the
+  mapper's exit code, so a crashed sensor printed its notice and the run still
+  reported ✅ with exit 0.
+- The typescript **`comment` and `knip` sensors** no longer truncate their output
+  at the pipe buffer. `process.exit()` does not wait for an async write to a pipe
+  to drain, and the runner always captures through one, so any payload over ~64KB
+  arrived as invalid JSON (#82).
+- The **eslint sensor** no longer dies on a `ruleId`-less message. Indexing a jq
+  object with `null` aborts the program rather than returning null, so a single
+  ignored file in scope killed every eslint finding (#83).
+- **Sensor-reported paths are anchored to the project** where findings enter the
+  run, so a snooze index is portable between a checkout and CI. A path escaping
+  the project fails that sensor; a path key standing for more than one file fails
+  the run (#79).
+- **Git-derived scopes are filtered.** Deleted paths no longer reach the sensors
+  (which crashed `line-count`, silently disabling `oversized-file` for the whole
+  branch), and `[files]` narrows every mode — a lockfile bump no longer reports as
+  an oversized file (#81).
+- **A base ref a real repository does not have is an error**, not an empty diff.
+  A typo'd `branchBase`, or a shallow CI checkout, scanned nothing and reported
+  every sensor clean. `--last N` clamps to the root commit instead, since a count
+  is not a ref.
+- **Scope and snooze now measure from the same merge base**, so work someone else
+  lands on the base ref after you branched is neither scanned as yours nor able to
+  lapse your snooze.
+- `--file` accepts absolute paths (what an editor hook passes), and says so on
+  stderr when the named file is outside `[files]` instead of printing a clean run
+  over nothing.
+
+### Internal
+- CI now runs `habit-hooks` against its own source, lints the plugins tree, and
+  installs jscpd at the project root — the duplication check had never actually
+  run against this repo, which the sensor-failure fix above is what revealed.
+- Merge-base and `git diff` plumbing is shared by the scope and snooze paths
+  rather than implemented twice; the two copies had already drifted.
+- `pathspec`'s deprecated `gitwildmatch` replaced with `gitignore` (verified
+  identical selection across every shipped pattern set).
+
 ## 1.0.3
 
 ### Changed
