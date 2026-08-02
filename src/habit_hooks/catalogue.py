@@ -30,6 +30,7 @@ DEFAULT_SEVERITY: dict[str, str] = {
     "unused-class-member": ENFORCED,
     "unused-file": ENFORCED,
     "unused-export": ENFORCED,
+    "test-only-dead-code": ENFORCED,
     "unused-dependency": ENFORCED,
     "unused-import": ENFORCED,
     "swallowed-exception": SUGGESTED,

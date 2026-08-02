@@ -168,22 +168,38 @@ through `realpath` so a *project* reached via a symlink still anchors; a source
 tree pointing outside the project cannot, and there is no correct repo-relative
 name for it. Point the sensor at the real directory, or scope it out.
 
-### knip runs a gated second pass in production mode (issue #59)
+### knip runs a gated second pass in production mode (issue #59, rebuilt #99)
 
-`knipWrap` runs knip twice when — and only when — the consumer's knip
-config marks production patterns with a trailing `!` (detected by
-`knipConfigMarksProduction` in `knip-resolve.ts`). The default pass is
-authoritative for everything (incl. unused devDependencies); the
-`--production` pass contributes only dead-code findings
-(`PRODUCTION_PASS_SOURCES` in `knip-merge.ts`), merged + deduped. This
-catches code reached only by tests without losing devDep detection.
+`plugins/typescript/src/habit_hooks_typescript/sensors/knip.js` runs knip
+twice when — and only when — the config marks production patterns with a
+trailing `!` on **both** `entry` and `project` (`configMarksProduction`,
+reading the JSON `knip.json`/`.knip.json`/`package.json#knip`; a
+jsonc/ts/js config JSON.parse cannot read falls back to a single pass so
+glob patterns like `src/**/*` are never mangled). The default pass is
+authoritative for every issue type; the `--production` pass contributes
+only the dead-code keys in `DEAD_CODE_KEYS` (`files`, `exports`, `types`,
+`nsExports`, `nsTypes`, `classMembers`, `enumMembers`), and only the
+items the default pass did not already name (deduped by
+`knipKey|file|name`). Those become a **separate** smell,
+`test-only-dead-code`, sourced `knip:production:<key>` — code alive only
+because a test references it, whose guide says to delete the test too.
+This is a different smell from the default pass's `unused-file` /
+`unused-export` on purpose: the two kinds have opposite fixes.
+
 Gotchas: `--production` analyses NOTHING unless `!` is on BOTH `entry`
-and `project` (a no-`!` config under `--production` silently reports
-zero — so we never pass it there). Test files must be listed as
-unmarked (non-production) `entry`, else knip 5 + a vitest config falsely
-reports them as unused files. The merge intentionally keeps `knip:files`
-from the production pass, so a wholly test-only production file can
-surface as an unused file — that's the feature, not a bug.
+and `project` (a no-`!` config under `--production` silently reports zero
+— so the gate never runs it there). Test files must be listed as
+unmarked (non-production) `entry`, not `ignore`, else code reached only
+by them looks unused to the *default* pass and is mis-coached as plainly
+dead — which is why the shipped `knip.json` lists `tests/**` and
+`src/**/*.{test,spec}.{ts,tsx}` as unmarked `entry`. As a belt-and-braces
+guard the production pass never contributes a **test file** itself
+(`isTestFile`/`TEST_FILE`): that pass drops test entries, so every test
+file looks unused to it, and reporting one would invite deleting real
+coverage. Unmapped and future knip keys pass through under their own name
+as uncoached smells (`SMELL_BY_KEY[key] || key`) rather than vanishing,
+and `classMembers`/`enumMembers` object maps are flattened before use so
+they never reach `.map` (the crash #99 fixed).
 
 ### JSDoc nodes are not MultiLineCommentTrivia in ts-morph
 

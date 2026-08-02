@@ -44,6 +44,7 @@ exits 0. The mapper config can override it per project.
 | `unused-class-member`       | Unused class member                   | enforced         |
 | `unused-file`               | Unused file                           | enforced         |
 | `unused-export`             | Unused export                         | enforced         |
+| `test-only-dead-code`       | Dead code alive only via a test       | enforced         |
 | `unused-dependency`         | Unused dependency                     | enforced         |
 | `unused-import`             | Unused import                         | enforced         |
 | `swallowed-exception`       | Swallowed exception                   | suggested        |
@@ -82,7 +83,16 @@ map-block), and the smell key each maps to.
 | `knip:files`                                      | `unused-file`               |
 | `knip:exports`                                    | `unused-export`             |
 | `knip:dependencies`                               | `unused-dependency`         |
+| `knip:production:*`                               | `test-only-dead-code`       |
 | `eslint:fatal`                                    | `parse-error`               |
+
+The knip sensor runs two passes when the config marks production patterns with a
+trailing `!`. The default pass produces the `knip:<key>` smells above; the gated
+`knip --production` pass contributes the dead code the default pass did not name
+(code kept alive only by a test) as `test-only-dead-code`, sourced
+`knip:production:<key>`. A knip key the plugin does not map (`types`, `nsExports`,
+…) passes through under its own name as an uncoached smell rather than being
+dropped.
 
 ## Python plugin translation
 

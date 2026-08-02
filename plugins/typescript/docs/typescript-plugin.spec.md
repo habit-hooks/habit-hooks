@@ -227,14 +227,41 @@ habit-sensors --all | jq -f finding.jq
 }
 ```
 
-## knip sensor maps an unused export to unused-export
+## knip sensor
 
-The `knip` sensor runs knip with the shipped `knip.json`, accepts its 0/1 exit
-codes, and shapes each typed issue array into a finding — `exports` →
-`unused-export`, one issue per symbol keyed by the symbol name. `helper.ts`
-exports `neverUsed`, which nothing imports.
+The `knip` sensor runs knip with the shipped `knip.json` and shapes its JSON into
+findings. Unused files come from knip's top-level `files` array, not from an issue
+row; `classMembers`/`enumMembers` arrive as object maps and are flattened; any key
+the plugin does not coach (`types`, …) passes through under its own name rather
+than vanishing.
+
+The shipped `knip.json` marks production patterns with a trailing `!` on both
+`entry` and `project`, which gates a second `knip --production` pass. The default
+pass is authoritative for every issue type; the `--production` pass contributes
+only the dead code the default pass did not already name — code alive solely
+because a test references it — as the separate `test-only-dead-code` smell, so its
+coaching can say "delete the test too".
+
+Every case here disables the other two sensors and ships the plugin's real
+`knip.json`. A case that needs a different knip config re-declares it.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["typescript"]
+
+[sensors.eslint]
+disabled = true
+
+[sensors.comment]
+disabled = true
+```
 
 📄knip.json @plugins/typescript/src/habit_hooks_typescript/knip.json
+
+### An unused export maps to unused-export
+
+`helper.ts` exports `neverUsed`, which nothing imports — one issue per symbol,
+keyed by the symbol name, sourced `knip:exports`.
 
 📄src/cli.ts
 ```typescript
@@ -250,17 +277,6 @@ export function used(): void {}
 export function neverUsed(): void {}
 ```
 
-📄.habit-hooks/config.toml
-```toml
-plugins = ["typescript"]
-
-[sensors.eslint]
-disabled = true
-
-[sensors.comment]
-disabled = true
-```
-
 ```bash
 habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
 ```
@@ -274,6 +290,228 @@ habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .is
   "file": "src/helper.ts",
   "source": "knip:exports"
 }
+```
+
+### An unreferenced file maps to unused-file
+
+`orphan.ts` is imported by nothing, so knip lists it in the top-level `files`
+array. Read from there — never from an issue row — it becomes `unused-file`,
+keyed by the file, sourced `knip:files`. This is the headline smell the old
+sensor could never fire.
+
+📄src/cli.ts
+```typescript
+import { used } from "./helper";
+
+used();
+```
+
+📄src/helper.ts
+```typescript
+export function used(): void {}
+```
+
+📄src/orphan.ts
+```typescript
+export function orphanFn(): void {}
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "unused-file",
+  "language": "typescript",
+  "key": "src/orphan.ts",
+  "file": "src/orphan.ts",
+  "source": "knip:files"
+}
+```
+
+### An unused class member maps to unused-class-member
+
+knip reports class members as an object map keyed by the parent symbol, which the
+old sensor called `.map()` on and crashed. Flattened, `Widget.unusedMethod`
+becomes `unused-class-member`. This case ships its own `knip.json` that opts into
+member analysis.
+
+📄knip.json
+```json
+{
+  "entry": ["src/cli.ts!"],
+  "project": ["src/**/*.ts!"],
+  "ignore": ["dist/**"],
+  "include": ["classMembers"]
+}
+```
+
+📄src/helper.ts
+```typescript
+export function used(): void {}
+
+export class Widget {
+  usedMethod(): void {}
+
+  unusedMethod(): void {}
+}
+```
+
+📄src/cli.ts
+```typescript
+import { used, Widget } from "./helper";
+
+used();
+const w = new Widget();
+w.usedMethod();
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "unused-class-member",
+  "language": "typescript",
+  "key": "unusedMethod",
+  "file": "src/helper.ts",
+  "source": "knip:classMembers"
+}
+```
+
+### A knip issue type outside the map passes through uncoached
+
+An unused *type* export lands under knip's `types` key, which the plugin does not
+map to a canonical smell. It surfaces under its own name (`types`, sourced
+`knip:types`) rather than being silently discarded — the same pass-through the
+eslint adapter gives an unmapped rule ID.
+
+📄src/cli.ts
+```typescript
+import { used } from "./helper";
+
+used();
+```
+
+📄src/helper.ts
+```typescript
+export function used(): void {}
+
+export type NeverUsedType = { a: number };
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "types",
+  "language": "typescript",
+  "key": "NeverUsedType",
+  "file": "src/helper.ts",
+  "source": "knip:types"
+}
+```
+
+### Code reachable only by a test is test-only dead code, not plainly unused
+
+`testOnly` is exported by production code and imported only by a top-level test.
+Because the shipped config lists `tests/**` as an unmarked `entry` (not `ignore`),
+the default pass sees the test's reference and reports nothing. The gated
+`--production` pass drops that reference and finds `testOnly` dead — surfaced as
+`test-only-dead-code`, the smell whose guide says to remove the test as well, and
+**not** as a plain `unused-export`.
+
+📄src/helper.ts
+```typescript
+export function prodUsed(): void {}
+
+export function testOnly(): void {}
+```
+
+📄src/cli.ts
+```typescript
+import { prodUsed } from "./helper";
+
+prodUsed();
+```
+
+📄tests/helper.test.ts
+```typescript
+import { testOnly } from "../src/helper";
+
+testOnly();
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .issues[0].details.file, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "test-only-dead-code",
+  "language": "typescript",
+  "key": "testOnly",
+  "file": "src/helper.ts",
+  "source": "knip:production:exports"
+}
+```
+
+### The production pass never reports a test file as dead
+
+The `--production` pass ignores test entries, so a `.spec.ts` file reachable only
+through a `.test.ts` entry looks like an unused file to it (the default pass, with
+the test as an entry, sees it as reachable). Reporting it would invite an agent to
+delete real coverage, so a test file is guarded out of the production pass's
+findings — the run is clean.
+
+📄knip.json
+```json
+{
+  "entry": ["src/cli.ts!", "src/**/*.test.ts"],
+  "project": ["src/**/*.ts!"],
+  "ignore": ["dist/**"]
+}
+```
+
+📄src/helper.ts
+```typescript
+export function prodUsed(): void {}
+```
+
+📄src/cli.ts
+```typescript
+import { prodUsed } from "./helper";
+
+prodUsed();
+```
+
+📄src/thing.spec.ts
+```typescript
+export function specHelper(): void {}
+```
+
+📄src/thing.test.ts
+```typescript
+import { specHelper } from "./thing.spec";
+
+specHelper();
+```
+
+```bash
+habit-sensors --all | jq -c 'map(.smell) | sort'
+```
+
+🖥️ ✅
+```json
+[]
 ```
 
 ## comment sensor maps a non-essential comment to non-essential-comment
