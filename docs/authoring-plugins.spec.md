@@ -98,6 +98,14 @@ files = ["**/*.lua"]                                        # optional; override
 Whatever the command prints is taken verbatim as the sensor's findings; a clean
 run prints `[]`, never nothing ([sensor-interface.spec.md](sensor-interface.spec.md)).
 
+The command may exit `0` or `1` — `1` is how most linters say "I found things",
+so it is accepted *alongside* the findings that justify it. Any other code, or a
+non-zero exit with nothing on stdout, is a crashed sensor: the run fails, and
+whatever the command wrote to stderr is carried into the notice so the tool's own
+diagnosis reaches the user ([habit-sensors.spec.md](habit-sensors.spec.md)). Pipe
+a tool into `jq` with `set -o pipefail`, or the tool's failing exit is swallowed
+by a `jq` that succeeded on empty input.
+
 Every finding has the shape `{smell, language?, details, issues:[{key, details}]}`:
 one finding per smell, one `issues` entry per occurrence, the issue `key` being
 what snoozing acts on (default: the file path).
@@ -228,6 +236,12 @@ jq 'map(. + {smell: ({"PLR0913": "too-many-parameters"}[.code])})
 ESLint nests messages under each file. Flatten with `.messages[]`, carrying the
 `filePath` down, then group the same way.
 
+Guard the rule ID before you index the smell map with it. ESLint raises messages
+about a *file* rather than a rule — an ignored file, an `eslint-disable` nothing
+used — and those carry `ruleId: null`. Indexing an object with `null` is a jq
+**error**, not a miss, so it kills the sensor and every smell in the run with it;
+`select` them out first.
+
 ⌨️
 ```json
 [
@@ -246,7 +260,7 @@ ESLint nests messages under each file. Flatten with `.messages[]`, carrying the
 ```
 
 ```bash
-jq '[.[] | .filePath as $file | .messages[] | {
+jq '[.[] | .filePath as $file | .messages[] | select(.ruleId != null) | {
       smell: {"max-params": "too-many-parameters"}[.ruleId],
       file: $file, line: .line, column: .column,
       message: .message, ruleId: .ruleId

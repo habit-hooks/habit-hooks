@@ -239,6 +239,19 @@ caller flows through them. Individual wraps may keep their own narrower
 lists for internal "has-config" checks, but those should mirror the
 canonical set.
 
+### Indexing a jq object with `null` is an error, not a miss (issue #83)
+
+`{"a": 1}[null]` **aborts** jq with `Cannot index object with null` (exit 5), so
+a trailing `// .fallback` never runs — the whole sensor dies and every smell it
+would have reported vanishes from the run. Every adapter that maps a tool's rule
+ID through an object literal has to guarantee the key is non-null *before* the
+lookup. The eslint sensor does it with `select(.ruleId != null or .fatal)`
+(keeping `fatal`, which has no rule ID and is exactly what `parse-error` is for)
+plus `--no-warn-ignored` to stop the commonest of them being raised at all.
+`plugins/python/.../sensors/ruff.toml` has the same `{...}[.code]` shape and is
+safe only because `--select` pins the codes and ruff spells a syntax error
+`invalid-syntax` rather than `null` — if that ever changes, it fails the same way.
+
 ### A sensor named `ruff.toml` collides with ruff's config discovery
 
 `plugins/python/sensors/ruff.toml` is a sensor spec (`command = ...`),
