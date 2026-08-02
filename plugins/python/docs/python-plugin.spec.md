@@ -154,6 +154,11 @@ crashed tool is never a clean run. The sensor exits with a code outside the
 findings range, so `habit-sensors` raises, names the sensor on stderr, and exits
 1 rather than printing an empty (false-clean) result.
 
+The notice carries deptry's own diagnosis after that first line
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)). That text is
+deptry's to word and names absolute paths, so only the line naming the sensor is
+asserted here.
+
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["python"]
@@ -177,7 +182,11 @@ habit-sensors --all
 []
 ```
 
-🚨
+```bash
+habit-sensors --all 2>&1 >/dev/null | sed -n 1p
+```
+
+🖥️ ❌ 1
 ```text
 habit-sensors: sensor 'deptry' failed: ${python} ${dir}/deptry_sensor.py
 ```
@@ -218,32 +227,16 @@ habit-sensors --all
 []
 ```
 
-🚨
+The notice quotes the sensor's whole command — multi-line here, so its first
+line shows only where that command starts — and then ruff's own diagnosis, which
+names the absolute path of the config it could not parse. Only the line naming
+the sensor is stable enough to assert.
+
+```bash
+habit-sensors --all 2>&1 >/dev/null | sed -n 1p
+```
+
+🖥️ ❌ 1
 ```text
 habit-sensors: sensor 'ruff' failed: set -o pipefail
-ruff check --output-format=json --select=C901,PLR0913,PLR0915,F841,F401,BLE001 ${files} | jq '
-  map(. + {smell: ({
-    "C901": "high-complexity",
-    "PLR0913": "too-many-parameters",
-    "PLR0915": "oversized-function",
-    "F841": "unused-variable",
-    "F401": "unused-import",
-    "BLE001": "swallowed-exception",
-    "invalid-syntax": "parse-error"
-  }[.code])})
-  | group_by(.smell)
-  | map({
-      smell: .[0].smell,
-      details: {},
-      issues: map({
-        key: .filename,
-        details: {
-          file: .filename,
-          line: .location.row,
-          column: .location.column,
-          message: .message,
-          source: ("ruff:" + .code)
-        }
-      })
-    })'
 ```

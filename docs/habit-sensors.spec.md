@@ -472,6 +472,12 @@ A spawn failure or a non-zero exit from a sensor's tool yields zero findings for
 that sensor, a stderr notice naming it, and exit 1. The sibling sensors still
 report — a broken tool is a failed run, never a clean one.
 
+Naming the sensor and its command says *what* broke, never *why*, so whatever
+the tool wrote to stderr is carried into the notice — the same way a failing
+transformer's own message is. Here that is the shell reporting a tool nobody
+installed; for the real case that prompted it, a Node sensor naming the package
+it could not `require`.
+
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
@@ -494,7 +500,7 @@ command = "cat ${dir}/ok.json"
 
 📄.habit-hooks/generic/sensors/broken.toml
 ```toml
-command = "this-tool-does-not-exist"
+command = "echo 'this-tool-does-not-exist: command not found' >&2; exit 127"
 ```
 
 ```bash
@@ -510,7 +516,169 @@ habit-sensors --all | jq '[.[].smell]'
 
 🚨
 ```text
-habit-sensors: sensor 'broken' failed: this-tool-does-not-exist
+habit-sensors: sensor 'broken' failed: echo 'this-tool-does-not-exist: command not found' >&2; exit 127
+this-tool-does-not-exist: command not found
+```
+
+### A sensor that exits non-zero with nothing on stdout is a failure
+
+Exit 1 is how a linter says "I found things", so a sensor is allowed it — but
+only alongside the findings that justify it. With stdout empty the two readings
+collapse: "exited 1 with findings" and "exited 1 because it died before printing
+anything" become the same run, and the empty stdout parses as no findings. That
+is the false-clean this whole section exists to prevent, so the sensor fails.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["ok", "crashed"]
+```
+
+📄.habit-hooks/generic/sensors/ok.toml
+```toml
+command = "cat ${dir}/ok.json"
+```
+
+📄.habit-hooks/generic/sensors/ok.json
+```json
+[{"smell":"warning-comment","details":{},"issues":[]}]
+```
+
+📄.habit-hooks/generic/sensors/crashed.toml
+```toml
+command = "exit 1"
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ❌ 1
+```json
+[
+  "warning-comment"
+]
+```
+
+🚨
+```text
+habit-sensors: sensor 'crashed' failed: exit 1
+```
+
+### A sensor that exits 1 with findings is a tool reporting what it found
+
+The counterpart to the case above, and the reason a non-zero exit is not simply
+refused: `ruff` and `eslint` both exit 1 precisely *because* they found
+something, and their findings are on stdout where they belong. Exiting 1 is the
+tool's convention, not its distress signal, so the findings report and the run
+passes.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["linter"]
+```
+
+📄.habit-hooks/generic/sensors/linter.toml
+```toml
+command = "cat ${dir}/linter.json; exit 1"
+```
+
+📄.habit-hooks/generic/sensors/linter.json
+```json
+[{"smell":"loose-equality","details":{},"issues":[{"key":"src/a.ts","details":{"file":"src/a.ts"}}]}]
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].smell]'
+```
+
+🖥️ ✅
+```json
+["loose-equality"]
+```
+
+### A sensor that exits outside 0/1 fails even with findings on stdout
+
+Exit 1 is the only non-zero code a tool gets to mean something by; anything
+beyond it is the tool saying it broke. Findings printed on the way out do not
+buy it back — a crash that got as far as writing has no way to say how much of
+what it wrote it stands behind, so the run refuses the lot rather than reporting
+a half-scan as a whole one.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["partial"]
+```
+
+📄.habit-hooks/generic/sensors/partial.toml
+```toml
+command = "cat ${dir}/partial.json; exit 2"
+```
+
+📄.habit-hooks/generic/sensors/partial.json
+```json
+[{"smell":"oversized-file","details":{},"issues":[{"key":"src/a.py","details":{"file":"src/a.py"}}]}]
+```
+
+```bash
+habit-sensors --all | jq -c '.'
+```
+
+🖥️ ❌ 1
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: sensor 'partial' failed: cat ${dir}/partial.json; exit 2
+```
+
+### A sensor that exits 0 with nothing on stdout is clean
+
+Silence is judged by the exit code that came with it. Exit 0 is the sensor
+explicitly claiming it ran to completion, and a sensor that adds no findings is
+exactly what a clean one does — so unlike a transformer, whose silence would
+discard everything the sensors found, a quiet successful sensor is trusted.
+Every bundled sensor prints `[]` rather than relying on this; it is here so a
+third-party one that does not is still readable.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["quiet"]
+```
+
+📄.habit-hooks/generic/sensors/quiet.toml
+```toml
+command = "true"
+```
+
+```bash
+habit-sensors --all | jq -c '.'
+```
+
+🖥️ ✅
+```json
+[]
 ```
 
 ### A broken transformer fails the run and keeps the findings it was given

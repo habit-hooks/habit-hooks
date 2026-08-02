@@ -100,6 +100,11 @@ failure — a crashed tool is never a clean run. It exits with a code outside th
 findings range, so `habit-sensors` raises, names the sensor on stderr, and exits
 1 rather than printing an empty (false-clean) result.
 
+The notice carries PHPMD's own diagnosis after that first line
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)). PHPMD answers an
+unparseable file with a stack trace full of absolute paths, so only the line
+naming the sensor is asserted here.
+
 📄broken.php
 ```php
 <?php function ( {
@@ -114,7 +119,11 @@ habit-sensors --all
 []
 ```
 
-🚨
+```bash
+habit-sensors --all 2>&1 >/dev/null | sed -n 1p
+```
+
+🖥️ ❌ 1
 ```text
 habit-sensors: sensor 'phpmd' failed: ${python} ${dir}/phpmd_sensor.py ${files}
 ```
