@@ -6,7 +6,7 @@ export default [
     ignores: ["dist", "coverage", "tests/fixtures/**"],
   },
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
     languageOptions: {
       parser: tsparser,
     },
@@ -20,6 +20,7 @@ export default [
       ],
       "max-params": ["error", 3],
       complexity: ["error", 10],
+      "max-depth": ["error", { max: 4 }],
       "max-lines": ["error", { max: 200, skipBlankLines: false, skipComments: false }],
       "no-unused-vars": [
         "error",

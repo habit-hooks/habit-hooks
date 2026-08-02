@@ -1,5 +1,5 @@
 command = """
-files=$(printf '%s\\n' ${files} | grep -E '\\.tsx?$' || true)
+files=$(printf '%s\\n' ${files} | grep -E '\\.(tsx?|jsx?|[cm]js)$' || true)
 if [ -z "$files" ]; then echo '[]'; exit 0; fi
 set -o pipefail
 eslint -f json --no-warn-ignored $files | jq '[.[] | .filePath as $file | .messages[]

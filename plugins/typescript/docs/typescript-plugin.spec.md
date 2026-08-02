@@ -194,6 +194,77 @@ habit-sensors --all | jq -f finding.jq
 }
 ```
 
+### A function nested five levels deep reports deep-nesting
+
+The config caps `max-depth` at 4, so a fifth nested block trips `max-depth` →
+`deep-nesting` — the smell the rewrite dropped by leaving the rule out.
+
+📄src/nest.ts
+```typescript
+export function deep(n: number): number {
+  if (n > 0) { if (n > 1) { if (n > 2) { if (n > 3) { if (n > 4) {
+    return n;
+  } } } } }
+  return 0;
+}
+```
+
+```bash
+habit-sensors --all | jq -f finding.jq
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "deep-nesting",
+  "language": "typescript",
+  "key": "nest.ts",
+  "line": 2,
+  "source": "eslint:max-depth"
+}
+```
+
+### A .js file the project scopes in is linted
+
+The extension filter and the shipped config both cover the JS family, so a
+project that widens `files` to include `**/*.js` gets its `.js` sources linted
+just like `.ts` ones — a four-parameter function trips `max-params` →
+`too-many-parameters`.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["typescript"]
+files = ["**/*.ts", "**/*.tsx", "**/*.js"]
+
+[sensors.knip]
+disabled = true
+
+[sensors.comment]
+disabled = true
+```
+
+📄src/charge.js
+```javascript
+export function charge(a, b, c, d) {
+  return a + b + c + d;
+}
+```
+
+```bash
+habit-sensors --all | jq -f finding.jq
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "too-many-parameters",
+  "language": "typescript",
+  "key": "charge.js",
+  "line": 1,
+  "source": "eslint:max-params"
+}
+```
+
 ### A rule the smell map does not know passes through as itself
 
 A project that adds its own rules to the config still gets findings for them —
