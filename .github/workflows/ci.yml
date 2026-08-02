@@ -28,6 +28,11 @@ jobs:
         run: |
           npm ci --prefix plugins/typescript
           npm ci --prefix plugins/generic
+          # Root install too: the dogfooding step below resolves detectors the
+          # way any consumer does, from the project root's node_modules/.bin.
+          # Without it jscpd is unreachable — and until sensor crashes became
+          # visible, that failure was completely silent.
+          npm ci
       - name: Test
         run: uv run pytest
       # Dogfooding: habit-hooks gates its own source. Without this the tool can

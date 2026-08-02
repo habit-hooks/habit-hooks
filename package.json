@@ -1,0 +1,9 @@
+{
+  "name": "habit-hooks-dogfooding",
+  "private": true,
+  "version": "0.0.0",
+  "//": "Not shipped. habit-hooks gates its own source (CI's dogfooding step), and a consumer's detectors are resolved from the project root's node_modules/.bin — so the repo needs jscpd installed where its own run looks for it, exactly as a consumer would. plugins/generic/package.json is that plugin's own dev dependency and is not on this path.",
+  "devDependencies": {
+    "jscpd": "^4.2.4"
+  }
+}
