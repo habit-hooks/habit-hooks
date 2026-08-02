@@ -145,7 +145,9 @@ habit-sensors --all | jq -c '.[0].issues'
 
 A monorepo tool run from a sibling package can report a file the project has no
 way to key. Guessing a key for it would put an entry in the snooze index that
-matches nothing anywhere, so the sensor fails like any other broken one.
+matches nothing anywhere, so the sensor fails like any other broken one. Its
+findings drop, leaving only the reserved `incomplete-run` marker a failed run
+carries ([habit-sensors.spec.md](habit-sensors.spec.md)).
 
 📄.habit-hooks/generic/sensors/alpha.toml
 ```toml
@@ -155,12 +157,12 @@ jq -nc '[{smell: "oversized-file", details: {}, issues: [{key: "../elsewhere/big
 ```
 
 ```bash
-habit-sensors --all | jq -c '.'
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 🚨
@@ -173,7 +175,9 @@ habit-sensors: sensor 'alpha' reported a path outside the project: '../elsewhere
 A sensor with its own scan root can report `index.ts` for a file that really is
 `index.ts` and for another that is not. Snoozing that key would exempt both, with
 nothing saying so — so the run fails, naming the key and every file behind it.
-The findings themselves are sound and still report.
+The findings themselves are sound and still report; the assertion filters out the
+reserved `incomplete-run` marker the failed run also appends, to keep the focus on
+the kept findings ([habit-sensors.spec.md](habit-sensors.spec.md)).
 
 📄.habit-hooks/generic/sensors/alpha.toml
 ```toml
@@ -183,7 +187,7 @@ jq -nc '[{smell: "duplicated-code", details: {}, issues: [{key: "index.ts", deta
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].details.file]'
+habit-sensors --all | jq -c '[.[] | select(.smell != "incomplete-run") | .issues[].details.file]'
 ```
 
 🖥️ ❌ 1
@@ -200,7 +204,9 @@ habit-sensors: sensor 'alpha' keys 2 files as 'index.ts' (index.ts, ui/src/index
 
 A sensor is somebody else's program, and the runner reads it at arm's length: a
 `details` that is not an object would take the whole run down with a traceback if
-this boundary trusted it. It fails by name instead, like any other broken sensor.
+this boundary trusted it. It fails by name instead, like any other broken sensor,
+its findings dropped so only the reserved `incomplete-run` marker remains
+([habit-sensors.spec.md](habit-sensors.spec.md)).
 
 📄.habit-hooks/generic/sensors/alpha.toml
 ```toml
@@ -210,12 +216,12 @@ jq -nc '[{smell: "oversized-file", details: {}, issues: [{key: "src/a.py", detai
 ```
 
 ```bash
-habit-sensors --all | jq -c '.'
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 🚨

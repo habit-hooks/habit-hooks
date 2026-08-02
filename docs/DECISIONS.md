@@ -323,3 +323,20 @@ mapping, config validation) are resolved and recorded above / in
   outlived that one: a sensor may report a path the scope never handed it, and a
   boundary that reads somebody else's program should resolve names rather than
   ask the filesystem.
+
+## A failed run coaches itself with a reserved smell (#88)
+
+- **A run that did not complete never renders as clean.** The two stages talk
+  only through findings on a pipe, so a broken sensor — which contributes no
+  findings — left the mapper with `[]` and it rendered `clean.md` over broken
+  tooling, showing an agent a ✅ next to a failure. Fixed by **Option 1** of the
+  issue: the sensors stage appends one reserved `incomplete-run` finding whenever
+  the run failed (`Run.failed`), carrying each stderr notice as an issue's
+  `content`. Chosen over widening the stage contract (Option 2) because it keeps
+  the "the pipe carries findings" invariant intact — a project can still insert
+  its own transformers — and the failure arrives with its own coaching, which
+  fits a tool whose whole job is coaching. `incomplete-run` is `enforced` and
+  ships a core guide (`guides/incomplete-run.md`), so the mapper coaches it and
+  fails the run even when no plugin supplies a guide, and needs no new awareness
+  of the sensors stage. The finding is appended **after every transformer runs**,
+  so a snooze can never mute it; the notices still reach stderr for humans.

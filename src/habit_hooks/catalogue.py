@@ -5,6 +5,11 @@ from __future__ import annotations
 ENFORCED = "enforced"
 SUGGESTED = "suggested"
 
+# The reserved smell a run raises against itself when a sensor or transformer
+# broke: it turns "the run did not complete" into a finding on the pipe, so the
+# mapper coaches it and never renders the clean guide over broken tooling (#88).
+INCOMPLETE_RUN = "incomplete-run"
+
 DEFAULT_SEVERITY: dict[str, str] = {
     "oversized-function": ENFORCED,
     "too-many-parameters": ENFORCED,
@@ -29,6 +34,7 @@ DEFAULT_SEVERITY: dict[str, str] = {
     "unused-import": ENFORCED,
     "swallowed-exception": SUGGESTED,
     "parse-error": ENFORCED,
+    INCOMPLETE_RUN: ENFORCED,
 }
 
 UNCOACHED_GUIDE = "uncoached.md"

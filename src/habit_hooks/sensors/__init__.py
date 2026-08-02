@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+from ..catalogue import INCOMPLETE_RUN
 from ..config import load_config
 from ..recommend import recommendations
 from ..resolve import Resolver
@@ -20,7 +21,33 @@ from .execution import Execution
 from .loader import PluginLoader
 from .model import Plugin, Run, SensorError
 
-__all__ = ["Execution", "PluginLoader", "Plugin", "Run", "SensorError", "main"]
+__all__ = [
+    "Execution",
+    "PluginLoader",
+    "Plugin",
+    "Run",
+    "SensorError",
+    "incomplete_run_finding",
+    "main",
+]
+
+
+def incomplete_run_finding(notices: list[str]) -> dict:
+    """The reserved-smell finding a failed run carries on the pipe.
+
+    A broken sensor or transformer contributes no findings of its own, so the
+    mapper would see ``[]`` and render the clean guide over broken tooling (#88).
+    Turning each failure notice into an ``incomplete-run`` issue makes the mapper
+    coach it instead — one enforced finding that never renders as clean. It is
+    appended after every transformer has run, so a snooze can never mute it.
+    """
+    return {
+        "smell": INCOMPLETE_RUN,
+        "details": {},
+        "issues": [
+            {"key": notice, "details": {"content": notice}} for notice in notices
+        ],
+    }
 
 
 def _stamp_language(findings: list[dict], language: str | None) -> list[dict]:
@@ -64,7 +91,10 @@ def main(argv: list[str] | None = None) -> int:
     scope = resolve_scope(args, config, project_dir)
     loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope, args.config))
-    sys.stdout.write(json.dumps(run.findings) + "\n")
+    findings = run.findings
+    if run.failed:
+        findings = [*findings, incomplete_run_finding(run.notices)]
+    sys.stdout.write(json.dumps(findings) + "\n")
     # Why the scope came out empty first: a run that measured nothing must say so
     # rather than let every sensor report clean over it.
     for notice in [*scope.notices, *run.notices]:

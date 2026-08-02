@@ -98,10 +98,11 @@ habit-sensors --all | jq '.[] | {smell, language, source: .issues[0].details.sou
 PHPMD exits non-zero on a file it cannot parse. The sensor surfaces that as a
 failure — a crashed tool is never a clean run. It exits with a code outside the
 findings range, so `habit-sensors` raises, names the sensor on stderr, and exits
-1 rather than printing an empty (false-clean) result.
+1 rather than printing an empty (false-clean) result. The failed run carries only
+the reserved `incomplete-run` marker on stdout
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
 
-The notice carries PHPMD's own diagnosis after that first line
-([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)). PHPMD answers an
+The notice carries PHPMD's own diagnosis after that first line. PHPMD answers an
 unparseable file with a stack trace full of absolute paths, so only the line
 naming the sensor is asserted here.
 
@@ -111,12 +112,12 @@ naming the sensor is asserted here.
 ```
 
 ```bash
-habit-sensors --all
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 ```bash

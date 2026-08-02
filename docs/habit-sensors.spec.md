@@ -501,7 +501,9 @@ habit-sensors --all 2>&1 >/dev/null | wc -l | tr -d ' '
 
 A spawn failure or a non-zero exit from a sensor's tool yields zero findings for
 that sensor, a stderr notice naming it, and exit 1. The sibling sensors still
-report — a broken tool is a failed run, never a clean one.
+report — a broken tool is a failed run, never a clean one. A failed run also
+appends the reserved `incomplete-run` finding to the pipe, so the mapper coaches
+the break instead of rendering clean over it (#88).
 
 Naming the sensor and its command says *what* broke, never *why*, so whatever
 the tool wrote to stderr is carried into the notice — the same way a failing
@@ -541,7 +543,8 @@ habit-sensors --all | jq '[.[].smell]'
 🖥️ ❌ 1
 ```json
 [
-  "warning-comment"
+  "warning-comment",
+  "incomplete-run"
 ]
 ```
 
@@ -549,6 +552,40 @@ habit-sensors --all | jq '[.[].smell]'
 ```text
 habit-sensors: sensor 'broken' failed: echo 'this-tool-does-not-exist: command not found' >&2; exit 127
 this-tool-does-not-exist: command not found
+```
+
+### A failed run is coached
+
+A failed sensor contributes no findings of its own, so nothing on the pipe would
+tell the mapper the run broke — it would see `[]` and render the clean guide over
+broken tooling (#88). The runner therefore appends one reserved `incomplete-run`
+finding whenever the run failed, carrying each failure notice as an issue's
+`content`. It is appended after every transformer has run, so a snooze can never
+mute it; the mapper coaches it like any enforced smell
+([habit-mapper.spec.md](habit-mapper.spec.md)).
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["broken"]
+```
+
+📄.habit-hooks/generic/sensors/broken.toml
+```toml
+command = "echo 'boom' >&2; exit 1"
+```
+
+```bash
+habit-sensors --all | jq -c '.[] | select(.smell=="incomplete-run") | {smell, contents: [.issues[].details.content]}'
+```
+
+🖥️ ❌ 1
+```json
+{"smell":"incomplete-run","contents":["habit-sensors: sensor 'broken' failed: echo 'boom' >&2; exit 1\nboom"]}
 ```
 
 ### A sensor that exits non-zero with nothing on stdout is a failure
@@ -591,7 +628,8 @@ habit-sensors --all | jq '[.[].smell]'
 🖥️ ❌ 1
 ```json
 [
-  "warning-comment"
+  "warning-comment",
+  "incomplete-run"
 ]
 ```
 
@@ -643,7 +681,8 @@ Exit 1 is the only non-zero code a tool gets to mean something by; anything
 beyond it is the tool saying it broke. Findings printed on the way out do not
 buy it back — a crash that got as far as writing has no way to say how much of
 what it wrote it stands behind, so the run refuses the lot rather than reporting
-a half-scan as a whole one.
+a half-scan as a whole one. The dropped findings leave only the reserved
+`incomplete-run` marker on the pipe, so the run reads as broken, never clean (#88).
 
 📄.habit-hooks/config.toml
 ```toml
@@ -666,12 +705,12 @@ command = "cat ${dir}/partial.json; exit 2"
 ```
 
 ```bash
-habit-sensors --all | jq -c '.'
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 🚨
@@ -756,7 +795,8 @@ habit-sensors --all | jq '[.[].smell]'
 🖥️ ❌ 1
 ```json
 [
-  "warning-comment"
+  "warning-comment",
+  "incomplete-run"
 ]
 ```
 
@@ -775,6 +815,10 @@ guessing at it.
 The real case: `snooze-until-changed` exits non-zero when `[scope] branchBase`
 is missing from the checkout ([habit-snooze.spec.md](habit-snooze.spec.md)), and
 the setting that fixes it is named in *its* message, not the runner's.
+
+The failed run also appends the reserved `incomplete-run` finding (#88); this
+case filters it out to keep the focus on the untransformed findings passing
+through — the marker's own shape is asserted under *A failed run is coached*.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -818,7 +862,7 @@ git init -q -b main . &&
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].key]'
+habit-sensors --all | jq -c '[.[] | select(.smell != "incomplete-run") | .issues[].key]'
 ```
 
 🖥️ ❌ 1
@@ -872,7 +916,8 @@ habit-sensors --all | jq '[.[].smell]'
 🖥️ ❌ 1
 ```json
 [
-  "warning-comment"
+  "warning-comment",
+  "incomplete-run"
 ]
 ```
 

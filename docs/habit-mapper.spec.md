@@ -261,6 +261,44 @@ habit-mapper
 Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
 ```
 
+### An incomplete run is coached, never rendered clean
+
+`incomplete-run` is the reserved smell the sensors stage raises against itself
+when a tool broke ([habit-sensors.spec.md](habit-sensors.spec.md)). It is
+`enforced` and ships a core guide, so the mapper coaches it and fails the run
+rather than rendering the clean guide over broken tooling — even when no plugin
+supplies a guide for it (#88). Its issues carry each failure notice as `content`.
+
+⌨️
+```json
+[
+  {
+    "smell": "incomplete-run",
+    "details": {},
+    "issues": [
+      {
+        "key": "habit-sensors: sensor 'comment' failed: Cannot find module 'ts-morph'",
+        "details": { "content": "habit-sensors: sensor 'comment' failed: Cannot find module 'ts-morph'" }
+      }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+```text
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-sensors: sensor 'comment' failed: Cannot find module 'ts-morph'
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
+
 ## Routing every smell
 
 ### Config can point a smell at another guide

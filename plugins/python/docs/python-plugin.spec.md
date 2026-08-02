@@ -152,10 +152,11 @@ deptry needs a `pyproject.toml` to analyse; without one it exits non-zero
 instead of emitting findings. The sensor must surface that as a failure — a
 crashed tool is never a clean run. The sensor exits with a code outside the
 findings range, so `habit-sensors` raises, names the sensor on stderr, and exits
-1 rather than printing an empty (false-clean) result.
+1 rather than printing an empty (false-clean) result. The failed run carries only
+the reserved `incomplete-run` marker on stdout
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
 
-The notice carries deptry's own diagnosis after that first line
-([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)). That text is
+The notice carries deptry's own diagnosis after that first line. That text is
 deptry's to word and names absolute paths, so only the line naming the sensor is
 asserted here.
 
@@ -174,12 +175,12 @@ def fetch(url):
 ```
 
 ```bash
-habit-sensors --all
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 ```bash
@@ -198,7 +199,8 @@ The `ruff` sensor pipes the tool into `jq`. A crashing `ruff` (here, a malformed
 naive pipe would let `jq` succeed on empty input and mask the crash as a false-
 clean run. The command sets `pipefail` so the tool's failing exit propagates
 through the pipe; `habit-sensors` then raises, names the sensor on stderr, and
-exits 1.
+exits 1, carrying only the reserved `incomplete-run` marker on stdout
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
 
 📄.habit-hooks/config.toml
 ```toml
@@ -219,12 +221,12 @@ import os
 ```
 
 ```bash
-habit-sensors --all
+habit-sensors --all | jq -c '[.[].smell]'
 ```
 
 🖥️ ❌ 1
 ```json
-[]
+["incomplete-run"]
 ```
 
 The notice quotes the sensor's whole command — multi-line here, so its first

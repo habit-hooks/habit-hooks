@@ -165,13 +165,15 @@ habit-hooks --all
 ✅ Habit Hooks: automated checks passed.
 ```
 
-### A failed sensor fails the pipeline, even when the mapper is clean
+### A failed sensor fails the pipeline and is coached, never rendered clean
 
 Broken tooling can never report a clean run. A sensor that dies contributes no
-findings, so the mapper sees an empty array and renders the clean guide — but
-`habit-sensors` exits non-zero for the failure ([habit-sensors.spec.md](habit-sensors.spec.md)),
-and the pipeline propagates that. This leaf overrides the sensor to crash without
-printing findings.
+findings of its own, but `habit-sensors` appends the reserved `incomplete-run`
+finding so the mapper coaches the break instead of rendering the clean guide over
+it (#88). The pipeline both exits non-zero and prints the failure on stdout — the
+`✅` pass reminder never appears. This leaf overrides the sensor to crash without
+printing findings; the failure notice still reaches stderr
+([habit-sensors.spec.md](habit-sensors.spec.md)).
 
 📄.habit-hooks/generic/sensors/params.toml
 ```toml
@@ -179,7 +181,57 @@ command = "echo 'params: boom' >&2; exit 7"
 ```
 
 ```bash
-habit-hooks --all
+habit-hooks --all 2>/dev/null
 ```
 
 🖥️ ❌ 1
+```text
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-sensors: sensor 'params' failed: echo 'params: boom' >&2; exit 7
+params: boom
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
+
+### A failed sensor and a working one both report, and the run stays incomplete
+
+A break in one sensor does not hide what the others found: the working sensor's
+findings are coached as usual, and the reserved `incomplete-run` finding is
+appended after them so the same run is never mistaken for clean (#88). Here
+`params` reports a real `too-many-parameters` finding while `broken` crashes.
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["params", "broken"]
+```
+
+📄.habit-hooks/generic/sensors/broken.toml
+```toml
+command = "echo 'boom' >&2; exit 1"
+```
+
+```bash
+habit-hooks --file src/billing.py 2>/dev/null
+```
+
+🖥️ ❌ 1
+```text
+── too-many-parameters (1 issue) ──
+
+The following function definitions have more than 3 parameters:
+
+src/billing.py:2
+    bill(...) has 4 parameters
+
+Bundle related arguments into an object.
+
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-sensors: sensor 'broken' failed: echo 'boom' >&2; exit 1
+boom
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
