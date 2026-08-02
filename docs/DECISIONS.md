@@ -394,3 +394,41 @@ mapping, config validation) are resolved and recorded above / in
   to nothing happens in `_source_files`/`_every_file`, downstream of the ref
   check, so a typo'd `branchBase` still fails loudly (#81) rather than being
   masked by an empty opt-in.
+
+## Every catalogued smell ships a guide; `unused-export` stays enforced (#101)
+
+- **A catalogued smell with no `guides/<smell>.md` is a silent product
+  regression, not a graceful fallback.** The coaching *is* the product, so a
+  smell that falls through to the one-size `uncoached.md` is shipping less than
+  it claims. Ten catalogued smells had no guide (three firing out of the box for
+  every Python consumer), and `unused-variable` had one only in `php` despite
+  firing from ruff `F841` and eslint `no-unused-vars` too. Each now ships a
+  ROSE-pattern guide in the plugin it belongs to: the language-agnostic ones
+  (`unused-variable`, `unused-import`, `unused-dependency`, `unused-file`,
+  `duplicate-import`) in `generic`, so every language's routing reaches them via
+  the languageless fallback; the TypeScript-specific ones (`explicit-any`,
+  `redundant-type-annotation`, `loose-equality`, `var-declaration`,
+  `non-const-binding`, `unused-class-member`) in `typescript`.
+- **`unused-variable` moved from `php` to `generic` (not copied).** The prose was
+  language-agnostic — nothing in it was PHP-specific — so a copy would have been
+  duplication that drifts. `php` keeps no override because it has nothing
+  PHP-specific to say about an unused local.
+- **`tests/test_catalogue_coverage.py` is the gate that stops the gap
+  reopening.** It routes every smell in `catalogue.DEFAULT_SEVERITY` through the
+  mapper's real `_resolve_guide` against the full installed plugin set and fails
+  if any renders `uncoached.md`. "Somebody notices missing coaching" is now a red
+  build, not a bug report.
+- **`unused-export` stays `enforced` — deliberately, and this records why.** The
+  old TypeScript version set it to `suggested` with the rationale "either dead
+  code, or an internal exposed only for tests". That second horn no longer
+  belongs to this smell: the knip default pass counts a test as a real consumer,
+  so an export a test uses is never flagged here — it surfaces from the gated
+  `--production` pass as its own **`test-only-dead-code`** smell (also enforced).
+  What remains under `unused-export` is an export *nothing* references, test
+  included: genuinely dead code, or a public API surface knip can't see is
+  consumed. The first should block; the second is told to knip via its
+  `entry`/config (the guide says so), after which anything still flagged is dead.
+  Enforced also keeps the whole `unused-*` family consistent (`unused-variable`,
+  `unused-import`, `unused-file`, `unused-dependency`, `unused-class-member` are
+  all enforced). A project that wants it advisory sets
+  `[smells.unused-export] severity = "suggested"`.

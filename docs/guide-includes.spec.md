@@ -26,11 +26,19 @@ partial under `guides/includes/`:
 | Partial | Format per issue | Smells |
 |---------|------------------|--------|
 | `includes/line_level_issues.md` | `{{ file }}:{{ line }}` then `  {{ content }}` if present | too-many-parameters, oversized-function, high-complexity, deep-nesting, unused-variable, unused-import, swallowed-exception, loose-equality, var-declaration, non-const-binding, duplicate-import, explicit-any, non-null-assertion, redundant-type-annotation, warning-comment, non-essential-comment |
-| `includes/file_level_issues.md` | `{{ file }}` then `  {{ content }}` if present | oversized-file, unused-file, unused-export, unused-dependency, parse-error |
+| `includes/file_level_issues.md` | `{{ file }}` then `  {{ content }}` if present | oversized-file, unused-file, unused-export, parse-error |
 
-A **special** smell whose issues do not fit either shape — `duplicated-code`,
-whose issues come in matched pairs — does **not** use a shared include; its guide
-lists the pairs inline. The shared includes exist only for the two typical shapes.
+A handful of smells do not fit either shape and so do **not** use a shared
+include; their guides list the occurrences inline:
+
+- `duplicated-code`, whose issues come in matched pairs.
+- `unused-dependency` and `unused-class-member`, which are keyed by a **name**
+  (a package, a member) rather than a location — the useful line is that name,
+  which neither shared listing renders (`file` would only repeat the manifest or
+  the class file). Their guides loop over `{{ issue.key }}` / the member name
+  directly.
+
+The shared includes exist only for the two typical shapes.
 
 Partials live in an `includes/` subdirectory so they never collide with a
 smell-named guide (`guides/<smell>.md`). They resolve through the **same override

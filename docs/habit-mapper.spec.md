@@ -519,20 +519,23 @@ General guidance: the issues listed are code smells. They tell you that there is
 src/x.ts
 ```
 
-### A catalogued smell with no resolvable guide falls back to uncoached
+### A catalogued smell whose plugin isn't configured falls back to uncoached
 
-A smell can be in the catalogue yet ship no guide for it (here `duplicate-import`
-is `enforced` but has no `duplicate-import.md`). Rather than crash, the mapper
-falls back to the generic `uncoached.md` guidance, so the run still coaches and
-fails on the enforced smell. Because `uncoached.md` serves any smell shape, its
-listing is adaptive: it renders `file:line` for a point-located issue and a bare
-`file` for a whole-file one, appending `content` only when present.
+Every catalogued smell ships a guide, but in the plugin that owns it — so a
+project that doesn't run that plugin has no guide to resolve. Here
+`var-declaration` is `enforced` and ships in the `typescript` plugin, which this
+project (`biome`, `eslint`, `generic`) does not run, so no configured plugin
+supplies `var-declaration.md`. Rather than crash, the mapper falls back to the
+generic `uncoached.md` guidance, so the run still coaches and fails on the
+enforced smell. Because `uncoached.md` serves any smell shape, its listing is
+adaptive: it renders `file:line` for a point-located issue and a bare `file` for
+a whole-file one, appending `content` only when present.
 
 ⌨️
 ```json
 [
   {
-    "smell": "duplicate-import",
+    "smell": "var-declaration",
     "details": {},
     "issues": [
       { "key": "src/a.ts:2", "details": { "file": "src/a.ts", "line": 2, "content": "import x from 'x'" } },
@@ -549,7 +552,7 @@ habit-mapper
 
 🖥️ ❌ 1
 ```text
-── duplicate-import (3 issues) ──
+── var-declaration (3 issues) ──
 
 General guidance: the issues listed are code smells. They tell you that there is likely something wrong with the code. Follow these steps:
 - Ask yourself why the rule exists in the first place. What is it telling you about the code?
