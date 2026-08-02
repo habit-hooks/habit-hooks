@@ -1020,6 +1020,36 @@ habit-sensors --all
 habit-sensors: no transformer 'nope' in ['generic'] or the core
 ```
 
+## Config is validated
+
+A key the config loader consumes nothing for is a typo or a documented-but-dead
+key. The runner rejects it by name at load time rather than ignoring it, so a
+misspelling can never silently do nothing.
+
+### A misspelled config key is caught by name
+
+`severty` is not a `[smells.<name>]` field, so the run stops before any sensor
+runs and names the offending key and the section it sits in.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+
+[smells.duplicated-code]
+severty = "suggested"
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ❌ 1
+
+🚨
+```text
+habit-sensors: unknown config key 'severty' in [smells.duplicated-code]; known keys: disabled, guide, severity
+```
+
 ## Plugin recommendation
 
 When the project clearly uses a language no active plugin covers, the runner

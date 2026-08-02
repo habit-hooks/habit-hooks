@@ -1,12 +1,14 @@
 """Unit tests for the TOML config loader.
 
-These pin the loader's behaviour: defaults, nested construction, and silently
-ignoring unknown keys at every level.
+These pin the loader's behaviour: defaults, nested construction, and rejecting
+unknown keys at every level (project and plugin config) with a named error.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 from habit_hooks.config import (
     Config,
@@ -99,34 +101,34 @@ def test_populated_smell_override_loads(tmp_path: Path) -> None:
     assert smell.disabled is None
 
 
-def test_unknown_keys_are_ignored_at_every_level(tmp_path: Path) -> None:
-    project = _write(
-        tmp_path,
-        """
-plugins = ["generic"]
-totallyUnknownTopLevel = "ignored"
+def test_an_unknown_root_key_is_rejected_by_name(tmp_path: Path) -> None:
+    # `[sensor.knip]` singular lands `sensor` as an unknown root key.
+    project = _write(tmp_path, 'plugins = ["generic"]\n[sensor.knip]\ndisabled = true')
+    with pytest.raises(SystemExit, match=r"'sensor'"):
+        load_config(project)
 
-[scope]
-changedOnly = true
-bogusScopeKey = 123
 
-[sensors.line-count]
-args = ["--max", "10"]
-mysteryKey = "ignored"
+def test_an_unknown_scope_key_is_rejected_by_name(tmp_path: Path) -> None:
+    project = _write(tmp_path, "[scope]\nchange_dOnly = true")
+    with pytest.raises(SystemExit, match=r"'change_dOnly'"):
+        load_config(project)
 
-[smells.long-file]
-severity = "warning"
-whatIsThis = true
-""",
-    )
-    config = load_config(project)  # must not raise
-    assert config.plugins == ["generic"]
-    assert config.scope.changedOnly is True
-    assert config.sensors["line-count"].args == ["--max", "10"]
-    assert config.smells["long-file"].severity == "warning"
-    # Unknown keys are dropped, not readable back.
-    assert not hasattr(config, "totallyUnknownTopLevel")
-    assert not hasattr(config.scope, "bogusScopeKey")
+
+def test_an_unknown_sensor_key_is_rejected_by_name(tmp_path: Path) -> None:
+    project = _write(tmp_path, "[sensors.line-count]\ndisable = true")
+    with pytest.raises(SystemExit, match=r"'disable'"):
+        load_config(project)
+
+
+def test_an_unknown_smell_key_is_rejected_by_name(tmp_path: Path) -> None:
+    project = _write(tmp_path, '[smells.duplicated-code]\nseverty = "suggested"')
+    with pytest.raises(SystemExit, match=r"'severty'"):
+        load_config(project)
+
+
+def test_a_valid_config_still_loads_after_the_unknown_key_guard(tmp_path: Path) -> None:
+    """The guard must not reject any key the loader actually consumes."""
+    load_config(_write(tmp_path, _POPULATED_CONFIG))  # must not raise
 
 
 def _plugin_config(tmp_path: Path, plugin: str, body: str) -> None:
@@ -134,6 +136,14 @@ def _plugin_config(tmp_path: Path, plugin: str, body: str) -> None:
     path = tmp_path / ".habit-hooks" / plugin / "config.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body)
+
+
+def test_an_unknown_plugin_config_key_is_rejected_by_name(tmp_path: Path) -> None:
+    """The guard fires on plugin-shipped config too, not only the project's."""
+    project = _write(tmp_path, 'plugins = ["alpha"]')
+    _plugin_config(project, "alpha", 'sensors = ["s"]\nsensorz = ["oops"]')
+    with pytest.raises(SystemExit, match=r"'sensorz'"):
+        load_config(project)
 
 
 def test_plugin_files_merge_in_plugins_order_without_repeating(tmp_path: Path) -> None:

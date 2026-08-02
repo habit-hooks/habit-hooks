@@ -1,7 +1,9 @@
 """Load the merged TOML config across the resolution chain.
 
-Unknown keys are ignored at every level: each raw dict is filtered to the
-type's declared attrs fields before construction.
+Unknown keys are rejected at every level — project *and* plugin config — with a
+named ``SystemExit``: a key nothing consumes is a typo or a documented-but-dead
+key, and silently ignoring it is why both keep shipping (#102). The allowed keys
+are the type's declared attrs fields (minus loader-populated internals).
 """
 
 from __future__ import annotations
@@ -50,29 +52,57 @@ class Config:
     smells: dict[str, SmellOverride] = field(factory=dict)
     # Each active plugin's declared language (generic declares none). The mapper
     # reads it to prefer, for a finding of a given language, a plugin that speaks
-    # it over the languageless fallback.
-    plugin_languages: dict[str, str] = field(factory=dict)
+    # it over the languageless fallback. Populated by the loader, never from TOML.
+    plugin_languages: dict[str, str] = field(factory=dict, metadata={"internal": True})
 
 
-def _known(cls: type, data: dict) -> dict:
-    names = {f.name for f in fields(cls)}
-    return {key: value for key, value in data.items() if key in names}
+# The keys a plugin ``config.toml`` may set: ``sensors``/``transformers``/
+# ``language`` read in ``sensors/loader.py``; ``files``/``runners``/``language``
+# read by the helpers below. Unlike the project config these are not one attrs
+# type, so the allowed set is named here.
+_PLUGIN_CONFIG_KEYS = frozenset({"sensors", "transformers", "language", "files", "runners"})
 
 
-def _build_mapping(cls: type, data: object) -> dict:
+def _settable(cls: type) -> set[str]:
+    """The keys a user may set on ``cls``: its attrs fields, minus internals."""
+    return {f.name for f in fields(cls) if f.metadata.get("internal") is not True}
+
+
+def _reject_unknown(allowed: frozenset[str] | set[str], data: dict, where: str) -> None:
+    """Fail clearly on any key in ``data`` that ``where`` does not consume."""
+    unknown = sorted(key for key in data if key not in allowed)
+    if not unknown:
+        return
+    label = "key" if len(unknown) == 1 else "keys"
+    names = ", ".join(repr(key) for key in unknown)
+    raise SystemExit(
+        f"habit-sensors: unknown config {label} {names} in {where}; "
+        f"known keys: {', '.join(sorted(allowed))}"
+    )
+
+
+def _build_mapping(cls: type, data: object, section: str) -> dict:
     if not isinstance(data, dict):
         return {}
-    return {key: cls(**_known(cls, value)) for key, value in data.items() if isinstance(value, dict)}
+    result: dict = {}
+    for name, value in data.items():
+        if not isinstance(value, dict):
+            continue
+        _reject_unknown(_settable(cls), value, f"[{section}.{name}]")
+        result[name] = cls(**value)
+    return result
 
 
 def _build_config(data: dict) -> Config:
-    known = _known(Config, data)
+    _reject_unknown(_settable(Config), data, "the project config")
+    known = dict(data)
     if isinstance(known.get("scope"), dict):
-        known["scope"] = ScopeDefaults(**_known(ScopeDefaults, known["scope"]))
+        _reject_unknown(_settable(ScopeDefaults), known["scope"], "[scope]")
+        known["scope"] = ScopeDefaults(**known["scope"])
     if "sensors" in known:
-        known["sensors"] = _build_mapping(SensorOverride, known["sensors"])
+        known["sensors"] = _build_mapping(SensorOverride, known["sensors"], "sensors")
     if "smells" in known:
-        known["smells"] = _build_mapping(SmellOverride, known["smells"])
+        known["smells"] = _build_mapping(SmellOverride, known["smells"], "smells")
     return Config(**known)
 
 
@@ -94,7 +124,9 @@ def _plugin_configs(plugins: list[str], project_dir: Path) -> list[dict]:
     configs = []
     for plugin in plugins:
         path = resolver.in_plugin(plugin, "config.toml")
-        configs.append(_read_toml(path) if path else {})
+        data = _read_toml(path) if path else {}
+        _reject_unknown(_PLUGIN_CONFIG_KEYS, data, f"the {plugin!r} plugin config")
+        configs.append(data)
     return configs
 
 
