@@ -7,6 +7,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..cli import ToolError
 from ..config import Config
 from ..resolve import Resolver
 from .model import Part, Plugin
@@ -46,7 +47,7 @@ class PluginLoader:
     def resolve_part(self, plugins: list[str], kind: str, name: str) -> Part:
         path = self.resolver.part(plugins, f"{kind}/{name}.toml")
         if path is None:
-            raise SystemExit(
+            raise ToolError(
                 f"habit-sensors: no {kind[:-1]} {name!r} in {plugins} or the core"
             )
         spec = _read_toml(path)

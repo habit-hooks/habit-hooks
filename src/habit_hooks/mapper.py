@@ -13,6 +13,7 @@ from typing import NoReturn
 from jinja2 import Environment, FunctionLoader
 
 from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
+from .cli import ToolError, add_version_flag, run_console
 from .config import Config, load_config
 from .resolve import Resolver
 
@@ -93,7 +94,7 @@ def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
 
 
 def _refuse_unconfigured_runner(smell: str, guide: Path, extension: str) -> NoReturn:
-    raise SystemExit(
+    raise ToolError(
         f"habit-mapper: smell {smell!r} routes to guide {guide.name!r}, but the "
         f"{extension!r} extension has no [runners] command — add one or route to "
         f"a .md guide"
@@ -177,12 +178,16 @@ def read_findings() -> list[dict]:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="habit-mapper")
+    add_version_flag(parser)
     parser.add_argument("--config", type=Path)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+    return run_console(parse_args, _render_findings, argv)
+
+
+def _render_findings(args: argparse.Namespace) -> int:
     return run(read_findings(), Path.cwd(), args.config)
 
 

@@ -808,7 +808,7 @@ git branch -m main trunk &&
 habit-snooze --until-changed
 ```
 
-🖥️ ❌ 1
+🖥️ ❌ 2
 
 🚨
 ```text

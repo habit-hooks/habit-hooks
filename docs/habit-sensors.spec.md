@@ -1013,7 +1013,7 @@ command = "echo []"
 habit-sensors --all
 ```
 
-🖥️ ❌ 1
+🖥️ ❌ 2
 
 🚨
 ```text
@@ -1043,7 +1043,7 @@ severty = "suggested"
 habit-sensors --all
 ```
 
-🖥️ ❌ 1
+🖥️ ❌ 2
 
 🚨
 ```text
@@ -1228,6 +1228,39 @@ habit-sensors --all 2>&1 >/dev/null
 ```text
 habit-sensors: detected typescript; consider `pip install habit-hooks-typescript`
 ```
+
+## Version and argument validation
+
+`--version` prints the installed distribution's version so a bug report can name
+it, and it is answered before any config or git is touched. An invalid `--last`
+is a usage error (exit 2), distinct from an enforced finding (exit 1), so a
+mistyped count fails loudly instead of scanning everything.
+
+### --version prints the distribution version
+
+The exact number moves with each release, so this only pins the shape:
+`habit-hooks vX.Y.Z` on stdout, exit 0.
+
+```bash
+habit-sensors --version | grep -qE '^habit-hooks v[0-9]+\.[0-9]+\.[0-9]+' && echo matched
+```
+
+🖥️ ✅
+```text
+matched
+```
+
+### --last rejects a non-positive count
+
+`--last 0` scoped nothing and `--last -1` resolved to `HEAD~-1` and degraded to
+the empty tree — both silently scanned the whole repository. A non-positive count
+is now a usage error, exit 2, before any scope path is reached.
+
+```bash
+habit-sensors --last 0
+```
+
+🖥️ ❌ 2
 
 ## Scope
 
@@ -1569,7 +1602,7 @@ git rev-parse --verify --quiet 'main^{commit}'
 habit-sensors --branch
 ```
 
-🖥️ ❌ 1
+🖥️ ❌ 2
 
 🚨
 ```text

@@ -20,6 +20,7 @@ from collections.abc import Collection
 from pathlib import Path
 
 from .changed_files import changed_against_base
+from .cli import add_version_flag, run_console
 from .config import load_config
 from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
 
@@ -145,6 +146,7 @@ def _write_transformed(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="habit-snooze")
+    add_version_flag(parser)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--snooze", action="store_true")
     group.add_argument("--prune", action="store_true")
@@ -170,7 +172,10 @@ def _reject_until_changed_with_index_op(
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+    return run_console(parse_args, _run_snooze_command, argv)
+
+
+def _run_snooze_command(args: argparse.Namespace) -> int:
     try:
         return run(args, Path.cwd())
     except SnoozeError as error:

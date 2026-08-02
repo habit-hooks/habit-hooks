@@ -17,6 +17,7 @@ from pathlib import Path
 import pathspec
 
 from . import git_history
+from .cli import ToolError
 from .config import Config
 from .project_paths import project_relative
 
@@ -42,9 +43,7 @@ class Scope:
     notices: list[str] = field(default_factory=list)
 
 
-def resolve_scope(
-    args: argparse.Namespace, config: Config, project_dir: Path
-) -> Scope:
+def resolve_scope(args: argparse.Namespace, config: Config, project_dir: Path) -> Scope:
     """The files this run measures: the chosen mode's paths, narrowed to source.
 
     Discovery is opt-in (#97): with no ``[files]`` at all, every mode narrows to
@@ -173,7 +172,7 @@ def _fork_point(project_dir: Path, ref: str, remedy: str) -> str:
     """
     tip = git_history.resolves(project_dir, ref)
     if tip is None:
-        raise SystemExit(
+        raise ToolError(
             f"habit-sensors: base ref {ref!r} does not resolve in this checkout "
             f"— {remedy}"
         )
@@ -197,4 +196,4 @@ def _changed_in_last_commits(project_dir: Path, count: int) -> list[str]:
 
 def _require_git_repo(project_dir: Path) -> None:
     if not git_history.places_directory(project_dir):
-        raise SystemExit("habit-sensors: not a git repository")
+        raise ToolError("habit-sensors: not a git repository")

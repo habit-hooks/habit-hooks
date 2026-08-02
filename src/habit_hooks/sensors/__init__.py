@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from ..catalogue import INCOMPLETE_RUN
+from ..cli import add_version_flag, run_console
 from ..config import Config, load_config
 from ..recommend import recommendations
 from ..resolve import Resolver
@@ -35,8 +36,19 @@ __all__ = [
 ]
 
 
+def _positive_int(value: str) -> int:
+    """A ``--last`` count: a positive number of commits, rejected by name here so
+    ``--last 0`` (an empty scope) and ``--last -1`` (``HEAD~-1``, the empty tree)
+    fail loudly instead of silently scanning everything (#103)."""
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError(f"must be a positive integer, not {value!r}")
+    return number
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="habit-sensors")
+    add_version_flag(parser)
     parser.add_argument("--config", type=Path)
     # Emit findings before the snooze transformers filter them, so `--prune` sees
     # a snooze-free view of the run instead of one snooze already emptied (#94).
@@ -45,7 +57,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     modes.add_argument("--all", action="store_true")
     modes.add_argument("--file")
     modes.add_argument("--branch", nargs="?", const="", metavar="base")
-    modes.add_argument("--last", type=int)
+    modes.add_argument("--last", type=_positive_int)
     modes.add_argument("--since")
     return parser.parse_args(argv)
 
@@ -117,7 +129,10 @@ def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv if argv is not None else sys.argv[1:])
+    return run_console(parse_args, _emit_findings, argv)
+
+
+def _emit_findings(args: argparse.Namespace) -> int:
     project_dir = Path.cwd()
     config = _configure(args, project_dir)
     scope = resolve_scope(args, config, project_dir)

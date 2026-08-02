@@ -129,6 +129,19 @@ somebody else changed on the base afterwards are not yours to fix. Whatever pick
 longer has are dropped (a deleted file has no smells left) and the rest must match `files`. A base ref the checkout
 cannot resolve fails the run instead of quietly scanning nothing.
 
+### Version and exit codes
+
+`habit-hooks --version` prints `habit-hooks vX.Y.Z` (the same on `habit-sensors`, `habit-mapper` and `habit-snooze`) —
+worth quoting in a bug report, since the tool ships through four channels (PyPI, Homebrew, uvx, an npm shim).
+
+The exit code separates a finding from a broken tool, so a CI wrapper can act on the difference:
+
+| Exit | Meaning |
+| ---- | ------- |
+| `0`  | clean — no enforced finding |
+| `1`  | an enforced finding — this branch has a smell to fix |
+| `2`  | the tool itself failed — a bad config key, a base ref the checkout cannot resolve, a `--last` that is not a positive integer, or a plugin that is configured but not installed |
+
 ## Plugins
 
 Everything language- or tool-specific lives in a **plugin** — a self-contained bundle of files:

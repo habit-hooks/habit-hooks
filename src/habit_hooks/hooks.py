@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .cli import version_line
+
 
 def sibling(name: str) -> str:
     """Resolve a sibling console script next to this executable, else by name."""
@@ -27,6 +29,11 @@ def mapper_args(args: list[str]) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
+    # Answer --version here: forwarded to habit-sensors it would print the version
+    # onto the pipe where habit-mapper expects findings JSON, so handle it first.
+    if "--version" in args:
+        sys.stdout.write(version_line() + "\n")
+        return 0
     sensors = subprocess.Popen([sibling("habit-sensors"), *args], stdout=subprocess.PIPE)
     mapper = subprocess.Popen(
         [sibling("habit-mapper"), *mapper_args(args)], stdin=sensors.stdout

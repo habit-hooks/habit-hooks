@@ -19,6 +19,8 @@ from importlib.metadata import entry_points
 from importlib.resources import files
 from pathlib import Path
 
+from .cli import ToolError
+
 PLUGIN_ENTRY_POINT_GROUP = "habit_hooks.plugins"
 
 # The core ships baseline guides (clean.md, uncoached.md) as the final fallback, so
@@ -73,7 +75,7 @@ class Resolver:
         """Fail clearly if a configured plugin is neither overridden nor installed."""
         if self.in_plugin(plugin, "config.toml") is not None:
             return
-        raise SystemExit(
+        raise ToolError(
             f"habit-sensors: plugin {plugin!r} is not installed — "
             f"install it with `pip install habit-hooks-{plugin}`"
         )

@@ -1,8 +1,9 @@
 """Load the merged TOML config across the resolution chain.
 
 Unknown keys are rejected at every level — project *and* plugin config — with a
-named ``SystemExit``: a key nothing consumes is a typo or a documented-but-dead
-key, and silently ignoring it is why both keep shipping (#102). The allowed keys
+named ``ToolError`` (exit 2): a key nothing consumes is a typo or a
+documented-but-dead key, and silently ignoring it is why both keep shipping
+(#102). The allowed keys
 are the type's declared attrs fields (minus loader-populated internals).
 """
 
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from attrs import define, field, fields
 
+from .cli import ToolError
 from .resolve import Resolver
 
 
@@ -75,7 +77,7 @@ def _reject_unknown(allowed: frozenset[str] | set[str], data: dict, where: str) 
         return
     label = "key" if len(unknown) == 1 else "keys"
     names = ", ".join(repr(key) for key in unknown)
-    raise SystemExit(
+    raise ToolError(
         f"habit-sensors: unknown config {label} {names} in {where}; "
         f"known keys: {', '.join(sorted(allowed))}"
     )

@@ -15,6 +15,7 @@ from collections.abc import Collection
 from pathlib import Path
 
 from . import git_history
+from .cli import ToolError
 from .project_paths import project_relative
 
 
@@ -47,7 +48,7 @@ def _comparison_point(project_dir: Path, base_ref: str) -> str | None:
         return None
     tip = git_history.resolves(project_dir, base_ref)
     if tip is None:  # a real repository, without the configured ref
-        raise SystemExit(
+        raise ToolError(
             f"habit-snooze: base ref {base_ref!r} does not resolve in this checkout — "
             "set [scope] branchBase to a ref it has"
         )
