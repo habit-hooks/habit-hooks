@@ -26,9 +26,11 @@ def scan_paths(config: str) -> list[str]:
     return json.loads(Path(config).read_text())["path"]
 
 
-def run_jscpd(paths: list[str], config: str, output: Path) -> None:
+def run_jscpd(
+    paths: list[str], config: str, output: Path
+) -> subprocess.CompletedProcess[str]:
     command = ["jscpd", "--reporters", "json", "--output", str(output), "--config", config]
-    subprocess.run([*command, *paths], capture_output=True, text=True)
+    return subprocess.run([*command, *paths], capture_output=True, text=True)
 
 
 def occurrence(side: dict) -> dict:
@@ -59,11 +61,29 @@ def findings(report: Path) -> list[dict]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Print the findings, or fail the way the tool did.
+
+    Neither signal jscpd gives is conclusive alone, so both are read:
+
+    - **exit 0, no report** — it scanned and found no clones. jscpd only writes a
+      report when it has duplicates to put in it, so this is the ordinary clean
+      case and must stay clean.
+    - **exit 0, report** — clones under the configured threshold.
+    - **non-zero, report** — duplication crossed the threshold. A real result;
+      the report is read regardless of the exit code.
+    - **non-zero, no report** — jscpd itself broke. Saying ``[]`` here would be
+      this wrapper promising a clean run on behalf of a tool that never
+      delivered one, so its complaint is forwarded and the sensor fails.
+    """
     args = parse_args(argv if argv is not None else sys.argv[1:])
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp)
-        run_jscpd(scan_paths(args.config), args.config, output)
-        print(json.dumps(findings(output / "jscpd-report.json")))
+        result = run_jscpd(scan_paths(args.config), args.config, output)
+        report = output / "jscpd-report.json"
+        if result.returncode != 0 and not report.is_file():
+            sys.stderr.write(result.stderr or result.stdout)
+            return 1
+        print(json.dumps(findings(report)))
     return 0
 
 

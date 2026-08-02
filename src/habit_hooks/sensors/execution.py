@@ -15,50 +15,7 @@ from pathlib import Path
 from ..scope import Scope
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
-
-ACCEPTED_EXIT_CODES = (0, 1)
-
-
-def _parse_findings(stdout: str) -> list[dict]:
-    text = stdout.strip()
-    findings = json.loads(text) if text else []
-    if not isinstance(findings, list):
-        raise ValueError("output is not a findings array")
-    return findings
-
-
-def _part_failure(
-    kind: str, part: Part, result: subprocess.CompletedProcess[str]
-) -> SensorError:
-    """Why it failed, in the part's own words whenever it said anything.
-
-    Naming the command says only *what* broke. A part that diagnosed its own
-    failure — the missing base ref `snooze-until-changed` names and the setting
-    that fixes it, the npm package a sensor could not `require` — is the one
-    thing a pipeline user can act on, and its stderr is otherwise thrown away.
-    """
-    diagnosis = result.stderr.strip()
-    return SensorError(
-        f"{kind} {part.name!r} failed: {part.command}"
-        + (f"\n{diagnosis}" if diagnosis else "")
-    )
-
-
-def _sensor_crashed(result: subprocess.CompletedProcess[str]) -> bool:
-    """Whether the sensor's exit says its output cannot be trusted.
-
-    Exit 1 is how a linter says "I found things", so it is accepted — but only
-    alongside the findings that justify it. A non-zero exit with nothing on
-    stdout is a tool that died before it could print, which `_parse_findings`
-    would otherwise read as an empty findings array and the run would report
-    clean. Exit 0 stays trusted either way: it is the sensor explicitly claiming
-    it finished, and a silent sensor can only add nothing, never discard what
-    the others found.
-    """
-    if result.returncode not in ACCEPTED_EXIT_CODES:
-        return True
-    return result.returncode != 0 and not result.stdout.strip()
-
+from .part_output import parse_findings, part_failure, sensor_crashed
 
 @dataclass(frozen=True)
 class Execution:
@@ -109,11 +66,11 @@ class Execution:
         """
         command = self._expand(transformer)
         result = self._run(command, json.dumps(findings))
-        failure = _part_failure("transformer", transformer, result)
+        failure = part_failure("transformer", transformer, result)
         if result.returncode != 0 or not result.stdout.strip():
             raise failure
         try:
-            return _parse_findings(result.stdout)
+            return parse_findings(result.stdout)
         except (ValueError, json.JSONDecodeError):
             raise failure from None
 
@@ -126,11 +83,11 @@ class Execution:
         """
         command = self._expand(sensor)
         result = self._run(command)
-        failure = _part_failure("sensor", sensor, result)
-        if _sensor_crashed(result):
+        failure = part_failure("sensor", sensor, result)
+        if sensor_crashed(result):
             raise failure
         try:
-            findings = _parse_findings(result.stdout)
+            findings = parse_findings(result.stdout)
         except (ValueError, json.JSONDecodeError):
             raise failure from None
         return anchored(findings, self.project_dir, sensor.name)

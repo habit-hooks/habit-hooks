@@ -466,6 +466,37 @@ habit-sensors --all | jq '[.[] | [.smell, .language]]'
 
 ## Failure is not false-clean
 
+### A sensor that dies loudly is quoted, not transcribed
+
+A part's own complaint is the actionable half of a notice, but habit-hooks writes
+into a coding agent's context: a tool that dies mid-warning-storm can produce
+megabytes, and transcribing it would crowd out the diagnosis it is there to
+carry. The opening lines are quoted and the remainder is counted.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["shouty"]
+```
+
+📄.habit-hooks/generic/sensors/shouty.toml
+```toml
+command = "seq 200 >&2; exit 1"
+```
+
+```bash
+habit-sensors --all 2>&1 >/dev/null | wc -l | tr -d ' '
+```
+
+🖥️ ❌ 1
+```text
+22
+```
+
 ### A broken sensor fails the run; the rest still report
 
 A spawn failure or a non-zero exit from a sensor's tool yields zero findings for
