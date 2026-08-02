@@ -628,6 +628,54 @@ habit-mapper
 Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
 ```
 
+### An explicit `--config` is read instead of the default file
+
+`habit-mapper --config <path>` loads the whole config — `[smells.*]`, `[runners]`
+and the `plugins` order — from that file, not `.habit-hooks/config.toml`. So a CI
+config that demotes a smell is honoured even though the checked-in default would
+enforce it. Here the default file leaves `too-many-parameters` enforced and only
+`ci.toml` demotes it; the run exits 0, proving the named file won.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄ci.toml
+```toml
+plugins = ["generic"]
+
+[smells.too-many-parameters]
+severity = "suggested"
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "too-many-parameters",
+    "details": { "maxAllowed": 3 },
+    "issues": [
+      {
+        "key": "src/billing.ts",
+        "details": {
+          "file": "src/billing.ts",
+          "line": 2,
+          "actual": 4,
+          "signature": "bill(customer, items, discount, tax)"
+        }
+      }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper --config ci.toml
+```
+
+🖥️ ✅
+
 ## Executable guides
 
 A guide with a non-`.md` extension is run by the **fix runner** registered for

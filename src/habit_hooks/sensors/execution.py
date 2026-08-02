@@ -28,6 +28,7 @@ class Execution:
 
     project_dir: Path
     scope: Scope
+    config_path: Path | None = None
 
     def run_sensors(self, sensors: list[Part]) -> Run:
         if not sensors:
@@ -124,7 +125,20 @@ class Execution:
             .replace("${dir}", shlex.quote(str(part.directory)))
             .replace("${args}", args)
             .replace("${files}", files)
+            .replace("${config}", self._config_flag())
         )
+
+    def _config_flag(self) -> str:
+        """``--config <path>`` when the run named a config, else nothing.
+
+        A transformer runs as its own process, so the only way it sees the run's
+        ``--config`` is to be handed it. The placeholder carries the whole flag,
+        not just the path, so a run with no ``--config`` expands to nothing
+        rather than a dangling ``--config`` with no argument.
+        """
+        if self.config_path is None:
+            return ""
+        return f"--config {shlex.quote(str(self.config_path))}"
 
     def _run(
         self, command: str, stdin: str | None = None

@@ -572,6 +572,50 @@ habit-snooze --until-changed | jq -c '[.[].issues[].key]'
 ["src/x.ts"]
 ```
 
+### `--config` selects the base ref the transformer lapses against
+
+A run invoked with `--config <path>` scopes the sensors stage from that file, so
+the snooze transformer must read `[scope] branchBase` from the *same* file — or
+the run lapses exemptions against a different base than it scanned, and answers
+one question two ways. Here the default `.habit-hooks/config.toml` names a base
+ref this checkout does not have, which on its own would fail the run; `ci.toml` —
+the file the run was handed — names `main`. Reading the base from `ci.toml`,
+`main` resolves, `src/x.ts` is unchanged against it, and the snooze holds.
+
+📄.habit-hooks/config.toml
+```toml
+[scope]
+branchBase = "phantom-base"
+```
+
+📄ci.toml
+```toml
+[scope]
+branchBase = "main"
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed --config ci.toml | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
 ### The snooze is anchored to `details.file`, not to the key
 
 A sensor keys an issue by whatever groups it best — `deptry` by module name,

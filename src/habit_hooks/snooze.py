@@ -80,16 +80,14 @@ def _still_snoozed(issue: dict, snoozed: set[str], lapsed: Collection[str]) -> b
     return issue["key"] in snoozed and anchor_file(issue) not in lapsed
 
 
-def lapsed_files(findings: list[dict], snoozed: set[str], project_dir: Path) -> set[str]:
-    """The snoozed issues' files that changed against the project's base ref."""
-    anchors = {
+def snoozed_anchors(findings: list[dict], snoozed: set[str]) -> set[str]:
+    """The files the snoozed issues sit in — where a lapse could apply."""
+    return {
         anchor_file(issue)
         for finding in findings
         for issue in finding["issues"]
         if issue["key"] in snoozed
     }
-    base_ref = load_config(project_dir).scope.branchBase
-    return changed_against_base(anchors, project_dir, base_ref)
 
 
 def read_findings() -> list[dict]:
@@ -109,13 +107,25 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
         present = set(finding_keys(read_findings()))
         save_index([k for k in load_index(project_dir) if k in present], project_dir)
         return 0
-    return _write_transformed(project_dir, args.until_changed)
+    return _write_transformed(project_dir, args.until_changed, args.config)
 
 
-def _write_transformed(project_dir: Path, until_changed: bool) -> int:
+def _write_transformed(
+    project_dir: Path, until_changed: bool, config_path: Path | None
+) -> int:
+    """Drop snoozed findings, lapsing any whose anchor file changed since the base.
+
+    The base ref comes from the run's ``--config`` — the same file the sensors
+    stage scoped from — so the whole run answers with one ``[scope] branchBase``,
+    not a silent fall back to ``.habit-hooks/config.toml`` (#86).
+    """
     findings = read_findings()
     snoozed = set(load_index(project_dir))
-    lapsed = lapsed_files(findings, snoozed, project_dir) if until_changed else set()
+    lapsed: set[str] = set()
+    if until_changed:
+        base_ref = load_config(project_dir, config_path).scope.branchBase
+        anchors = snoozed_anchors(findings, snoozed)
+        lapsed = changed_against_base(anchors, project_dir, base_ref)
     sys.stdout.write(json.dumps(transform(findings, snoozed, lapsed)) + "\n")
     return 0
 
@@ -127,7 +137,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     group.add_argument("--prune", action="store_true")
     group.add_argument("--list", action="store_true")
     parser.add_argument("--until-changed", action="store_true")
-    return parser.parse_args(argv)
+    parser.add_argument("--config", type=Path)
+    args = parser.parse_args(argv)
+    _reject_until_changed_with_index_op(parser, args)
+    return args
+
+
+def _reject_until_changed_with_index_op(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    """``--until-changed`` ratchets the transform and has no bearing on the index
+    operations. Combining them used to be accepted and silently dropped (#86);
+    name the conflict instead of ignoring one of the two flags."""
+    if not args.until_changed:
+        return
+    for index_op in ("snooze", "prune", "list"):
+        if getattr(args, index_op):
+            parser.error(f"argument --until-changed: not allowed with --{index_op}")
 
 
 def main(argv: list[str] | None = None) -> int:

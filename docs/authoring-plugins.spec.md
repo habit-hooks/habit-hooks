@@ -91,7 +91,7 @@ files = ["**/*.lua"]                                        # optional; override
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH). |
+| `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). |
 | `language` | no | Language stamped on every finding this sensor emits. Usually inherited from the plugin's `config.toml` rather than set here. |
 | `files` | no | Per-sensor discovery globs, overriding the plugin's. |
 
@@ -315,6 +315,18 @@ plugin's transformers in order ([architecture.md](architecture.md)).
 ```toml
 # src/habit_hooks_lua/transformers/tag-fixme.toml
 command = "jq '<transform>'"
+```
+
+A transformer runs as its own process, so it cannot see the run's `--config` on
+its own. Add `${config}` to its command and the runner expands it to
+`--config <path>` when the run named one, or to nothing otherwise — the whole
+flag, so a `--config`-less run leaves no dangling argument. This is how the
+shipped `snooze-until-changed` reads `[scope] branchBase` from the same file the
+sensors stage scoped from, rather than always `.habit-hooks/config.toml`:
+
+```toml
+# transformers/snooze-until-changed.toml
+command = "${python} -m habit_hooks.snooze --until-changed ${config}"
 ```
 
 > **A transformer must pass through every finding it does not handle.**

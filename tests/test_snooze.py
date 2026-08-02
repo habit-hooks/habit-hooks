@@ -7,7 +7,11 @@ and what a lapsed file does to the drop decision.
 
 from __future__ import annotations
 
-from habit_hooks.snooze import anchor_file, transform
+from pathlib import Path
+
+import pytest
+
+from habit_hooks.snooze import anchor_file, parse_args, transform
 
 _FINDING = {
     "smell": "oversized-file",
@@ -50,3 +54,23 @@ def test_a_lapsed_file_leaves_unsnoozed_issues_alone() -> None:
 def test_a_finding_without_issues_passes_through() -> None:
     empty = {"smell": "duplicated-code", "details": {}, "issues": []}
     assert transform([empty], {"src/x.ts"}, {"src/x.ts"}) == [empty]
+
+
+def test_config_flag_is_parsed_as_a_path() -> None:
+    assert parse_args(["--config", "ci.toml"]).config == Path("ci.toml")
+
+
+def test_config_defaults_to_none() -> None:
+    assert parse_args(["--until-changed"]).config is None
+
+
+@pytest.mark.parametrize("index_op", ["--snooze", "--prune", "--list"])
+def test_until_changed_with_an_index_op_errors_by_name(
+    index_op: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """It used to be accepted and silently ignored; now the conflict is named."""
+    with pytest.raises(SystemExit):
+        parse_args(["--until-changed", index_op])
+    err = capsys.readouterr().err
+    assert "--until-changed" in err
+    assert index_op in err

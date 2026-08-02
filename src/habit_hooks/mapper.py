@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
@@ -106,8 +107,10 @@ def banner(finding: dict) -> str:
     return f"── {finding['smell']} ({count} {noun}) ──"
 
 
-def run(findings: list[dict], project_dir: Path) -> int:
-    config = load_config(project_dir)
+def run(
+    findings: list[dict], project_dir: Path, config_path: Path | None = None
+) -> int:
+    config = load_config(project_dir, config_path)
     resolver = Resolver.discover(project_dir)
     findings = [f for f in findings if not is_disabled(f["smell"], config)]
     if not findings:
@@ -132,8 +135,15 @@ def read_findings() -> list[dict]:
     return json.loads(raw) if raw else []
 
 
-def main() -> int:
-    return run(read_findings(), Path.cwd())
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="habit-mapper")
+    parser.add_argument("--config", type=Path)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv if argv is not None else sys.argv[1:])
+    return run(read_findings(), Path.cwd(), args.config)
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(project_dir, args.config)
     scope = resolve_scope(args, config, project_dir)
     loader = PluginLoader(Resolver.discover(project_dir), config)
-    run = run_sensors(loader, Execution(project_dir, scope))
+    run = run_sensors(loader, Execution(project_dir, scope, args.config))
     sys.stdout.write(json.dumps(run.findings) + "\n")
     # Why the scope came out empty first: a run that measured nothing must say so
     # rather than let every sensor report clean over it.

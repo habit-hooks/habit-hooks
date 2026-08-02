@@ -75,6 +75,38 @@ src/billing.py:2
 Bundle related arguments into an object.
 ```
 
+## `--config` forwards to the mapper stage, not just the sensors
+
+`--config <path>` has to reach the mapper too, or the run scopes from one config
+and sets its exit code from another. `too-many-parameters` is enforced by the
+default `.habit-hooks/config.toml`, so the pipeline would fail; `ci.toml` demotes
+it to `suggested`. `habit-hooks --config ci.toml` threads that file into both
+stages, so the smell is coached but the pipeline exits 0.
+
+📄ci.toml
+```toml
+plugins = ["generic"]
+
+[smells.too-many-parameters]
+severity = "suggested"
+```
+
+```bash
+habit-hooks --file src/billing.py --config ci.toml
+```
+
+🖥️ ✅
+```text
+── too-many-parameters (1 issue) ──
+
+The following function definitions have more than 3 parameters:
+
+src/billing.py:2
+    bill(...) has 4 parameters
+
+Bundle related arguments into an object.
+```
+
 ## The installed command composes without its bin dir on PATH
 
 The installed `habit-hooks` console script shells out to its siblings

@@ -63,6 +63,30 @@ def test_a_filename_containing_a_space_stays_one_argument(tmp_path: Path) -> Non
     assert expanded == "'src/my file.py' src/plain.py"
 
 
+def test_expand_carries_the_named_config_to_a_transformer(tmp_path: Path) -> None:
+    """A transformer is a separate process, so ``${config}`` is how the run's
+    ``--config`` reaches it — one config answer for sensors and transformers."""
+    part = Part(name="snooze", command="run ${config}", directory=tmp_path, args=[])
+    execution = Execution(
+        project_dir=tmp_path,
+        scope=Scope(files=[]),
+        config_path=tmp_path / "other.toml",
+    )
+
+    expanded = execution._expand(part)
+
+    assert shlex.split(expanded) == ["run", "--config", str(tmp_path / "other.toml")]
+
+
+def test_expand_drops_config_when_the_run_named_none(tmp_path: Path) -> None:
+    """No ``--config`` must expand to nothing, not a bare ``--config`` flag."""
+    part = Part(name="snooze", command="run ${config}", directory=tmp_path, args=[])
+
+    expanded = _execution(tmp_path)._expand(part)
+
+    assert shlex.split(expanded) == ["run"]
+
+
 def test_a_plugin_directory_containing_a_space_still_runs(tmp_path: Path) -> None:
     directory = tmp_path / "my plugin"
     directory.mkdir()
