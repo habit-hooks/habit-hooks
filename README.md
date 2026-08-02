@@ -116,7 +116,7 @@ Or scope the run explicitly:
 
 ```sh
 habit-hooks --all            # every file
-habit-hooks --file src/billing.py
+habit-hooks --file src/billing.py   # one file, ignoring snoozes (see below)
 habit-hooks --branch main    # files changed vs a base ref
 habit-hooks --last 3         # files changed in the last 3 commits
 habit-hooks --since <ref>    # files changed since a commit
@@ -329,6 +329,12 @@ that list wholesale, which is how you drop snoozing or order it against your own
 transformers = []              # no snoozing; every finding reports
 transformers = ["snooze", "…"] # snooze first, then your own transformer
 ```
+
+`habit-hooks --file <path>` bypasses the index. That command answers "tell me everything about this one file,
+right now", and a snooze is a statement about the backlog, not about the file you asked after by name — so a
+partial answer to `--file` would be a silent one. Only snoozing is set aside; a project's own transformers
+still run, so `--file` never quietly drops a step it did not ask about. Every other scope — including `--all` —
+filters through the index as usual.
 
 ### Make the index a ratchet
 

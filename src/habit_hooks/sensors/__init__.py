@@ -114,14 +114,22 @@ def run_sensors(loader: PluginLoader, execution: Execution) -> Run:
     return run
 
 
-def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
-    """The run's config, minus the snooze transformers when ``--no-snooze`` asks.
+def _bypasses_snooze(args: argparse.Namespace) -> bool:
+    """Whether this run strips the snooze transformers before it filters findings.
 
-    Stripping them here emits the run before snooze filters it, which is what
-    ``habit-snooze --prune`` needs to compare its index against (#94).
+    Two runs do: ``--no-snooze`` emits the run before snooze so ``--prune`` can
+    compare its index against a snooze-free view (#94); and ``--file`` asks after
+    one file by name, wanting its whole picture — a standing snooze is a statement
+    about the backlog, not about the file you named, so it is set aside (#55).
+    Only the snooze transformers are dropped, never a project's own unrelated one.
     """
+    return args.no_snooze or args.file is not None
+
+
+def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
+    """The run's config, minus the snooze transformers when the mode bypasses them."""
     config = load_config(project_dir, args.config)
-    if args.no_snooze:
+    if _bypasses_snooze(args):
         config.transformers = [
             name for name in config.transformers if name not in SNOOZE_TRANSFORMERS
         ]

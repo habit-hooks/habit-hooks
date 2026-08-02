@@ -1336,6 +1336,42 @@ habit-sensors --file src/a.txt | jq '[.[].issues[].key]'
 ]
 ```
 
+### `--file` surfaces a finding `--all` leaves snoozed
+
+`--file` answers "tell me everything about this file, right now", so it sets the
+snooze index aside — a standing exemption is a statement about the backlog, not
+about the file you named (#55). `src/a.txt` is snoozed, so `--all` filters its
+finding out; `--file src/a.txt` reports it anyway. Only snoozing is bypassed, so
+a project's own transformers are untouched.
+
+📄src/a.txt
+```text
+a
+```
+
+📄.habit-hooks/snooze.json
+```json
+["src/a.txt"]
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+```bash
+habit-sensors --file src/a.txt | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt"]
+```
+
 ### A `--file` the project does not count as source says so
 
 `[files]` narrows every mode, `--file` included — the hook behind it fires on
