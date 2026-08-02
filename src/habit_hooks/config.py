@@ -11,6 +11,8 @@ from pathlib import Path
 
 from attrs import define, field, fields
 
+from .resolve import Resolver
+
 
 @define
 class SmellOverride:
@@ -80,7 +82,33 @@ def _read_toml(path: Path) -> dict:
         return tomllib.load(f)
 
 
+def _plugin_files(plugins: list[str], project_dir: Path) -> list[str]:
+    """Every active plugin's declared source globs, in ``plugins`` order.
+
+    The union rather than the first hit: a project running ``python`` and
+    ``typescript`` considers both languages' files source. Order is kept because
+    pathspec reads the list in order, so a later pattern can negate an earlier
+    one. A plugin that declares no ``files`` (``generic``) is stating no opinion,
+    not "everything".
+    """
+    resolver = Resolver.discover(project_dir)
+    globs: list[str] = []
+    for plugin in plugins:
+        path = resolver.in_plugin(plugin, "config.toml")
+        declared = _read_toml(path).get("files", []) if path else []
+        globs.extend(glob for glob in declared if glob not in globs)
+    return globs
+
+
 def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
-    """Merge the project's ``.habit-hooks/config.toml`` over plugin defaults."""
+    """Merge the project's ``.habit-hooks/config.toml`` over the plugin defaults.
+
+    ``files`` is the one root key a plugin supplies a default for: a project that
+    names none inherits what its plugins call source, and a project that names
+    its own replaces them wholesale — its answer is the authoritative one.
+    """
     path = config_path or project_dir / ".habit-hooks" / "config.toml"
-    return _build_config(_read_toml(path))
+    config = _build_config(_read_toml(path))
+    if config.files is None:
+        config.files = _plugin_files(config.plugins, project_dir) or None
+    return config

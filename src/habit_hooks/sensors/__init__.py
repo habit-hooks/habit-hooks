@@ -65,7 +65,9 @@ def main(argv: list[str] | None = None) -> int:
     loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope))
     sys.stdout.write(json.dumps(run.findings) + "\n")
-    for notice in run.notices:
+    # Why the scope came out empty first: a run that measured nothing must say so
+    # rather than let every sensor report clean over it.
+    for notice in [*scope.notices, *run.notices]:
         sys.stderr.write(notice + "\n")
     for hint in recommendations(project_dir, scope.files, run.active_languages):
         sys.stderr.write(hint + "\n")

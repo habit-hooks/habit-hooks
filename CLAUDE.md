@@ -48,12 +48,37 @@ key into two spellings, which hides aliasing. Do not add anchoring to a sensor
 either: the point is that a third-party sensor obeys a convention it never heard
 of, so a snooze index stays portable between a checkout and CI
 (`ruff`/`eslint`/`ts-morph` all report absolute paths). Anchoring is **lexical**
-— no existence check, because git-scoped runs still pass deleted paths to
-sensors (#81), so a key matching none of its files cannot be caught here.
+— no existence check, because a sensor may report a path the scope never handed
+it (a tool's cache, its own scan root), so a key matching none of its files
+cannot be caught here. (Deleted paths are no longer a reason: since #81 the
+scope drops them before any sensor runs.)
 Failures: unanchorable path, or output the contract has no shape for (a
 non-object `details`, a non-list `issues`) → `SensorError` (notice, failed run,
 that sensor's findings dropped); a key that is one of its own files while
 covering others → notice + failed run with the findings kept.
+
+### The scope is narrowed once, in `resolve_scope`, for every mode (agent decision, issue #81)
+
+`resolve_scope` = pick the mode's paths, then narrow them: drop what the work
+tree no longer has, then keep only what `[files]` matches (`scope._source_files`).
+Do not push either guard into a sensor — every sensor in every plugin, including
+third-party ones, would have to re-implement it, and #81 is exactly what happens
+when they don't (`line-count.py` reading a deleted path → `FileNotFoundError`,
+exit 1, empty stdout, read as clean). `--file` is narrowed too: one setting
+answers "what is source here", or it answers nothing.
+
+Git modes measure from the **merge base** of the base ref and `HEAD`, matching
+`changed_files.py` — the same question, one answer, so `[scope] branchBase` means
+the same thing in a scoped run and in a lapsing snooze. A ref a real repository
+cannot resolve is a `SystemExit` naming the ref and whatever chose it (via
+`rev-parse --verify --quiet <ref>^{commit}`, as in `changed_files`); "not a git
+repository" is checked first and outranks it. Empty output from git is never
+allowed to mean "nothing to scan".
+
+`config.load_config` merges the active plugins' declared `files` (union, in
+`plugins` order, deduped) when the project names none; the project's own list
+replaces them wholesale. That is why `config.py` imports `Resolver` — the merge
+needs the override chain, and only `files` has a plugin-supplied default.
 
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
@@ -64,6 +89,20 @@ out of the config and passes those as positional args (resolved against cwd),
 keeping the config the single source for threshold/ignore/minLines/minTokens.
 
 ## Gotchas
+
+### A git-backed spec case without a ceiling can rewrite THIS repo
+
+The spec harness runs each case in `<repo>/.spec-runs/tmpXXXX/`, inside this
+checkout. A case that shells out to git and forgets its own `git init` is
+answered about habit-hooks itself — and `git branch -m main trunk` or
+`git checkout -b feature` then *mutates your repository* (it renamed `main` here
+while proving a case discriminates; recovered via `git branch -m trunk main`, no
+commits lost). Give every git-backed section a
+`✏️GIT_CEILING_DIRECTORIES` = `$PWD/..` step next to its `git init`, as
+`## Scope` → `### Git-derived scopes` in habit-sensors.spec.md does: git's
+upward walk then stops at the case directory and the case can only ever see the
+repository it built. Older git-backed cases (habit-snooze.spec.md's
+`## --until-changed`, and two in habit-sensors.spec.md) still lack it.
 
 ### `git diff --name-only` answers from the repo root, and quotes odd names
 

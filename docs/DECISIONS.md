@@ -243,3 +243,53 @@ mapping, config validation) are resolved and recorded above / in
   sensor no longer matches, so its issues come back. Re-snooze once
   (`habit-sensors --all | habit-snooze --snooze`), then `--prune` drops the stale
   absolute keys.
+
+## The scope is narrowed once, for every mode (2026-08, issue #81, agent decisions)
+
+- **Both narrowings live in `resolve_scope`, not in the sensors.** Whatever mode
+  picked the paths, a path the work tree no longer has is dropped and what
+  survives must match `[files]`. Every git mode used to hand `git diff
+  --name-only` straight through, so a deleted path reached `line-count.py`
+  (`FileNotFoundError`, exit 1, empty stdout — read as a clean run, #78) and a
+  lockfile bump produced `oversized-file: pnpm-lock.yaml`. Fixing it per sensor
+  would mean every sensor, in every plugin, re-implementing the same two guards,
+  and any third-party sensor getting it wrong by not knowing they existed.
+- **`[files]` applies to `--file` too.** One setting answers "what does this
+  project consider source", or it answers nothing: an editor hook firing on a
+  lockfile edit must not score the lockfile. The cost is that `--file` on a path
+  outside `files` scans nothing — the same answer `--all` gives it.
+- **Scope now measures from the merge base, like `changed_files` does.** Two-dot
+  `git diff <base>` compares the base ref's *tip* to the work tree, so a branch
+  was scoped in files somebody else changed on the base after it forked — the
+  gate failing on debt this branch never touched. The consequence differed from
+  the same reading in snooze (there it lapsed an exemption; here it merely lints
+  extra files), but the question is identical — "what has this branch changed?" —
+  and two answers to one question is how #80 and #81 became separate bugs. One
+  reading now serves both, and `[scope] branchBase` means the same thing wherever
+  it is read.
+- **A base ref a real repository cannot resolve fails the run**, the same
+  distinction `changed_files._comparison_point` draws, by the same
+  `git rev-parse --verify --quiet <ref>^{commit}` exit codes. Git answers a ref
+  it never heard of with an empty diff, so a typo'd `branchBase`, or a shallow CI
+  checkout without the base, scanned *nothing* and reported every sensor clean.
+  "No repository" still outranks it — that is the existing, clear `SystemExit`,
+  and it is checked first. The message names the ref and whatever chose it
+  (`[scope] branchBase`, `--branch`, `--since`, `--last`), because the remedy
+  differs per mode.
+- **`files` is the one root key a plugin supplies a default for**, and the merge
+  is a union across the active plugins in `plugins` order, deduped, with the
+  project's own list replacing it wholesale (replace-on-override, as
+  `transformers` and `[sensors.*] args` already are). Union rather than
+  first-wins because a polyglot project's source is the sum of what its plugins
+  call source; order is kept because pathspec reads the list in order, so a later
+  pattern can negate an earlier one. A plugin that declares no `files`
+  (`generic`) states *no opinion*, not "everything" — otherwise every union would
+  be everything and the default would be worthless. The three shipped language
+  plugins had declared `files` since they were written, and nothing ever read the
+  key.
+- **Supersedes the "No existence check" note above (#79)**, which argued that
+  anchoring must stay lexical because git-scoped runs hand deleted paths to
+  sensors. They no longer do. Anchoring stays lexical for the reason that
+  outlived that one: a sensor may report a path the scope never handed it, and a
+  boundary that reads somebody else's program should resolve names rather than
+  ask the filesystem.

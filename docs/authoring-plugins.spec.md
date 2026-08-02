@@ -478,13 +478,13 @@ uv pip install --quiet --target vendor ./habit-hooks-lua
 vendor
 ```
 
-The project turns the installed plugin on by listing it; `files` scopes the run
-to Lua sources so the sensor sees only them.
+The project turns the installed plugin on by listing it — and nothing else. The
+plugin's own `files` scopes the run to Lua sources, so the sensor sees only them
+without the project restating it ([config.md](config.md)).
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["lua"]
-files = ["**/*.lua"]
 ```
 
 📄src/util.lua

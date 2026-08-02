@@ -945,19 +945,27 @@ comes from the `[scope]` config.
 |------|-------|
 | `--all` | every file |
 | `--file <path>` | a single file |
-| `--branch [base]` | changed vs `base` (default `scope.branchBase`) |
+| `--branch [base]` | changed since this branch left `base` (default `scope.branchBase`) |
 | `--last <n>` | changed in the last `n` commits |
 | `--since <ref>` | changed since a commit |
 | `--config <path>` | use an explicit config file |
 | (none) | `scope.changedOnly` → uncommitted; else `scope.autoBranchOffMain` → vs base unless on `scope.mainBranch`; else all |
 
 A git-mode flag run outside a git repository errors; the config-derived modes
-fall back to scanning every file instead.
+fall back to scanning every file instead. A ref a *real* repository does not have
+is an error too: git answers a ref it never heard of with an empty diff, and a
+run that scanned nothing would report every sensor clean.
 
-### --file scopes `${files}` to one file
+However the paths were picked, the same two narrowings apply before any sensor
+sees them:
 
-`--file` narrows `${files}` to the one named path, so the sensor only sees
-`src/a.txt` even though `src/b.txt` also exists.
+- **a path the work tree no longer has is dropped** — every git diff names the
+  files a branch deleted, and a deleted file has no smells left to find;
+- **what survives must match `[files]`** — so one setting says what this project
+  considers source, whether the run came from a flag or from git.
+
+Every case below shares this fixture: a sensor that reports back exactly the
+files it was handed.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -973,6 +981,11 @@ sensors = ["echo-files"]
 ```toml
 command = "jq -n --args '[{smell: \"warning-comment\", details: {}, issues: ($ARGS.positional | map({key: ., details: {file: .}}))}]' ${files}"
 ```
+
+### --file scopes `${files}` to one file
+
+`--file` narrows `${files}` to the one named path, so the sensor only sees
+`src/a.txt` even though `src/b.txt` also exists.
 
 📄src/a.txt
 ```text
@@ -993,4 +1006,293 @@ habit-sensors --file src/a.txt | jq '[.[].issues[].key]'
 [
   "src/a.txt"
 ]
+```
+
+### A `--file` the project does not count as source says so
+
+`[files]` narrows every mode, `--file` included — the hook behind it fires on
+each edited file, including the ones a project rightly does not scan. That is
+not an error, so the run still exits 0; but it scanned nothing, and a run that
+measured nothing must never be indistinguishable from a clean one. It says which
+file and why, on stderr, leaving stdout a valid empty findings array.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["src/**"]
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄pnpm-lock.yaml
+```text
+lockfile
+```
+
+```bash
+habit-sensors --file pnpm-lock.yaml | jq '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: --file 'pnpm-lock.yaml' is outside [files]; nothing scanned
+```
+
+### Git-derived scopes
+
+`--branch`, `--since` and the `[scope]` defaults all ask git one question: what
+has this branch changed since it left the base ref? It is measured from the
+**merge base** of that ref and `HEAD`, so work someone else lands on the base
+afterwards is never scanned as if it were yours.
+
+Each case here builds its own repository. The spec harness runs every case in a
+directory *inside* this project's checkout, so a case that skipped `git init`
+would be answered about habit-hooks itself — and would go on to *rename its
+branches*. `GIT_CEILING_DIRECTORIES` stops git's upward walk at the case
+directory, so these cases can only ever see the repository they build. A real
+project needs no such thing.
+
+`.habit-hooks/` is left untracked on purpose: a fixture a case rewrites later
+must not show up as one of the branch's own changes.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄src/b.txt
+```text
+b
+```
+
+📄pnpm-lock.yaml
+```text
+lockfile
+```
+
+```bash
+git init -q -b main . &&
+  git config user.email spec@example.com &&
+  git config user.name "Spec Runner" &&
+  git config commit.gpgsign false &&
+  git add src pnpm-lock.yaml &&
+  git commit -q -m baseline
+```
+
+#### A file the branch deleted is not scanned
+
+The branch edits one file and deletes another. Git names both, as it must — but
+only the surviving file can still be read, so only it reaches the sensor.
+
+```bash
+git checkout -q -b feature &&
+  printf 'more\n' >> src/a.txt &&
+  git rm -q src/b.txt &&
+  git commit -q -am "grow a, drop b"
+```
+
+```bash
+git diff --name-only main
+```
+
+🖥️ ✅
+```text
+src/a.txt
+src/b.txt
+```
+
+```bash
+habit-sensors --branch main | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt"]
+```
+
+#### `[files]` narrows a branch's changes too
+
+A branch that bumps a lockfile alongside its source must not be scored on the
+lockfile: `[files]` already says what this project counts as source, and it says
+so for every mode. Without it the run would report a smell the consumer could
+only silence by snoozing a file nobody will ever refactor.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["src/**"]
+```
+
+```bash
+git checkout -q -b feature &&
+  printf 'more\n' >> src/a.txt &&
+  printf 'bumped\n' >> pnpm-lock.yaml &&
+  git commit -q -am "bump the lockfile"
+```
+
+```bash
+habit-sensors --branch main | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt"]
+```
+
+#### Work landed on the base ref afterwards is not this branch's
+
+The comparison starts at the merge base, not at the tip of the base ref. Here
+the branch edits `src/a.txt` while somebody else lands `src/b.txt` on `main`:
+scoping in their file would fail this branch's gate on debt it never went near.
+
+```bash
+git checkout -q -b feature &&
+  printf 'more\n' >> src/a.txt &&
+  git commit -q -am "this branch touches a" &&
+  git checkout -q main &&
+  printf 'moved on\n' >> src/b.txt &&
+  git commit -q -am "main moves on without us" &&
+  git checkout -q feature
+```
+
+```bash
+habit-sensors --branch main | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt"]
+```
+
+#### A base ref this checkout cannot resolve fails the run
+
+A shallow CI checkout never fetched `main`; a project whose trunk is `master`
+never had one; a typo in `[scope] branchBase` names one that was never there.
+Each would diff against nothing, scan nothing, and report clean — the silent
+green that makes a scoped run untrustworthy. So the run fails instead, naming
+the ref and the setting that named it.
+
+The base branch is renamed here while `[scope] branchBase` stays at its `main`
+default, which is also what proves this case owns its repository: habit-hooks'
+own checkout does have `main`.
+
+```bash
+git branch -m main trunk
+```
+
+```bash
+git rev-parse --verify --quiet 'main^{commit}'
+```
+
+🖥️ ❌ 1
+
+```bash
+habit-sensors --branch
+```
+
+🖥️ ❌ 1
+
+🚨
+```text
+habit-sensors: base ref 'main' does not resolve in this checkout — set [scope] branchBase to a ref it has
+```
+
+### A project with no `files` of its own inherits its plugins'
+
+`files` is the one root key a plugin supplies a default for: a project that names
+none scans what its plugins call source — every active plugin's `files`, in
+`plugins` order. A plugin that declares none (`generic` in the fixture above) is
+stating no opinion, not "everything", so a project whose plugins all stay silent
+still scans the whole tree.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic", "prose"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["echo-files"]
+files   = ["src/**"]
+```
+
+📄.habit-hooks/prose/config.toml
+```toml
+sensors = []
+files   = ["notes/**"]
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄notes/design.md
+```text
+design
+```
+
+📄pnpm-lock.yaml
+```text
+lockfile
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["notes/design.md","src/a.txt"]
+```
+
+### A project's own `files` replaces its plugins'
+
+The project's answer is the authoritative one: naming `files` replaces the
+plugins' defaults wholesale rather than adding to them, the same way naming
+`transformers` does. Here the plugin says `src/**` and the project says
+`notes/**`, and only the project's answer survives.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["notes/**"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["echo-files"]
+files   = ["src/**"]
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄notes/design.md
+```text
+design
+```
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["notes/design.md"]
 ```

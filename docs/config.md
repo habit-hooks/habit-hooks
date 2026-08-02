@@ -37,7 +37,7 @@ These live at the top level of the **project** `config.toml`.
 |----------------|---------|
 | `plugins`      | An **ordered** list of plugins to activate, **selecting among the installed plugin packages** by name. The order is a priority: it is the order sensors run and the order the mapper looks up guides (earlier wins, `generic` last). A listed plugin that is neither installed nor overridden under `.habit-hooks/<plugin>/` fails with an error naming its `pip install habit-hooks-<plugin>` command. `generic` is listed explicitly like any other plugin, so a project can drop it. |
 | `transformers` | An ordered list of transformers applied to the concatenated findings of the whole run, in order. **Defaults to `["snooze"]`**, so a checked-in snooze index takes effect with no wiring; the core ships that transformer, so the default resolves whatever `plugins` names. Naming the key replaces the list wholesale — write `transformers = []` to drop snooze, or name `snooze-until-changed` for the ratchet variant below. |
-| `files`        | Discovery globs (pathspec / gitwildmatch). Defaults come from the loaded plugins. |
+| `files`        | Discovery globs (pathspec / gitignore) — what this project counts as source, in **every** scope mode. Defaults to what the loaded plugins declare (below); naming it replaces those wholesale. |
 | `[scope]`      | Git-scoping defaults for a run with no scope flag. |
 
 ```toml
@@ -117,13 +117,46 @@ reproducible only to the extent the installed plugin versions are. Recommended:
 
 ### `files` globs have no brace expansion
 
-`files` uses pathspec (gitwildmatch) matching, which has **no brace expansion**.
+`files` uses pathspec (gitignore) matching, which has **no brace expansion**.
 Write a list of patterns, one per extension — never a `{…}` alternation:
 
 ```toml
-files = ["**/*.ts", "**/*.tsx"]   # ✅
-# files = "**/*.{ts,tsx}"          ❌ matched literally, never expanded
+files = ["**/*.ts", "**/*.tsx"] # ✅
+# files = "**/*.{ts,tsx}"        ❌ matched literally, never expanded
 ```
+
+### `files` describes every mode, not just `--all`
+
+`files` is applied wherever the scope came from — `--all`, `--file`, and every
+git-derived mode ([habit-sensors.spec.md](habit-sensors.spec.md)). A branch that
+bumps a lockfile is therefore not scored on it, and a run scoped to a branch is
+scoped to that branch's *source* changes. Paths the work tree no longer has are
+dropped as well: a file deleted on the branch has no smells left to find.
+
+### `files` defaults to what the plugins declare
+
+A plugin states what its sensors consider source in its own `config.toml`
+([authoring-plugins.spec.md](authoring-plugins.spec.md)). With no project
+`files`, the run scans the union of every active plugin's globs, in `plugins`
+order — so a project running `python` and `typescript` scans both languages
+without configuring anything:
+
+```toml
+# habit_hooks_python/config.toml   ->  files = ["**/*.py"]
+# habit_hooks_typescript/config.toml -> files = ["**/*.ts", "**/*.tsx"]
+
+plugins = ["python", "typescript"]   # scans **/*.py, **/*.ts, **/*.tsx
+```
+
+Two rules cover the rest:
+
+- **The project's own `files` is authoritative.** Naming it replaces the plugins'
+  defaults wholesale rather than adding to them, the same way naming
+  `transformers` does. Order is kept as written, so a later pattern can negate an
+  earlier one.
+- **A plugin that declares no `files` states no opinion, not "everything".**
+  `generic` declares none, so a project whose plugins all stay silent scans the
+  whole tree — the behaviour a bare install has always had.
 
 ### `[scope]`
 
@@ -135,7 +168,7 @@ scope is derived from `[scope]`. The scope flags themselves live in
 |---------------------|---------|
 | `changedOnly`       | Restrict the default run to uncommitted (git-changed) files. |
 | `autoBranchOffMain` | When not on `mainBranch`, default to diffing against `branchBase`. |
-| `branchBase`        | Base ref for branch-relative scoping (used by `--branch` and `autoBranchOffMain`). |
+| `branchBase`        | Base ref for branch-relative scoping (used by `--branch` and `autoBranchOffMain`). It must exist in the checkout: a ref a real repository cannot resolve **fails the run**, rather than scoping it to nothing and reporting clean. Scoping starts at the merge base of this ref and `HEAD`, so work landed on the base after you branched is never scanned as yours. |
 | `mainBranch`        | The branch name on which `autoBranchOffMain` does *not* kick in. |
 
 ```toml

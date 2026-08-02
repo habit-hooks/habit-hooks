@@ -76,11 +76,15 @@ failure — a stderr notice and exit 1 ([habit-sensors.spec.md](habit-sensors.sp
   `details` that is not one, an `issues` that is not a list — fails by name
   rather than escaping as a traceback. A sensor is somebody else's program.
 
-Anchoring is **lexical**: no path is checked for existing, because a run scoped to
-a branch legitimately reports files that have since been deleted. So a key that
-matches *none* of its files — a sensor reporting paths relative to its own scan
-root — is indistinguishable from a deliberate grouping key and passes; only the
-sensor can fix that one, by reporting paths its project can place.
+Anchoring is **lexical**: no path is checked for existing. A sensor may report a
+path the scope never handed it — one from a tool's cache, or from its own scan
+root — and this boundary reads programs nobody here wrote, so it resolves names
+rather than judging what the filesystem holds. (Files a branch deleted never get
+this far: the scope drops them before any sensor runs,
+[habit-sensors.spec.md](habit-sensors.spec.md).) So a key that matches *none* of
+its files — a sensor reporting paths relative to its own scan root — is
+indistinguishable from a deliberate grouping key and passes; only the sensor can
+fix that one, by reporting paths its project can place.
 
 Every case below runs one sensor whose command prints the findings verbatim.
 

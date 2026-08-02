@@ -124,6 +124,11 @@ habit-hooks --since <ref>    # files changed since a commit
 
 The scope flags are mutually exclusive. With no flag, the scope is derived from the `[scope]` config (see below).
 
+A git-derived run measures what your branch changed since it left the base ref — from the **merge base**, so files
+somebody else changed on the base afterwards are not yours to fix. Whatever picked the paths, files the work tree no
+longer has are dropped (a deleted file has no smells left) and the rest must match `files`. A base ref the checkout
+cannot resolve fails the run instead of quietly scanning nothing.
+
 ## Plugins
 
 Everything language- or tool-specific lives in a **plugin** — a self-contained bundle of files:
@@ -195,10 +200,14 @@ One file is read by both stages, each picking out the keys it cares about:
 ```toml
 plugins = ["generic", "python"]   # ordered = lookup priority; drop "generic" to disable it
 transformers = ["snooze"]         # applied to the whole run's findings, in order
-files = ["**/*.py"]               # discovery globs (pathspec / gitwildmatch)
+files = ["**/*.py"]               # discovery globs (pathspec / gitignore), in every scope mode
 ```
 
-`files` uses pathspec (gitwildmatch) matching, which has **no brace expansion** — write one pattern per
+`files` says what this project counts as source, and applies to every scope mode. Leave it out and the run scans
+what its plugins declare — the union of every active plugin's own `files`, in `plugins` order (`generic` declares
+none, so a project with only `generic` scans the whole tree). Naming it replaces those defaults wholesale.
+
+`files` uses pathspec (gitignore) matching, which has **no brace expansion** — write one pattern per
 extension, never a `{…}` alternation:
 
 ```toml
@@ -214,7 +223,7 @@ When a run is invoked with no explicit scope flag, the scope is derived from `[s
 [scope]
 changedOnly = false        # restrict the default run to uncommitted (git-changed) files
 autoBranchOffMain = true   # when not on mainBranch, default to diffing against branchBase
-branchBase = "main"        # base ref for branch-relative scoping
+branchBase = "main"        # base ref for branch-relative scoping; must exist in the checkout
 mainBranch = "main"        # the branch on which autoBranchOffMain does not kick in
 ```
 

@@ -129,6 +129,33 @@ whatIsThis = true
     assert not hasattr(config.scope, "bogusScopeKey")
 
 
+def _plugin_config(tmp_path: Path, plugin: str, body: str) -> None:
+    """A fixture plugin, shadowing any installed one of that name."""
+    path = tmp_path / ".habit-hooks" / plugin / "config.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body)
+
+
+def test_plugin_files_merge_in_plugins_order_without_repeating(tmp_path: Path) -> None:
+    """Order is load-bearing: a later negation must be able to undo an earlier glob."""
+    project = _write(tmp_path, 'plugins = ["alpha", "beta"]')
+    _plugin_config(project, "alpha", 'files = ["src/**", "shared/**"]')
+    _plugin_config(project, "beta", 'files = ["shared/**", "lib/**"]')
+    assert load_config(project).files == ["src/**", "shared/**", "lib/**"]
+
+
+def test_the_projects_own_files_replace_the_plugins(tmp_path: Path) -> None:
+    project = _write(tmp_path, 'plugins = ["alpha"]\nfiles = ["only/**"]')
+    _plugin_config(project, "alpha", 'files = ["src/**"]')
+    assert load_config(project).files == ["only/**"]
+
+
+def test_a_plugin_declaring_no_files_states_no_opinion(tmp_path: Path) -> None:
+    project = _write(tmp_path, 'plugins = ["alpha"]')
+    _plugin_config(project, "alpha", 'sensors = ["noop"]')
+    assert load_config(project).files is None
+
+
 def test_direct_defaults_are_independent_instances() -> None:
     a = Config()
     b = Config()
