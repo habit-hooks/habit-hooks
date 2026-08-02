@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4
+
+### Security
+- **A filename could execute arbitrary code.** Sensor commands are built by substituting the scoped file list into a shell command, and the paths were not quoted — so a file named, for example, `src/a$(...).py` had its contents run by the shell. habit-hooks is designed to run from a git hook and in CI, so a file arriving in a pull request from a fork would execute on any machine that ran a check over it. `${files}` and `${dir}` are now both shell-quoted (`${python}` and `${args}` already were). Affects 1.0.0-1.0.3; upgrade is the only mitigation.
+
+  The same bug also broke ordinary filenames: a path containing a space was word-split into two non-existent paths (so the real file was silently never scanned), and a path containing shell syntax such as `report(1).py` aborted the whole sensor, dropping every finding it would have reported.
+
 ## 1.0.3
 
 ### Changed

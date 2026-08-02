@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks"
-version = "1.0.3"
+version = "1.0.4"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
 requires-python = ">=3.11"
 dependencies = [

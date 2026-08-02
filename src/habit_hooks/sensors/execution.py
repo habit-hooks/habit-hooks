@@ -78,11 +78,18 @@ class Execution:
             return [], f"habit-sensors: {error}"
 
     def _expand(self, part: Part) -> str:
-        files = " ".join(self.scope.files)
+        """The command to run, with every substituted value quoted.
+
+        A command is a shell string — sensors pipe through ``jq`` — so every
+        value spliced into it has to be quoted or the shell reads it as syntax.
+        A path is the dangerous one: it comes from the work tree, so an
+        unquoted ``${files}`` lets a filename execute its own contents.
+        """
+        files = " ".join(shlex.quote(f) for f in self.scope.files)
         args = " ".join(shlex.quote(arg) for arg in part.args)
         return (
             part.command.replace("${python}", shlex.quote(sys.executable))
-            .replace("${dir}", str(part.directory))
+            .replace("${dir}", shlex.quote(str(part.directory)))
             .replace("${args}", args)
             .replace("${files}", files)
         )
