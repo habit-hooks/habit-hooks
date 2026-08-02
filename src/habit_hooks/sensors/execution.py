@@ -31,7 +31,13 @@ class Execution:
     config_path: Path | None = None
 
     def run_sensors(self, sensors: list[Part]) -> Run:
-        if not sensors:
+        # An empty scope measured nothing, so no sensor runs: a tool handed no
+        # paths falls back to its own default (ruff's is "scan cwd"), reporting
+        # the whole repo's debt over a scope that named none (#93). Absorbed
+        # here, every sensor — including a third-party one that never heard of
+        # the convention — is covered without a per-sensor guard. The scope
+        # layer already emits the "measured nothing" notice.
+        if not sensors or not self.scope.files:
             return Run()
         with ThreadPoolExecutor(max_workers=len(sensors)) as pool:
             outputs = list(pool.map(self._safe_sensor, sensors))

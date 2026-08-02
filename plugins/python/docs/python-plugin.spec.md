@@ -65,6 +65,63 @@ habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0]
 }
 ```
 
+## An empty scope runs no sensor, so ruff never scans the whole tree
+
+A scoped run that resolves to **zero** files measured nothing, and no sensor may
+run over it. `ruff` handed no paths falls back to its own default — scan the
+current directory — so without this guard a non-source-only change reports every
+legacy smell in the tree and fails the run (#93). Here `[files]` counts only
+`**/*.py` as source (the plugin default) and `--file README.md` names a doc, so
+the scope is empty even though `legacy.py` carries three real smells. The run
+emits `[]` and exits 0, and the scope layer still says on stderr that it scanned
+nothing.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+
+[sensors.deptry]
+disabled = true
+```
+
+📄ruff.toml @plugins/python/src/habit_hooks_python/ruff.toml
+
+📄pyproject.toml
+```toml
+[project]
+name = "demo"
+version = "0.0.0"
+```
+
+📄legacy.py
+```python
+import os
+
+
+def charge(a, b, c, d):
+    unused = 1
+    return a + b + c + d
+```
+
+📄README.md
+```text
+# docs
+```
+
+```bash
+habit-sensors --file README.md
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: --file 'README.md' is outside [files]; nothing scanned
+```
+
 ## ruff maps a syntax error to parse-error
 
 A file ruff cannot parse surfaces as `parse-error` (ruff reports it as
