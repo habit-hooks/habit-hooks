@@ -2,6 +2,10 @@
 
 ## 1.1.0
 
+### Security
+- **A filename could execute arbitrary code** (also released as 1.0.4). The scoped file list was substituted into a sensor's shell command unquoted, so a file named e.g. `src/a$(...).py` had its contents run by the shell — on any machine that ran a check over it, including CI on a fork's pull request. `${files}` and `${dir}` are now shell-quoted. The same fix repairs two silent failures: a path containing a space was word-split so the real file was never scanned, and a path like `report(1).py` aborted the sensor and dropped every finding it had.
+
+
 Snoozing works again, and a broken tool can no longer report a clean run.
 
 Most of this release comes from migrating a real TypeScript project from the npm
