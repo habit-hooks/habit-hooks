@@ -1305,11 +1305,19 @@ directory, so these cases can only ever see the repository they build. A real
 project needs no such thing.
 
 `.habit-hooks/` is left untracked on purpose: a fixture a case rewrites later
-must not show up as one of the branch's own changes.
+must not show up as one of the branch's own changes. A scoped run now also
+measures untracked and staged work (#92), so `[files] = ["src/**"]` keeps this
+config out of what the sensors see — exactly as a real project's `[files]` does.
 
 ✏️GIT_CEILING_DIRECTORIES
 ```text
 $PWD/..
+```
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["src/**"]
 ```
 
 📄src/a.txt
@@ -1419,6 +1427,30 @@ habit-sensors --branch main | jq -c '[.[].issues[].key]'
 🖥️ ✅
 ```json
 ["src/a.txt"]
+```
+
+#### Untracked and staged work in progress is still measured
+
+The file most likely to carry a fresh smell is the one just written — new, or
+staged for a commit that has not happened yet. `git diff` names neither, so a
+scope built on it alone would report clean over the very work under review (#92).
+Here the branch stages an edit to `src/a.txt` and adds a brand-new `src/new.txt`
+without committing either; both reach the sensor.
+
+```bash
+git checkout -q -b feature &&
+  printf 'more\n' >> src/a.txt &&
+  git add src/a.txt &&
+  printf 'brand new\n' > src/new.txt
+```
+
+```bash
+habit-sensors --branch main | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt","src/new.txt"]
 ```
 
 #### A base ref this checkout cannot resolve fails the run

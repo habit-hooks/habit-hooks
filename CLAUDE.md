@@ -75,6 +75,19 @@ cannot resolve is a `SystemExit` naming the ref and whatever chose it (via
 repository" is checked first and outranks it. Empty output from git is never
 allowed to mean "nothing to scan".
 
+Every git mode then widens its history with the **uncommitted work in progress**
+(`git_history.uncommitted_changes`, folded in by `scope._with_work_in_progress`,
+issue #92): `git diff` never names an untracked path and, commit-to-commit, never
+names a staged one, so the file just written — the one most likely to carry a
+fresh smell — is exactly the file a diff-built scope would miss. The union is
+staged (`git diff --cached`) + unstaged (`git diff`) + untracked non-ignored
+(`git ls-files --others --exclude-standard`), each carrying the same `-z` /
+`--literal-pathspecs` guards the batched diff needs, then narrowed by
+`_source_files` like anything else. This is deliberately **not** shared with
+`changed_files.py`: an untracked file's snooze rightly holds (which files to scan
+is a different question from which snoozes lapse), so the widening lives in
+`scope`, not `git_history`'s shared merge-base question.
+
 `config.load_config` merges the active plugins' declared `files` (union, in
 `plugins` order, deduped) when the project names none; the project's own list
 replaces them wholesale. That is why `config.py` imports `Resolver` — the merge

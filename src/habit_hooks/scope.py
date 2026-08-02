@@ -1,11 +1,12 @@
 """Pick the files the leaf sensors see, then expose them as ``scope.files``.
 
 The scope flags are mutually exclusive; with none, the scope is derived from the
-``[scope]`` config. Git-backed modes ask ``git_history`` — the same question, in
-the same words, that a lapsing snooze asks. Whatever mode picked them, the paths
-are placed in the project and then narrowed to the files the work tree still has
-and ``[files]`` still calls source. File selection uses pathspec (gitignore)
-globbing — no brace expansion.
+``[scope]`` config. Git-backed modes measure a branch from the same merge base a
+lapsing snooze asks ``git_history`` for, then widen the answer to the uncommitted
+work in progress — the staged and untracked files a diff alone would miss (#92).
+The picked paths are then placed in the project and narrowed to the files the
+work tree still has and ``[files]`` still calls source. File selection uses
+pathspec (gitignore) globbing — no brace expansion.
 """
 
 from __future__ import annotations
@@ -81,7 +82,7 @@ def _configured_scope(config: Config, project_dir: Path) -> list[str]:
     if not git_history.places_directory(project_dir):
         return _every_file(project_dir)
     if config.scope.changedOnly:
-        return git_history.changed_paths(project_dir, [])
+        return _with_work_in_progress(project_dir, [])
     on_main = git_history.head_branch(project_dir) == config.scope.mainBranch
     if config.scope.autoBranchOffMain and not on_main:
         return _changed_since(
@@ -144,11 +145,22 @@ def _every_file(project_dir: Path) -> list[str]:
     )
 
 
+def _with_work_in_progress(project_dir: Path, tracked: list[str]) -> list[str]:
+    """``tracked`` history widened with the uncommitted work in progress: a diff
+    misses the untracked file just written and, commit-to-commit, staged edits
+    too (#92). ``_source_files`` still narrows the union to present source after.
+    """
+    combined = [*tracked, *git_history.uncommitted_changes(project_dir)]
+    return list(dict.fromkeys(combined))
+
+
 def _changed_since(project_dir: Path, ref: str, remedy: str) -> list[str]:
-    """What this branch changed since it left ``ref``."""
+    """What this branch changed since it left ``ref``, plus its work in progress."""
     _require_git_repo(project_dir)
     fork_point = _fork_point(project_dir, ref, remedy)
-    return git_history.changed_paths(project_dir, [fork_point])
+    return _with_work_in_progress(
+        project_dir, git_history.changed_paths(project_dir, [fork_point])
+    )
 
 
 def _fork_point(project_dir: Path, ref: str, remedy: str) -> str:
@@ -169,17 +181,18 @@ def _fork_point(project_dir: Path, ref: str, remedy: str) -> str:
 
 
 def _changed_in_last_commits(project_dir: Path, count: int) -> list[str]:
-    """What the last ``count`` commits changed, uncommitted work aside.
+    """What the last ``count`` commits changed, plus the current work in progress.
 
-    A count is not a ref, so a history shorter than the question is not the
-    mistake a mistyped ref is: a young repository, or a shallow CI clone, means
-    "everything so far". The base clamps to the state before the first commit
-    rather than failing — and scanning more than asked is never a silent green.
+    A count is not a ref: a history shorter than the question means "everything
+    so far", not the mistake a mistyped ref is. The base clamps to before the
+    first commit rather than failing, and over-scanning never reads as clean.
     """
     _require_git_repo(project_dir)
     depth = git_history.resolves(project_dir, f"HEAD~{count}")
     since = depth or git_history.empty_tree(project_dir)
-    return git_history.changed_paths(project_dir, [since, "HEAD"])
+    return _with_work_in_progress(
+        project_dir, git_history.changed_paths(project_dir, [since, "HEAD"])
+    )
 
 
 def _require_git_repo(project_dir: Path) -> None:

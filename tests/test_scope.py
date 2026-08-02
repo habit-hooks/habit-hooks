@@ -16,19 +16,8 @@ import pytest
 
 from git_repo import commit_file, git, repository_with_committed_file
 from habit_hooks.config import Config, ScopeDefaults
-from habit_hooks.scope import Scope, parse_args, resolve_scope
-
-
-def _scope(
-    argv: list[str], project_dir: Path, config: Config | None = None
-) -> Scope:
-    return resolve_scope(parse_args(argv), config or Config(), project_dir)
-
-
-def _scoped_files(
-    argv: list[str], project_dir: Path, config: Config | None = None
-) -> list[str]:
-    return _scope(argv, project_dir, config).files
+from scope_probe import scope as _scope
+from scope_probe import scoped_files as _scoped_files
 
 
 def _source_file(project_dir: Path) -> Path:

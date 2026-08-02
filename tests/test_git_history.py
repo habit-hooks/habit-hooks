@@ -110,3 +110,33 @@ def test_a_non_ascii_path_comes_back_unquoted(tmp_path: Path) -> None:
     commit_file(accented, "VALUES = [2]\n")
     accented.write_text("VALUES = [2, 3]\n")
     assert git_history.changed_paths(tmp_path, []) == ["café.py"]
+
+
+def test_an_untracked_file_is_named(tmp_path: Path) -> None:
+    """The file `git diff` never mentions, and a scoped run must still measure."""
+    repository_with_committed_file(tmp_path)
+    (tmp_path / "fresh.py").write_text("VALUES = [1]\n")
+    assert git_history.untracked_paths(tmp_path) == ["fresh.py"]
+
+
+def test_an_ignored_file_is_not_named_untracked(tmp_path: Path) -> None:
+    """`--exclude-standard` keeps a build artifact out of the work in progress."""
+    repository_with_committed_file(tmp_path)
+    (tmp_path / ".gitignore").write_text("build.py\n")
+    (tmp_path / "build.py").write_text("VALUES = [9]\n")
+    assert "build.py" not in git_history.untracked_paths(tmp_path)
+
+
+def test_uncommitted_changes_unite_the_three_kinds_of_work(tmp_path: Path) -> None:
+    """Staged and unstaged edits and a brand-new file, all named once."""
+    committed = repository_with_committed_file(tmp_path)
+    commit_file(tmp_path / "tracked.py", "VALUES = [0]\n")
+    committed.write_text("VALUES = [1, 2]\n")
+    git(tmp_path, "add", "src.py")  # staged
+    (tmp_path / "tracked.py").write_text("VALUES = [0, 1]\n")  # unstaged
+    (tmp_path / "fresh.py").write_text("VALUES = [9]\n")  # untracked
+    assert set(git_history.uncommitted_changes(tmp_path)) == {
+        "src.py",
+        "tracked.py",
+        "fresh.py",
+    }

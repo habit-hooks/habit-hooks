@@ -166,7 +166,7 @@ scope is derived from `[scope]`. The scope flags themselves live in
 
 | Field               | Meaning |
 |---------------------|---------|
-| `changedOnly`       | Restrict the default run to uncommitted (git-changed) files. |
+| `changedOnly`       | Restrict the default run to uncommitted work: staged and unstaged edits, plus untracked (non-ignored) new files. |
 | `autoBranchOffMain` | When not on `mainBranch`, default to diffing against `branchBase`. |
 | `branchBase`        | Base ref for branch-relative scoping (used by `--branch` and `autoBranchOffMain`). It must exist in the checkout: a ref a real repository cannot resolve **fails the run**, rather than scoping it to nothing and reporting clean. Scoping starts at the merge base of this ref and `HEAD`, so work landed on the base after you branched is never scanned as yours. |
 | `mainBranch`        | The branch name on which `autoBranchOffMain` does *not* kick in. |

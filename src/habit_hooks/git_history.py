@@ -99,6 +99,43 @@ def changed_paths(
     ]
 
 
+def untracked_paths(project_dir: Path) -> list[str]:
+    """New files git is not tracking and not ignoring, in the project's own terms.
+
+    ``git diff`` never names an untracked path, so the file just written — the one
+    most likely to carry a smell — is the file a diff-built scope cannot see.
+    ``--exclude-standard`` keeps ignored files out: a build artifact is not work
+    in progress. ``-z`` stops a non-ASCII name being quoted (and then matching
+    nothing), and ``--literal-pathspecs`` keeps a path a plain path — the same
+    guards the batched diff needs. Run inside ``project_dir``, ``ls-files`` names
+    paths relative to it, matching ``--relative`` on the diffs it unites with.
+    """
+    named = _stdout(
+        project_dir,
+        "--literal-pathspecs",
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+    )
+    return [path for path in named.split("\0") if path]
+
+
+def uncommitted_changes(project_dir: Path) -> list[str]:
+    """The work in progress a commit-to-commit diff misses: staged and unstaged
+    edits to tracked files, and brand-new untracked files.
+
+    A bare ``git diff`` shows only unstaged changes and never an untracked path,
+    so in a pre-commit hook (where the work is staged) or on a branch with a new
+    module, the file under review is the file no git-derived scope would measure
+    (#92). Each such mode unites its history with this set; ``dict.fromkeys``
+    keeps it deduplicated with first-seen order.
+    """
+    staged = changed_paths(project_dir, ["--cached"])
+    unstaged = changed_paths(project_dir, [])
+    return list(dict.fromkeys([*staged, *unstaged, *untracked_paths(project_dir)]))
+
+
 def _diff_names(
     project_dir: Path, revisions: Collection[str], pathspecs: Collection[str]
 ) -> list[str]:
