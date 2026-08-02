@@ -12,12 +12,10 @@ cannot place, and a ref a real repository does not have.
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Collection, Iterator
+from collections.abc import Collection
 from pathlib import Path
 
-# Bytes of pathspec per `git diff`. Well under the smallest ARG_MAX we run on
-# (macOS, 1MB) with room to spare for the environment a spawn carries with it.
-_ARGUMENT_BUDGET = 100_000
+from .argv_budget import within_argument_limits
 
 
 def places_directory(project_dir: Path) -> bool:
@@ -94,7 +92,7 @@ def changed_paths(
         return _diff_names(project_dir, revisions, ())
     return [
         path
-        for batch in _within_argument_limits(sorted(pathspecs))
+        for batch in within_argument_limits(sorted(pathspecs))
         for path in _diff_names(project_dir, revisions, batch)
     ]
 
@@ -151,19 +149,6 @@ def _diff_names(
         *pathspecs,
     )
     return [path for path in named.split("\0") if path]
-
-
-def _within_argument_limits(pathspecs: list[str]) -> Iterator[list[str]]:
-    batch: list[str] = []
-    length = 0
-    for path in pathspecs:
-        if batch and length + len(path) > _ARGUMENT_BUDGET:
-            yield batch
-            batch, length = [], 0
-        batch.append(path)
-        length += len(path) + 1
-    if batch:
-        yield batch
 
 
 def _run(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str] | None:

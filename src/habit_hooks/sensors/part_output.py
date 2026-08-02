@@ -50,6 +50,23 @@ def part_failure(
     )
 
 
+def part_timeout(
+    kind: str, part: Part, expiry: subprocess.TimeoutExpired
+) -> SensorError:
+    """It ran past its deadline — the same failure every other spawn failure is.
+
+    A tool that never returns would otherwise block the git hook with no output.
+    Surfacing the timeout as a ``SensorError`` makes it a notice and a failed
+    run like any crash, and whatever the tool managed to print before it was
+    killed is quoted back, as the only clue to what it was stuck on.
+    """
+    diagnosis = _first_lines((expiry.stderr or "").strip())
+    return SensorError(
+        f"{kind} {part.name!r} timed out after {expiry.timeout:g}s: {part.command}"
+        + (f"\n{diagnosis}" if diagnosis else "")
+    )
+
+
 def _first_lines(diagnosis: str) -> str:
     """The opening of a part's complaint, saying so when there was more."""
     lines = diagnosis.splitlines()

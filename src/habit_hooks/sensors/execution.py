@@ -4,18 +4,19 @@ JSON findings it emits — the bin/PATH + subprocess layer of the ETL."""
 from __future__ import annotations
 
 import json
-import os
 import shlex
-import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..argv_budget import within_argument_limits
 from ..scope import Scope, matching
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
+from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, Spawner, run_part
+
 
 @dataclass(frozen=True)
 class Execution:
@@ -29,6 +30,7 @@ class Execution:
     project_dir: Path
     scope: Scope
     config_path: Path | None = None
+    timeout: float = DEFAULT_SENSOR_TIMEOUT_SECONDS
 
     def run_sensors(self, sensors: list[Part]) -> Run:
         # An empty scope measured nothing, so no sensor runs: a tool handed no
@@ -72,7 +74,10 @@ class Execution:
         crash, whereas a literal ``[]`` is a legitimate "everything dropped".
         """
         command = self._expand(transformer)
-        result = self._run(command, json.dumps(findings))
+        payload = json.dumps(findings)
+        result = run_part(
+            "transformer", transformer, lambda: self._spawner.run(command, payload)
+        )
         failure = part_failure("transformer", transformer, result)
         if result.returncode != 0 or not result.stdout.strip():
             raise failure
@@ -82,22 +87,42 @@ class Execution:
             raise failure from None
 
     def run_sensor(self, sensor: Part) -> list[dict]:
-        """The sensor's findings, with every path anchored to the project.
+        """The sensor's findings, anchored to the project, gathered chunk by chunk.
 
-        Anchoring here — where a sensor's output enters the run, for every sensor
-        there is — is what keeps a snooze index portable without any sensor
-        having to know that (``finding_paths.py``).
+        Chunked so a work-tree-sized ``${files}`` never overflows one ``bash -c``
+        argument. Anchoring the whole concatenation once (``finding_paths.py``)
+        keeps a key that aliases across chunks a single key, and — where a
+        sensor's output enters the run, for every sensor there is — the snooze
+        index portable without any sensor having to know it.
         """
-        command = self._expand(sensor)
-        result = self._run(command)
+        findings: list[dict] = []
+        for command in self._sensor_commands(sensor):
+            findings.extend(self._sensor_findings(sensor, command))
+        return anchored(findings, self.project_dir, sensor.name)
+
+    def _sensor_findings(self, sensor: Part, command: str) -> list[dict]:
+        """One invocation's parsed findings, or ``SensorError`` if untrustworthy."""
+        result = run_part("sensor", sensor, lambda: self._spawner.run(command))
         failure = part_failure("sensor", sensor, result)
         if sensor_crashed(result):
             raise failure
         try:
-            findings = parse_findings(result.stdout)
+            return parse_findings(result.stdout)
         except (ValueError, json.JSONDecodeError):
             raise failure from None
-        return anchored(findings, self.project_dir, sensor.name)
+
+    def _sensor_commands(self, sensor: Part) -> list[str]:
+        """One command per file chunk the sensor's scope splits into.
+
+        A command that splices ``${files}`` is split so a huge list never fails
+        the spawn (a raw ``OSError`` ``_safe_sensor`` never caught, escaping an
+        ordinary CI-sized run as a traceback); one that reads its own paths
+        (``knip``, ``deptry``, ``jscpd``) runs once, not once per chunk.
+        """
+        files = self._scoped_files(sensor)
+        split = "${files}" in sensor.command and files
+        chunks = within_argument_limits(files) if split else [files]
+        return [self._expand_files(sensor, chunk) for chunk in chunks]
 
     def _safe_sensor(self, sensor: Part) -> tuple[list[dict], list[str]]:
         """Its findings and whatever the run must be told about them.
@@ -117,20 +142,24 @@ class Execution:
         ]
 
     def _expand(self, part: Part) -> str:
-        """The command to run, with every substituted value quoted.
+        """The command over the whole scope — its transformer form and one chunk."""
+        return self._expand_files(part, self._scoped_files(part))
+
+    def _expand_files(self, part: Part, files: list[str]) -> str:
+        """The command to run over ``files``, with every substituted value quoted.
 
         A command is a shell string — sensors pipe through ``jq`` — so every
         value spliced into it has to be quoted or the shell reads it as syntax.
         A path is the dangerous one: it comes from the work tree, so an
         unquoted ``${files}`` lets a filename execute its own contents.
         """
-        files = " ".join(shlex.quote(f) for f in self._scoped_files(part))
+        files_text = " ".join(shlex.quote(f) for f in files)
         args = " ".join(shlex.quote(arg) for arg in part.args)
         return (
             part.command.replace("${python}", shlex.quote(sys.executable))
             .replace("${dir}", shlex.quote(str(part.directory)))
             .replace("${args}", args)
-            .replace("${files}", files)
+            .replace("${files}", files_text)
             .replace("${config}", self._config_flag())
         )
 
@@ -157,24 +186,7 @@ class Execution:
             return ""
         return f"--config {shlex.quote(str(self.config_path))}"
 
-    def _run(
-        self, command: str, stdin: str | None = None
-    ) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["bash", "-c", command],
-            cwd=self.project_dir,
-            env=self._path_env(),
-            input=stdin,
-            capture_output=True,
-            text=True,
-        )
-
-    def _path_env(self) -> dict:
-        env = dict(os.environ)
-        bins = [
-            self.project_dir / "node_modules" / ".bin",
-            self.project_dir / ".venv" / "bin",
-        ]
-        prefix = os.pathsep.join(str(b) for b in bins)
-        env["PATH"] = prefix + os.pathsep + env.get("PATH", "")
-        return env
+    @property
+    def _spawner(self) -> Spawner:
+        """The subprocess layer, bound to this run's project and deadline."""
+        return Spawner(self.project_dir, self.timeout)
