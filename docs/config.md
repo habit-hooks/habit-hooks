@@ -155,8 +155,11 @@ Two rules cover the rest:
   `transformers` does. Order is kept as written, so a later pattern can negate an
   earlier one.
 - **A plugin that declares no `files` states no opinion, not "everything".**
-  `generic` declares none, so a project whose plugins all stay silent scans the
-  whole tree — the behaviour a bare install has always had.
+  `generic` declares none, so a project whose plugins all stay silent scans
+  **nothing at all** — discovery is opt-in, not a denylist. A default install
+  scans nothing until it names what it wants scanned, rather than sweeping
+  `node_modules`, `.venv` and `.git`; the run says so on stderr instead of
+  reporting clean over an empty scope.
 
 ### `[scope]`
 

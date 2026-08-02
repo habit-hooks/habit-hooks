@@ -320,11 +320,13 @@ empty the whole index (#94). The documented pipeline therefore runs
 the run still finds — snoozed or not.
 
 These cases drive that real pipeline through a stub sensor rather than hand-fed
-findings, so the bypass that hid the bug cannot come back.
+findings, so the bypass that hid the bug cannot come back. Discovery is opt-in
+(#97), so the config names a scope; `["**"]` is every file the case writes.
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files   = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml

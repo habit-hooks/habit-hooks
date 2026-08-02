@@ -91,6 +91,7 @@ Every case below runs one sensor whose command prints the findings verbatim.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -259,6 +260,7 @@ that array is the whole run's output.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -310,6 +312,7 @@ receiving a valid findings array.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml

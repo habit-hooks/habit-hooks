@@ -12,10 +12,13 @@ exit-code propagation; the stages' own behaviour lives in
 
 A minimal plugin backs every case below: one sensor that emits a single
 `too-many-parameters` finding scoped from `${files}`, and a guide for that smell.
+Discovery is opt-in (#97), so the config names what to scan; `["**"]` is every
+file this fixture writes.
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -86,6 +89,7 @@ stages, so the smell is coached but the pipeline exits 0.
 📄ci.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 
 [smells.too-many-parameters]
 severity = "suggested"

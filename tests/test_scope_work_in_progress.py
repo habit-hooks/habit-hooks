@@ -25,13 +25,18 @@ def _feature_branch_with_an_untracked_file(tmp_path: Path) -> None:
     (tmp_path / "new.py").write_text("VALUES = [1, 2, 3]\n")
 
 
+# Discovery is opt-in since #97, so every mode must name its source before it can
+# measure what changed; these branches carry only `.py` files.
+_PY = Config(files=["**/*.py"])
+
+
 @pytest.mark.parametrize(
     ("argv", "config"),
     [
-        (["--branch", "main"], None),
-        (["--last", "1"], None),
-        (["--since", "main"], None),
-        ([], Config(scope=ScopeDefaults(autoBranchOffMain=True))),
+        (["--branch", "main"], _PY),
+        (["--last", "1"], _PY),
+        (["--since", "main"], _PY),
+        ([], Config(files=["**/*.py"], scope=ScopeDefaults(autoBranchOffMain=True))),
     ],
 )
 def test_a_git_derived_scope_measures_an_untracked_file(
@@ -47,7 +52,7 @@ def test_changed_only_measures_a_staged_file(tmp_path: Path) -> None:
     committed = repository_with_committed_file(tmp_path)
     committed.write_text("VALUES = [1, 2]\n")
     git(tmp_path, "add", "src.py")
-    config = Config(scope=ScopeDefaults(changedOnly=True))
+    config = Config(files=["**/*.py"], scope=ScopeDefaults(changedOnly=True))
     assert scoped_files([], tmp_path, config) == ["src.py"]
 
 

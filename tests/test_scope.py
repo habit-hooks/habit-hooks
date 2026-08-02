@@ -19,6 +19,9 @@ from habit_hooks.config import Config, ScopeDefaults
 from scope_probe import scope as _scope
 from scope_probe import scoped_files as _scoped_files
 
+# Discovery is opt-in since #97: a git-mode test must name its source first.
+_PY_SOURCE = ["**/*.py"]
+
 
 def _source_file(project_dir: Path) -> Path:
     """A source file at ``src/a.py``, returned by its absolute path."""
@@ -56,14 +59,18 @@ def test_a_history_shorter_than_last_scans_everything_committed(
     """A count is not a ref: fewer commits than asked for means "everything so far"."""
     edited = repository_with_committed_file(tmp_path)  # one commit
     commit_file(edited, "VALUES = [1, 2]\n")  # two
-    assert _scoped_files(["--last", "5"], tmp_path) == ["src.py"]
+    assert _scoped_files(["--last", "5"], tmp_path, Config(files=_PY_SOURCE)) == [
+        "src.py"
+    ]
 
 
 def test_last_scopes_to_the_commits_it_names(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     later = tmp_path / "later.py"
     commit_file(later, "VALUES = [2]\n")
-    assert _scoped_files(["--last", "1"], tmp_path) == ["later.py"]
+    assert _scoped_files(["--last", "1"], tmp_path, Config(files=_PY_SOURCE)) == [
+        "later.py"
+    ]
 
 
 def test_since_scopes_to_what_changed_after_a_commit(tmp_path: Path) -> None:
@@ -72,7 +79,9 @@ def test_since_scopes_to_what_changed_after_a_commit(tmp_path: Path) -> None:
         ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True
     ).stdout.strip()
     commit_file(edited, "VALUES = [1, 2]\n")
-    assert _scoped_files(["--since", first], tmp_path) == ["src.py"]
+    assert _scoped_files(["--since", first], tmp_path, Config(files=_PY_SOURCE)) == [
+        "src.py"
+    ]
 
 
 def test_the_configured_branch_base_must_resolve(tmp_path: Path) -> None:
@@ -90,7 +99,7 @@ def test_the_configured_branch_base_must_resolve(tmp_path: Path) -> None:
 def test_a_deleted_file_leaves_the_changed_only_scope(tmp_path: Path) -> None:
     committed = repository_with_committed_file(tmp_path)
     committed.unlink()
-    config = Config(scope=ScopeDefaults(changedOnly=True))
+    config = Config(files=_PY_SOURCE, scope=ScopeDefaults(changedOnly=True))
     assert _scoped_files([], tmp_path, config) == []
 
 
@@ -148,7 +157,7 @@ def test_a_project_below_the_repository_root_scopes_its_own_paths(
     nested = project / "nested.py"
     commit_file(nested, "VALUES = [2]\n")
     nested.write_text("VALUES = [2, 3]\n")
-    config = Config(scope=ScopeDefaults(changedOnly=True))
+    config = Config(files=_PY_SOURCE, scope=ScopeDefaults(changedOnly=True))
     assert _scoped_files([], project, config) == ["nested.py"]
 
 
@@ -158,7 +167,7 @@ def test_a_non_ascii_path_reaches_the_sensors(tmp_path: Path) -> None:
     accented = tmp_path / "café.py"
     commit_file(accented, "VALUES = [2]\n")
     accented.write_text("VALUES = [2, 3]\n")
-    config = Config(scope=ScopeDefaults(changedOnly=True))
+    config = Config(files=_PY_SOURCE, scope=ScopeDefaults(changedOnly=True))
     assert _scoped_files([], tmp_path, config) == ["café.py"]
 
 
@@ -168,7 +177,24 @@ def test_an_empty_files_list_scans_nothing(tmp_path: Path) -> None:
     assert _scoped_files(["--all"], tmp_path, Config(files=[])) == []
 
 
-def test_no_files_at_all_scans_everything(tmp_path: Path) -> None:
-    """No opinion from the project and none from its plugins: scan the tree."""
+def test_no_files_at_all_scans_nothing_and_says_why(tmp_path: Path) -> None:
+    """No `[files]` from the project and none from its plugins is opt-in to
+    nothing: a default install scans nothing, not the whole tree, and says why (#97)."""
     _source_file(tmp_path)
-    assert _scoped_files(["--all"], tmp_path, Config(files=None)) == ["src/a.py"]
+    scoped = _scope(["--all"], tmp_path, Config(files=None))
+    assert scoped.files == []
+    assert scoped.notices == [
+        "habit-sensors: no [files] are configured — name what to scan in "
+        ".habit-hooks/config.toml; nothing scanned"
+    ]
+
+
+def test_explicit_files_reaches_inside_a_vendor_directory(tmp_path: Path) -> None:
+    """Opt-in is exact: a project may name any path as source, including one a
+    convention would otherwise exclude — ``[files]`` is the only authority (#97)."""
+    vendored = tmp_path / "node_modules" / "kept"
+    vendored.mkdir(parents=True)
+    (vendored / "keep.py").write_text("x = 1\n")
+    (tmp_path / "node_modules" / "other.py").write_text("y = 2\n")
+    scoped = _scoped_files(["--all"], tmp_path, Config(files=["node_modules/kept/**"]))
+    assert scoped == ["node_modules/kept/keep.py"]

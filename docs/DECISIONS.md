@@ -366,3 +366,31 @@ mapping, config validation) are resolved and recorded above / in
   `SnoozeError` naming the file — a checked-in file a human edits must not fail
   as a traceback or, worse, quietly. `save_index` writes a sibling temp file and
   `os.replace`s it, so two concurrent hook runs cannot tear the file.
+
+## Discovery is opt-in — a default install scans nothing (#97, agent decision)
+
+- **No `[files]` at all means an empty scope, not the whole tree.** `_every_file`
+  was a bare `rglob("*")`, and with the documented default `plugins = ["generic"]`
+  the merged `files` stayed `None`, so nothing narrowed it: a fresh install swept
+  `node_modules/`, `.venv/`, `dist/` and `.git/` and coached the consumer on
+  somebody else's code. Inverting it — `_every_file` refuses to walk the tree
+  when there is no `[files]` to narrow it to — makes the posture opt-in: a
+  project states what it wants scanned, and anything it has not named is out of
+  scope. An exclusion list was the wrong shape; it is only ever right once
+  someone remembers every vendor directory their ecosystem invents.
+- **Plugin-declared `files` still supply the opt-in.** The merge is unchanged, so
+  `plugins = ["python"]` inherits `**/*.py` and scans that, not everything; only
+  a project whose plugins all stay silent (bare `generic`) scans nothing.
+- **An empty scope for want of `[files]` says why.** Like the `--file` and
+  unresolvable-ref notices, a run that measured nothing must never read as clean:
+  it prints one stderr line pointing at `.habit-hooks/config.toml`. A `--file`
+  hook keeps its own per-file diagnosis, since it fires on every edit.
+- **This must land after #93.** #97 makes the default scope empty; #93 is the
+  guard that stops an empty scope from meaning "scan everything" (a pathless
+  `ruff check` defaults to `.`). Landed first, this would turn "sweeps
+  `node_modules`" into "ruff scans the whole repository every run" — worse than
+  the bug. With #93 first, both intermediate states are safe.
+- **A git mode resolves its base ref before the opt-in narrows.** The narrowing
+  to nothing happens in `_source_files`/`_every_file`, downstream of the ref
+  check, so a typo'd `branchBase` still fails loudly (#81) rather than being
+  masked by an empty opt-in.

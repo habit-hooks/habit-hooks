@@ -88,6 +88,7 @@ so jscpd scans `src` and reports the duplicated block.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files   = ["src/**"]
 
 [sensors.line-count]
 disabled = true

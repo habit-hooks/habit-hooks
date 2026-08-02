@@ -203,9 +203,11 @@ transformers = ["snooze"]         # applied to the whole run's findings, in orde
 files = ["**/*.py"]               # discovery globs (pathspec / gitignore), in every scope mode
 ```
 
-`files` says what this project counts as source, and applies to every scope mode. Leave it out and the run scans
-what its plugins declare — the union of every active plugin's own `files`, in `plugins` order (`generic` declares
-none, so a project with only `generic` scans the whole tree). Naming it replaces those defaults wholesale.
+`files` says what this project counts as source, and applies to every scope mode. Discovery is **opt-in**: leave it
+out and the run scans what its plugins declare — the union of every active plugin's own `files`, in `plugins` order.
+A project that names no `files` and whose plugins declare none (only `generic`) scans **nothing at all**, rather than
+sweeping `node_modules`, `.venv` and `.git`; name what you want scanned. Naming `files` replaces those defaults
+wholesale.
 
 `files` uses pathspec (gitignore) matching, which has **no brace expansion** — write one pattern per
 extension, never a `{…}` alternation:

@@ -4,20 +4,20 @@
 
 plugins = ["python", "generic"]
 
-# Scope discovery to real source only. Without this, --all rglobs the whole
-# tree (.git, .venv, node_modules, dist). pathspec gitwildmatch, no brace exp.
-# Plugin sources are in scope too, EXCEPT the python plugin's own subtree:
-# plugins/python/.../ruff.toml and .../sensors/ruff.toml are literally named
-# `ruff.toml`, so ruff's upward config discovery from a file there loads them as
-# its own config (the sensor spec is not valid ruff config and crashes). The
-# other plugins carry no such file and lint cleanly against the repo-root
-# pyproject.
+# Discovery is opt-in (#97): name the source to scan, and nothing else is in
+# scope — there is no .git, .venv, node_modules or dist to exclude by hand. The
+# python plugin's own subtree is left unnamed on purpose: plugins/python/.../
+# ruff.toml and .../sensors/ruff.toml are literally named `ruff.toml`, so ruff's
+# upward config discovery from a file there would load them as its own config
+# (a sensor spec is not valid ruff config and crashes). Naming only the other
+# plugins keeps that subtree out with no exclusion line; they lint cleanly
+# against the repo-root pyproject.
 files = [
   "src/**/*.py",
   "tests/**/*.py",
   "conftest.py",
-  "plugins/*/src/**/*.py",
-  "plugins/*/tests/**/*.py",
-  "!plugins/python/**",
-  "!**/__pycache__/**",
+  "plugins/generic/src/**/*.py",
+  "plugins/generic/tests/**/*.py",
+  "plugins/typescript/src/**/*.py",
+  "plugins/typescript/tests/**/*.py",
 ]

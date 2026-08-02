@@ -24,6 +24,7 @@ order the plugin's `sensors` list names them.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -72,6 +73,7 @@ stamps that onto the plugin's findings — even when the plugin's name is the to
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["ruff"]
+files = ["**"]
 ```
 
 📄.habit-hooks/ruff/config.toml
@@ -112,6 +114,7 @@ finding untouched — the pass-through rule that lets transformers compose freel
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["tag"]
 ```
 
@@ -173,6 +176,7 @@ them in listed order, so each sees the previous one's output.
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["first", "second"]
 ```
 
@@ -222,6 +226,7 @@ yet the snoozed key is dropped and the other survives.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -266,6 +271,7 @@ transformer, and the default still resolves.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["python"]
+files = ["**"]
 ```
 
 📄.habit-hooks/python/config.toml
@@ -372,6 +378,7 @@ the list omits `snooze`, and the snoozed key comes through untouched.
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = []
 ```
 
@@ -417,6 +424,7 @@ findings never appear.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["python"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -476,6 +484,7 @@ carry. The opening lines are quoted and the remainder is counted.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -514,6 +523,7 @@ it could not `require`.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -567,6 +577,7 @@ mute it; the mapper coaches it like any enforced smell
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -599,6 +610,7 @@ is the false-clean this whole section exists to prevent, so the sensor fails.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -649,6 +661,7 @@ passes.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -687,6 +700,7 @@ a half-scan as a whole one. The dropped findings leave only the reserved
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -730,6 +744,7 @@ third-party one that does not is still readable.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files = ["**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -765,6 +780,7 @@ exit 0 and print its array, printing `[]` when it drops everything.
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["boom"]
 ```
 
@@ -823,6 +839,7 @@ through — the marker's own shape is asserted under *A failed run is coached*.
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["snooze-until-changed"]
 ```
 
@@ -886,6 +903,7 @@ means "broken".
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["mute"]
 ```
 
@@ -935,6 +953,7 @@ result, so a transformer is still free to clear the run — that is exactly what
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["clear"]
 ```
 
@@ -976,6 +995,7 @@ carrying on with a step the project asked for and did not get.
 📄.habit-hooks/config.toml
 ```toml
 plugins      = ["generic"]
+files = ["**"]
 transformers = ["nope"]
 ```
 
@@ -1214,6 +1234,7 @@ files it was handed.
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
+files   = ["src/**"]
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -1288,6 +1309,45 @@ habit-sensors --file pnpm-lock.yaml | jq '[.[].issues[].key]'
 🚨
 ```text
 habit-sensors: --file 'pnpm-lock.yaml' is outside [files]; nothing scanned
+```
+
+### A project that names no source scans nothing
+
+Discovery is opt-in, not a denylist. With no `[files]` from the project and none
+from its plugins — the documented default `plugins = ["generic"]` — the scope is
+empty, so a default install sweeps nobody's `node_modules`, `.venv` or `.git`
+looking for source (#97). A run that measured nothing must never read as clean,
+so it says why on stderr and leaves stdout a valid empty findings array. This
+case restates the default config to drop the section's `files`, so the project
+and its lone `generic` plugin both name no source.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄node_modules/pkg/vendored.txt
+```text
+somebody else's code
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: no [files] are configured — name what to scan in .habit-hooks/config.toml; nothing scanned
 ```
 
 ### Git-derived scopes
@@ -1492,7 +1552,7 @@ habit-sensors: base ref 'main' does not resolve in this checkout — set [scope]
 none scans what its plugins call source — every active plugin's `files`, in
 `plugins` order. A plugin that declares none (`generic` in the fixture above) is
 stating no opinion, not "everything", so a project whose plugins all stay silent
-still scans the whole tree.
+scans nothing at all — discovery is opt-in (#97).
 
 📄.habit-hooks/config.toml
 ```toml
