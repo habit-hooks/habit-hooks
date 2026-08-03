@@ -20,19 +20,13 @@ from . import git_history
 from .cli import ToolError
 from .config import Config
 from .project_paths import project_relative
+from .scope_notices import empty_scope_notices
 
 # What to tell someone whose base ref is not in their checkout, named after
 # whatever chose the ref — the setting they can act on differs per mode.
 _BRANCH_BASE_SETTING = "set [scope] branchBase to a ref it has"
 _BRANCH_FLAG = "pass --branch a ref it has"
 _SINCE_FLAG = "pass --since a ref it has"
-
-# Discovery is opt-in (#97): a project that names no source scans nothing. Said
-# out loud, since silence about a run that measured nothing reads as clean.
-_NO_FILES_NOTICE = (
-    "habit-sensors: no [files] are configured — name what to scan in "
-    ".habit-hooks/config.toml; nothing scanned"
-)
 
 
 @dataclass
@@ -52,9 +46,8 @@ def resolve_scope(args: argparse.Namespace, config: Config, project_dir: Path) -
     """
     picked = _selected(args, config, project_dir)
     files = _source_files(picked, config, project_dir)
-    if args.file is not None:
-        return Scope(files, _named_file_notices(args.file, project_dir, files))
-    return Scope(files, [_NO_FILES_NOTICE] if config.files is None else [])
+    notices = [] if files else empty_scope_notices(args.file, project_dir, config)
+    return Scope(files, notices)
 
 
 def _selected(
@@ -113,20 +106,6 @@ def matching(paths: list[str], globs: list[str]) -> list[str]:
     """
     spec = pathspec.PathSpec.from_lines("gitignore", globs)
     return [path for path in paths if spec.match_file(path)]
-
-
-def _named_file_notices(
-    named: str | None, project_dir: Path, scoped: list[str]
-) -> list[str]:
-    """Why ``--file`` scanned nothing: silence about a run that measured nothing
-    is indistinguishable from a clean one, as with an unresolvable base ref.
-    """
-    if named is None or scoped:
-        return []
-    placed = project_relative(named, project_dir)
-    missing = placed is None or not (project_dir / placed).is_file()
-    reason = "is not a file in this project" if missing else "is outside [files]"
-    return [f"habit-sensors: --file {named!r} {reason}; nothing scanned"]
 
 
 def _every_file(config: Config, project_dir: Path) -> list[str]:

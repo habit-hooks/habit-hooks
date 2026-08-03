@@ -409,7 +409,11 @@ mapping, config validation) are resolved and recorded above / in
 - **An empty scope for want of `[files]` says why.** Like the `--file` and
   unresolvable-ref notices, a run that measured nothing must never read as clean:
   it prints one stderr line pointing at `.habit-hooks/config.toml`. A `--file`
-  hook keeps its own per-file diagnosis, since it fires on every edit.
+  hook keeps its own per-file diagnosis, since it fires on every edit — and when
+  there is no `[files]` at all, that diagnosis names the missing setting rather
+  than saying the file is "outside `[files]`", which points at a section the
+  project does not have. Both wordings now come from one place
+  (`scope_notices.py`), so the run-level and per-file notices name one setting.
 - **This must land after #93.** #97 makes the default scope empty; #93 is the
   guard that stops an empty scope from meaning "scan everything" (a pathless
   `ruff check` defaults to `.`). Landed first, this would turn "sweeps

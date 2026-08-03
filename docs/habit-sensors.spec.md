@@ -1410,6 +1410,38 @@ habit-sensors --file pnpm-lock.yaml | jq '[.[].issues[].key]'
 habit-sensors: --file 'pnpm-lock.yaml' is outside [files]; nothing scanned
 ```
 
+### A `--file` in a project that names no source at all says so
+
+With no `[files]` anywhere — the documented default `plugins = ["generic"]`,
+which declares no source — there is no section for the named file to be *outside*
+of, so the notice names the missing setting instead of a phantom one. The hook
+behind `--file` still fires on every edit, so this is not an error: exit 0, an
+empty findings array on stdout, and the one line that says why on stderr.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+📄src/a.txt
+```text
+a
+```
+
+```bash
+habit-sensors --file src/a.txt | jq '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+🚨
+```text
+habit-sensors: --file 'src/a.txt': no [files] are configured — name what to scan in .habit-hooks/config.toml; nothing scanned
+```
+
 ### A project that names no source scans nothing
 
 Discovery is opt-in, not a denylist. With no `[files]` from the project and none

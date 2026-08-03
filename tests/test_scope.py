@@ -5,6 +5,7 @@ The modes a consumer meets are pinned end to end in the executable specs
 diagnosis each flag gives for a ref its checkout does not have, and the
 precedence between "no repository" and "no such ref". The specs run inside this
 repository's own checkout, so the no-repository case can only be pinned here.
+What an empty scope says out loud is ``test_scope_notices.py``.
 """
 
 from __future__ import annotations
@@ -16,19 +17,11 @@ import pytest
 
 from git_repo import commit_file, git, repository_with_committed_file
 from habit_hooks.config import Config, ScopeDefaults
-from scope_probe import scope as _scope
 from scope_probe import scoped_files as _scoped_files
+from scope_probe import source_file as _source_file
 
 # Discovery is opt-in since #97: a git-mode test must name its source first.
 _PY_SOURCE = ["**/*.py"]
-
-
-def _source_file(project_dir: Path) -> Path:
-    """A source file at ``src/a.py``, returned by its absolute path."""
-    (project_dir / "src").mkdir(exist_ok=True)
-    source = project_dir / "src" / "a.py"
-    source.write_text("x = 1\n")
-    return source
 
 
 def test_no_repository_outranks_a_missing_ref(tmp_path: Path) -> None:
@@ -103,29 +96,6 @@ def test_a_deleted_file_leaves_the_changed_only_scope(tmp_path: Path) -> None:
     assert _scoped_files([], tmp_path, config) == []
 
 
-def test_a_named_file_outside_files_is_not_scanned(tmp_path: Path) -> None:
-    """``--file`` obeys the same ``[files]`` setting every other mode does."""
-    (tmp_path / "pnpm-lock.yaml").write_text("lock\n")
-    scoped = _scope(["--file", "pnpm-lock.yaml"], tmp_path, Config(files=["src/**"]))
-    assert scoped.files == []
-    assert scoped.notices == [
-        "habit-sensors: --file 'pnpm-lock.yaml' is outside [files]; nothing scanned"
-    ]
-
-
-def test_a_named_file_the_project_does_not_have_is_said_so(tmp_path: Path) -> None:
-    scoped = _scope(["--file", "gone.py"], tmp_path)
-    assert scoped.files == []
-    assert scoped.notices == [
-        "habit-sensors: --file 'gone.py' is not a file in this project; nothing scanned"
-    ]
-
-
-def test_a_scanned_named_file_is_not_remarked_on(tmp_path: Path) -> None:
-    _source_file(tmp_path)
-    assert _scope(["--file", "src/a.py"], tmp_path, Config(files=["src/**"])).notices == []
-
-
 def test_a_named_file_inside_files_is_scanned(tmp_path: Path) -> None:
     _source_file(tmp_path)
     scoped = _scoped_files(["--file", "src/a.py"], tmp_path, Config(files=["src/**"]))
@@ -175,18 +145,6 @@ def test_an_empty_files_list_scans_nothing(tmp_path: Path) -> None:
     """`files = []` is a project saying its source is nothing, like `transformers = []`."""
     _source_file(tmp_path)
     assert _scoped_files(["--all"], tmp_path, Config(files=[])) == []
-
-
-def test_no_files_at_all_scans_nothing_and_says_why(tmp_path: Path) -> None:
-    """No `[files]` from the project and none from its plugins is opt-in to
-    nothing: a default install scans nothing, not the whole tree, and says why (#97)."""
-    _source_file(tmp_path)
-    scoped = _scope(["--all"], tmp_path, Config(files=None))
-    assert scoped.files == []
-    assert scoped.notices == [
-        "habit-sensors: no [files] are configured — name what to scan in "
-        ".habit-hooks/config.toml; nothing scanned"
-    ]
 
 
 def test_explicit_files_reaches_inside_a_vendor_directory(tmp_path: Path) -> None:
