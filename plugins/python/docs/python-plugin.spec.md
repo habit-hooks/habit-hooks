@@ -122,6 +122,55 @@ habit-sensors --file README.md
 habit-sensors: --file 'README.md' is outside [files]; nothing scanned
 ```
 
+## A sensor narrowed to no files is as empty a scope as a run with none
+
+`[sensors.<name>] files` narrows the run's scope for that sensor alone, and it
+can leave that sensor nothing while the run as a whole still measured something.
+Its scope is then as empty as the case above's, with the same consequence — so
+the guard is asked per sensor, not once for the run. Here `legacy.py` is in
+scope and carries three real smells, but `ruff` is narrowed to `src/**/*.py`,
+which holds none of them: ruff never runs, and never falls back to scanning the
+tree it was steered away from.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+
+[sensors.ruff]
+files = ["src/**/*.py"]
+
+[sensors.deptry]
+disabled = true
+```
+
+📄ruff.toml @plugins/python/src/habit_hooks_python/ruff.toml
+
+📄pyproject.toml
+```toml
+[project]
+name = "demo"
+version = "0.0.0"
+```
+
+📄legacy.py
+```python
+import os
+
+
+def charge(a, b, c, d):
+    unused = 1
+    return a + b + c + d
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ✅
+```json
+[]
+```
+
 ## ruff maps a syntax error to parse-error
 
 A file ruff cannot parse surfaces as `parse-error` (ruff reports it as

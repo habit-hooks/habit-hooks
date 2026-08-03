@@ -33,16 +33,20 @@ class Execution:
     timeout: float = DEFAULT_SENSOR_TIMEOUT_SECONDS
 
     def run_sensors(self, sensors: list[Part]) -> Run:
-        # An empty scope measured nothing, so no sensor runs: a tool handed no
-        # paths falls back to its own default (ruff's is "scan cwd"), reporting
-        # the whole repo's debt over a scope that named none (#93). Absorbed
-        # here, every sensor — including a third-party one that never heard of
-        # the convention — is covered without a per-sensor guard. The scope
-        # layer already emits the "measured nothing" notice.
-        if not sensors or not self.scope.files:
+        # A sensor whose scope is empty measured nothing, so it does not run: a
+        # tool handed no paths falls back to its own default (ruff's is "scan
+        # cwd"), reporting the whole repo's debt over a scope that named none
+        # (#93). The scope is empty either because the run's was — the scope
+        # layer already emits the "measured nothing" notice — or because the
+        # sensor's own ``files`` narrowed it away, which is why the question is
+        # asked per sensor. Absorbed here, every sensor — including a
+        # third-party one that never heard of the convention — is covered
+        # without a per-sensor guard.
+        scoped = [sensor for sensor in sensors if self._scoped_files(sensor)]
+        if not scoped:
             return Run()
-        with ThreadPoolExecutor(max_workers=len(sensors)) as pool:
-            outputs = list(pool.map(self._safe_sensor, sensors))
+        with ThreadPoolExecutor(max_workers=len(scoped)) as pool:
+            outputs = list(pool.map(self._safe_sensor, scoped))
         run = Run()
         for findings, notices in outputs:
             run.findings.extend(findings)
