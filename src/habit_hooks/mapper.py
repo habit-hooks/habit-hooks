@@ -1,151 +1,33 @@
-"""habit-mapper: route findings to guides and set the exit code from severity."""
+"""habit-mapper: route findings to guides and set the exit code from severity.
+
+Rendering one finding into text lives in :mod:`habit_hooks.rendering`; this
+module is the stage around it — what arrives on stdin, what reaches stdout, and
+which exit code says so.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn
 
-from jinja2 import Environment, FunctionLoader
-
-from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
-from .cli import ToolError, add_version_flag, run_console
-from .config import Config, load_config
+from .catalogue import incomplete_run_finding
+from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
+from .config import load_config
+from .rendering import Rendered, block, is_disabled, render_clean, render_finding
 from .resolve import Resolver
 
-CLEAN_GUIDE = "clean.md"
-
-
-@dataclass
-class Rendered:
-    text: str
-    blocks: bool
-    stderr: str = ""
-
-
-def is_disabled(smell: str, config: Config) -> bool:
-    override = config.smells.get(smell)
-    return bool(override and override.disabled)
-
-
-def severity_of(smell: str, config: Config) -> str:
-    override = config.smells.get(smell)
-    if override and override.severity:
-        return override.severity
-    return DEFAULT_SEVERITY.get(smell, ENFORCED)
-
-
-def guide_names(smell: str, config: Config) -> list[str]:
-    override = config.smells.get(smell)
-    if override and override.guide:
-        return [override.guide]
-    # Look up ``<smell>.md`` for any smell — catalogued or not — so a custom
-    # smell paired with a shipped guide is coached (render_finding falls back to
-    # uncoached.md only when no plugin supplies one).
-    extensions = ["md", *config.runners.keys()]
-    return [f"{smell}.{ext}" for ext in extensions]
-
-
-def plugins_for_language(language: str | None, config: Config) -> list[str]:
-    """``config.plugins`` reordered to coach a finding of ``language``.
-
-    Documented rule: take the first plugin whose declared language matches, in
-    ``plugins`` order, then fall back to the languageless plugin (``generic``)
-    last. A plugin that declares a *different* language does not coach the
-    finding, so its guide is left out.
-    """
-    languages = config.plugin_languages
-    matching = [
-        p for p in config.plugins if language is not None and languages.get(p) == language
-    ]
-    fallback = [p for p in config.plugins if p not in languages]
-    return matching + fallback
-
-
-def include_environment(plugins: list[str], resolver: Resolver) -> Environment:
-    def load(name: str) -> str | None:
-        partial = resolver.first(plugins, [name])
-        return None if partial is None else partial.read_text()
-
-    return Environment(loader=FunctionLoader(load))
-
-
-def render_markdown(guide: Path, finding: dict, environment: Environment) -> Rendered:
-    template = environment.from_string(guide.read_text())
-    return Rendered(text=template.render(**finding), blocks=True)
-
-
-def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
-    result = subprocess.run(
-        [runner, str(guide)],
-        input=json.dumps(finding),
-        capture_output=True,
-        text=True,
-    )
-    return Rendered(
-        text=result.stdout,
-        blocks=result.returncode != 0,
-        stderr=result.stderr,
-    )
-
-
-def _refuse_unconfigured_runner(smell: str, guide: Path, extension: str) -> NoReturn:
-    raise ToolError(
-        f"habit-mapper: smell {smell!r} routes to guide {guide.name!r}, but the "
-        f"{extension!r} extension has no [runners] command — add one or route to "
-        f"a .md guide"
-    )
-
-
-def _resolve_guide(finding: dict, config: Config, resolver: Resolver) -> Path:
-    plugins = plugins_for_language(finding.get("language"), config)
-    guide = resolver.first(plugins, guide_names(finding["smell"], config))
-    if guide is None:
-        guide = resolver.guide(UNCOACHED_GUIDE, config.plugins)
-    return guide
-
-
-def _runner_for(config: Config, guide: Path, smell: str) -> str:
-    """The configured runner command for a non-``.md`` guide, or refuse by name."""
-    extension = guide.suffix.lstrip(".")
-    runner = config.runners.get(extension)
-    if runner is None:
-        _refuse_unconfigured_runner(smell, guide, extension)
-    return runner
-
-
-def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendered:
-    smell = finding["smell"]
-    enforced = severity_of(smell, config) == ENFORCED
-    guide = _resolve_guide(finding, config, resolver)
-    if guide.suffix == ".md":
-        environment = include_environment(config.plugins, resolver)
-        rendered = render_markdown(guide, finding, environment)
-    else:
-        rendered = render_runner(guide, _runner_for(config, guide, smell), finding)
-    rendered.blocks = enforced and rendered.blocks
-    return rendered
-
-
-def render_clean(config: Config, resolver: Resolver) -> Rendered:
-    guide = resolver.guide(CLEAN_GUIDE, config.plugins)
-    return Rendered(text=guide.read_text(), blocks=False)
+EMPTY_STDIN_NOTICE = (
+    "habit-mapper: nothing arrived on stdin — the sensors stage exited before it "
+    "wrote any findings"
+)
 
 
 def write_stderr(rendered: list[Rendered]) -> None:
     for r in rendered:
         if r.stderr:
             sys.stderr.write(r.stderr)
-
-
-def banner(finding: dict) -> str:
-    count = len(finding["issues"])
-    noun = "issue" if count == 1 else "issues"
-    return f"── {finding['smell']} ({count} {noun}) ──"
 
 
 def run(
@@ -160,9 +42,7 @@ def run(
         return 0
     rendered = [render_finding(f, config, resolver) for f in findings]
     blocks = [
-        f"{banner(f)}\n\n{r.text.strip()}"
-        for f, r in zip(findings, rendered)
-        if r.text.strip()
+        block(f, r.text) for f, r in zip(findings, rendered) if r.text.strip()
     ]
     body = "\n\n".join(blocks)
     if body:
@@ -171,9 +51,33 @@ def run(
     return 1 if any(r.blocks for r in rendered) else 0
 
 
-def read_findings() -> list[dict]:
+def read_findings() -> list[dict] | None:
+    """The findings array, or ``None`` when the stream is wholly empty.
+
+    A stage that completes always writes at least ``[]``, so zero bytes can only
+    mean it died before writing — the one failure #88's reserved finding cannot
+    travel through, because nothing travels at all.
+    """
     raw = sys.stdin.read().strip()
-    return json.loads(raw) if raw else []
+    return json.loads(raw) if raw else None
+
+
+def coach_incomplete_run(project_dir: Path, config_path: Path | None) -> int:
+    """Coach the empty pipe as an incomplete run, and exit as a tool failure.
+
+    Rendered directly rather than through :func:`run`, because a project's
+    ``[smells.incomplete-run] disabled`` speaks about code smells and must not
+    turn a scan that never ran into a clean one.
+    """
+    config = load_config(project_dir, config_path)
+    resolver = Resolver.discover(project_dir)
+    finding = incomplete_run_finding([EMPTY_STDIN_NOTICE])
+    rendered = render_finding(finding, config, resolver)
+    # The exit code is fixed at 2 here, so a runner-backed override of
+    # incomplete-run.md contributes its stdout only: its `blocks` cannot lower
+    # the code and its stderr is dropped.
+    sys.stdout.write(block(finding, rendered.text) + "\n")
+    return EXIT_TOOL_ERROR
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -188,7 +92,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _render_findings(args: argparse.Namespace) -> int:
-    return run(read_findings(), Path.cwd(), args.config)
+    findings = read_findings()
+    if findings is None:
+        return coach_incomplete_run(Path.cwd(), args.config)
+    return run(findings, Path.cwd(), args.config)
 
 
 if __name__ == "__main__":

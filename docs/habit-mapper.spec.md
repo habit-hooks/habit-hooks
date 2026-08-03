@@ -3,6 +3,9 @@
 `habit-mapper` reads a findings array as JSON on stdin, groups the findings by
 smell, renders each smell's guide, and sets the exit code from each smell's
 severity — `enforced` fails the run (exit 1), `suggested` coaches but exits 0.
+An **empty** stdin is not a findings array: it is a stage that died before
+writing one, so it is coached as an incomplete run and exits 2, the code
+reserved for a failure of the tool itself (#103).
 The finding shape it consumes is the contract in
 [sensor-interface.spec.md](sensor-interface.spec.md); how guides resolve through
 the ordered plugins is in [architecture.md](architecture.md).
@@ -241,13 +244,19 @@ Resolve or remove these markers before merging.
 
 ### A clean run prints the pass reminder
 
-No findings on stdin means nothing to coach; the run renders the no-findings guide.
+An empty findings array is a stage that ran and found nothing, so there is
+nothing to coach; the run renders the no-findings guide.
 
 📄.habit-hooks/generic/guides/clean.md
 ```markdown
 ✅ Habit Hooks: automated checks passed.
 
 Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
+```
+
+⌨️
+```json
+[]
 ```
 
 ```bash
@@ -296,6 +305,57 @@ habit-mapper
 ⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
 
 habit-sensors: sensor 'comment' failed: Cannot find module 'ts-morph'
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
+
+### Nothing on stdin is an incomplete run, and a tool error
+
+The reserved finding above can only travel when the sensors stage lives long
+enough to write it. A stage that dies first — a missing plugin, a rejected
+config, an unresolvable ref — writes nothing at all, and a completed run always
+writes at least `[]`, so zero bytes is unambiguous. The mapper raises the same
+reserved finding against itself and coaches it, because the ✅ line is what an
+agent reads as permission to stop. The exit code is **2**, not 1: the run failed
+because the tool broke, not because the code has a smell
+([cli.py's contract](../src/habit_hooks/cli.py), #103).
+
+```bash
+habit-mapper < /dev/null
+```
+
+🖥️ ❌ 2
+```text
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
+
+### A disabled `incomplete-run` still cannot report a clean scan
+
+`[smells.<smell>] disabled` speaks about code smells. It is not a licence to
+render the pass reminder over a scan that never happened, so the empty-stream
+path renders and fails regardless of it.
+
+📄.habit-hooks/config.toml
+```toml
+[smells.incomplete-run]
+disabled = true
+```
+
+```bash
+habit-mapper < /dev/null
+```
+
+🖥️ ❌ 2
+```text
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
 Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
 ```
 

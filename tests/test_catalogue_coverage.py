@@ -5,7 +5,7 @@ with no ``guides/<smell>.md`` falls through to the one-size ``uncoached.md``,
 silently degrading the product. This test turns that gap into a build failure so
 it cannot reopen (#101).
 
-It routes each smell through the mapper's real ``_resolve_guide`` against the
+It routes each smell through the real ``rendering._resolve_guide`` against the
 full installed plugin set, exactly as a live run would, and asserts the resolved
 guide is not the uncoached fallback.
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from habit_hooks import mapper
+from habit_hooks import rendering
 from habit_hooks.catalogue import DEFAULT_SEVERITY, UNCOACHED_GUIDE
 from habit_hooks.config import Config, load_config
 from habit_hooks.resolve import Resolver, installed_plugin_dirs
@@ -26,7 +26,7 @@ from plugin_fixture import write_project_config
 
 @dataclass(frozen=True)
 class Routing:
-    """The mapper's guide routing for the full installed plugin set."""
+    """The guide routing for the full installed plugin set."""
 
     config: Config
     resolver: Resolver
@@ -44,7 +44,7 @@ class Routing:
 
     def guide_for(self, smell: str, language: str | None) -> str:
         finding = {"smell": smell, "language": language, "details": {}, "issues": []}
-        return mapper._resolve_guide(finding, self.config, self.resolver).name
+        return rendering._resolve_guide(finding, self.config, self.resolver).name
 
 
 @pytest.mark.parametrize("smell", sorted(DEFAULT_SEVERITY))

@@ -15,7 +15,7 @@ import pytest
 from attrs import fields
 
 from habit_hooks.config import Config, SensorOverride, SmellOverride
-from habit_hooks.mapper import guide_names, is_disabled, severity_of
+from habit_hooks.rendering import guide_names, is_disabled, severity_of
 from plugin_fixture import loader_for, write_plugin, write_project_config
 
 

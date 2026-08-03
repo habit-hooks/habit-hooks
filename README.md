@@ -40,7 +40,8 @@ habit-sensors <scope flags> | habit-mapper
   findings array on stdout.
 - **`habit-mapper`** acts on them. It reads the findings on stdin, groups them by smell, renders each smell's
   coaching guide, and sets the exit code from each smell's severity (`enforced` fails the run with exit 1,
-  `suggested` coaches but exits 0).
+  `suggested` coaches but exits 0). An empty pipe is a stage that died before writing, so it coaches the
+  incomplete run and exits 2 rather than reporting a pass.
 
 `habit-hooks` is just the composition of the two — `habit-sensors $ARGS | habit-mapper` — so the same arguments
 scope the run and the same findings drive the coaching. Because the stages talk only through findings on a pipe,

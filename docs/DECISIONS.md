@@ -340,6 +340,28 @@ mapping, config validation) are resolved and recorded above / in
   fails the run even when no plugin supplies a guide, and needs no new awareness
   of the sensors stage. The finding is appended **after every transformer runs**,
   so a snooze can never mute it; the notices still reach stderr for humans.
+- **A stage that dies before writing is the same invariant, one layer down**
+  (agent decision). The reserved finding only travels if `habit-sensors` reaches
+  its `stdout.write`; a `ToolError` before that — a missing plugin, a rejected
+  config, an unresolvable ref — leaves the pipe empty, and `read_findings`
+  mapped empty stdin to `[]`, so the ✅ was still printed over a scan that never
+  ran. Fixing only the pipeline exit code (`hooks.py`) is not enough: the exit
+  code is not what a consuming agent reads, the ✅ line is. `read_findings` now
+  returns `None` for a wholly empty stream, distinct from the `[]` of a
+  completed empty run, and the mapper raises the same reserved finding against
+  itself. Zero bytes is a sound signal precisely because a completed stage
+  always writes at least `[]`.
+- **`incomplete_run_finding` moved to `catalogue.py`**, beside the smell it
+  names, because both stages now raise it and the mapper must not import the
+  sensors stage to build one finding.
+- **The empty-stream path exits 2, not 1** (agent decision), and renders
+  directly rather than through `run`. Exit 1 means an enforced finding — a
+  statement about the code; this is #103's "failure of the tool itself", and the
+  underlying cause is literally one of the three that contract names. It also
+  keeps `hooks.py`'s `mapper.returncode or sensors.returncode` from masking the
+  sensors' own 2 with a 1. Bypassing `run` skips the `is_disabled` filter on
+  purpose: `[smells.incomplete-run] disabled` is a statement about code smells,
+  not a licence to report a scan that never happened as clean.
 
 ## `--prune` reads a snooze-free run, and never empties on nothing (#94, agent decision)
 
@@ -415,7 +437,7 @@ mapping, config validation) are resolved and recorded above / in
   PHP-specific to say about an unused local.
 - **`tests/test_catalogue_coverage.py` is the gate that stops the gap
   reopening.** It routes every smell in `catalogue.DEFAULT_SEVERITY` through the
-  mapper's real `_resolve_guide` against the full installed plugin set and fails
+  real `rendering._resolve_guide` against the full installed plugin set and fails
   if any renders `uncoached.md`. "Somebody notices missing coaching" is now a red
   build, not a bug report.
 - **`unused-export` stays `enforced` — deliberately, and this records why.** The

@@ -199,6 +199,34 @@ params: boom
 Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
 ```
 
+### A sensors stage that dies before writing is coached too, and exits 2
+
+The case above needs `habit-sensors` to survive long enough to append the
+reserved finding. A failure that kills the stage itself — here a configured
+plugin nobody installed — leaves the pipe empty instead, and the mapper used to
+read that as no findings and print the `✅`. It coaches the incomplete run from
+its own side now. Both stages agree on exit 2: the tool broke, the code did not
+([habit-mapper.spec.md](habit-mapper.spec.md), #103).
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["doesnotexist"]
+```
+
+```bash
+habit-hooks --all 2>/dev/null
+```
+
+🖥️ ❌ 2
+```text
+── incomplete-run (1 issue) ──
+
+⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
+
+habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
+Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+```
+
 ### A failed sensor and a working one both report, and the run stays incomplete
 
 A break in one sensor does not hide what the others found: the working sensor's

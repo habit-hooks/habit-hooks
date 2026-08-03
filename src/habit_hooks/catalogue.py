@@ -39,3 +39,20 @@ DEFAULT_SEVERITY: dict[str, str] = {
 }
 
 UNCOACHED_GUIDE = "uncoached.md"
+
+
+def incomplete_run_finding(notices: list[str]) -> dict:
+    """The reserved-smell finding a failed run carries on the pipe.
+
+    Each notice becomes an issue the mapper coaches through
+    ``guides/incomplete-run.md``. It lives here, beside the smell it names,
+    because both stages raise it: the sensors stage for a broken sensor or
+    transformer, the mapper for a stage that died before writing anything.
+    """
+    return {
+        "smell": INCOMPLETE_RUN,
+        "details": {},
+        "issues": [
+            {"key": notice, "details": {"content": notice}} for notice in notices
+        ],
+    }

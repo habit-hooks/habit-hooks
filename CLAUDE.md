@@ -93,6 +93,48 @@ is a different question from which snoozes lapse), so the widening lives in
 replaces them wholesale. That is why `config.py` imports `Resolver` — the merge
 needs the override chain, and only `files` has a plugin-supplied default.
 
+### A run that did not complete never renders as clean — including an empty pipe (agent decision, issues #88, #103)
+
+`incomplete-run` is a reserved smell, and `catalogue.incomplete_run_finding`
+builds the finding **both** stages raise: `sensors._emit_findings` when
+`Run.failed` (after every transformer, so a snooze cannot mute it), and
+`mapper.coach_incomplete_run` when stdin is wholly empty. Keep the builder in
+`catalogue.py` — the mapper must not import the sensors stage to construct one
+finding.
+
+The empty-pipe half exists because the sensors stage can die *before* its
+`stdout.write`: a `ToolError` (missing plugin, rejected config, unresolvable
+ref) writes zero bytes, and `read_findings` used to map that to `[]` → the ✅.
+It now returns `None` for an empty stream, distinct from the `[]` of a completed
+empty run — a sound signal only because a completed stage always writes at least
+`[]`. Do not "fix" this in `hooks.py` alone: the pipeline exit code was already
+right, and the exit code is not what a consuming agent reads — the ✅ line is.
+
+Two deliberate asymmetries: the empty-pipe path exits **2** (`EXIT_TOOL_ERROR`,
+the tool broke) where a sensors-raised `incomplete-run` exits 1 (an enforced
+finding), and it renders **directly** rather than through `mapper.run`, so
+`[smells.incomplete-run] disabled` cannot turn a scan that never ran into a
+clean one.
+
+Spec cases that assert the clean guide must feed `[]` explicitly (`⌨️`). A case
+with no `⌨️` block inherits pytest's empty stdin, which is now the incomplete
+run — that is exactly how the bug hid in `habit-mapper.spec.md`.
+
+### Rendering a finding is `rendering.py`; running the stage is `mapper.py` (agent decision)
+
+`rendering.py` turns **one** finding into text — guide resolution, severity, the
+Jinja2 and fix-runner paths, `banner`/`block`. `mapper.py` is the stage around
+it: stdin, block order, stderr, exit code. The dependency runs one way
+(`mapper` → `rendering`) and must stay that way — the split exists because the
+empty-pipe path needs `render_finding` too, and any module that both renders and
+owns the entry point ends up importing itself. Both files are also kept under
+the repo's own 200-line `oversized-file` gate by it, which the dogfood step
+(`uv run habit-hooks --all`) enforces on every CI run.
+
+`rendering.block(finding, text)` is the single source for a printed block
+(`── smell (n issues) ──`, blank line, guide text). Format it anywhere else and
+a run's output drifts from a coached incomplete run's.
+
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
 When `jscpd --config <abs path>` loads `.jscpd.json`, its `path: ["src"]` resolves

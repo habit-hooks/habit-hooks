@@ -13,7 +13,7 @@ import json
 import sys
 from pathlib import Path
 
-from ..catalogue import INCOMPLETE_RUN
+from ..catalogue import incomplete_run_finding
 from ..cli import add_version_flag, run_console
 from ..config import Config, load_config
 from ..recommend import recommendations
@@ -60,24 +60,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     modes.add_argument("--last", type=_positive_int)
     modes.add_argument("--since")
     return parser.parse_args(argv)
-
-
-def incomplete_run_finding(notices: list[str]) -> dict:
-    """The reserved-smell finding a failed run carries on the pipe.
-
-    A broken sensor or transformer contributes no findings of its own, so the
-    mapper would see ``[]`` and render the clean guide over broken tooling (#88).
-    Turning each failure notice into an ``incomplete-run`` issue makes the mapper
-    coach it instead — one enforced finding that never renders as clean. It is
-    appended after every transformer has run, so a snooze can never mute it.
-    """
-    return {
-        "smell": INCOMPLETE_RUN,
-        "details": {},
-        "issues": [
-            {"key": notice, "details": {"content": notice}} for notice in notices
-        ],
-    }
 
 
 def _stamp_language(findings: list[dict], language: str | None) -> list[dict]:
@@ -147,6 +129,7 @@ def _emit_findings(args: argparse.Namespace) -> int:
     loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope, args.config))
     findings = run.findings
+    # Appended after every transformer has run, so a snooze can never mute it (#88).
     if run.failed:
         findings = [*findings, incomplete_run_finding(run.notices)]
     sys.stdout.write(json.dumps(findings) + "\n")
