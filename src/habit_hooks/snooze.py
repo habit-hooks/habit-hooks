@@ -20,7 +20,7 @@ from collections.abc import Collection
 from pathlib import Path
 
 from .changed_files import changed_against_base
-from .cli import add_version_flag, run_console
+from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
 from .config import load_config
 from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
 
@@ -176,11 +176,16 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_snooze_command(args: argparse.Namespace) -> int:
+    """A corrupt index is a failure of the tool itself — a checked-in file a human
+    edits, not a statement about the code — so it exits 2 like a rejected config
+    or an unresolvable ref (#103). The `--prune` refusal is the other kind, a
+    judgement about the run, and keeps exit 1.
+    """
     try:
         return run(args, Path.cwd())
     except SnoozeError as error:
         sys.stderr.write(f"habit-snooze: {error}\n")
-        return 1
+        return EXIT_TOOL_ERROR
 
 
 if __name__ == "__main__":

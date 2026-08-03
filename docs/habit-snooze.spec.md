@@ -423,6 +423,29 @@ src/x.ts
 src/y.ts
 ```
 
+## A corrupt index fails the tool, not the code
+
+The index is a checked-in file people edit by hand, so a broken one is a failure
+of the tool itself — not a finding about the code. It exits **2**, the code
+[habit-sensors.spec.md](habit-sensors.spec.md) already uses for a rejected config
+or an unresolvable base ref, and names the file and what it expected on stderr.
+The `--prune` refusal above is the other kind — a judgement about the run — and
+keeps exit 1.
+
+📄.habit-hooks/snooze.json
+```json
+{"src/x.ts": "why"}
+```
+
+```bash
+habit-snooze --list 2>&1 >/dev/null | sed 's| /.*/\.habit-hooks/| .habit-hooks/|'
+```
+
+🖥️ ❌ 2
+```text
+habit-snooze: .habit-hooks/snooze.json: expected a JSON list of string keys, got an object
+```
+
 ## `--until-changed` keeps a snooze only while its file is unchanged
 
 `habit-snooze --until-changed` reads the same index, but a snoozed issue is

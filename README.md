@@ -141,7 +141,7 @@ The exit code separates a finding from a broken tool, so a CI wrapper can act on
 | ---- | ------- |
 | `0`  | clean — no enforced finding |
 | `1`  | an enforced finding — this branch has a smell to fix |
-| `2`  | the tool itself failed — a bad config key, a base ref the checkout cannot resolve, a `--last` that is not a positive integer, or a plugin that is configured but not installed |
+| `2`  | the tool itself failed — a bad config key, a base ref the checkout cannot resolve, a `--last` that is not a positive integer, a corrupt snooze index, or a plugin that is configured but not installed |
 
 ## Plugins
 

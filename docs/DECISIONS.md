@@ -386,7 +386,10 @@ mapping, config validation) are resolved and recorded above / in
   character (a silent index of nothing), an object survived only to be flattened
   on the next `--snooze`. It now demands a JSON list of strings and raises
   `SnoozeError` naming the file — a checked-in file a human edits must not fail
-  as a traceback or, worse, quietly. `save_index` writes a sibling temp file and
+  as a traceback or, worse, quietly. It **exits 2**, not 1: the index is part of
+  the tool's own inputs, so a broken one is #103's "failure of the tool itself",
+  the same as a rejected config key; only the `--prune` refusal above, a
+  judgement about the run, stays 1. `save_index` writes a sibling temp file and
   `os.replace`s it, so two concurrent hook runs cannot tear the file.
 
 ## Discovery is opt-in — a default install scans nothing (#97, agent decision)
