@@ -819,6 +819,38 @@ habit-mapper --config ci.toml
 
 🖥️ ✅
 
+### A misspelled key in that config names the mapper, not the sensors
+
+The config loader is shared with `habit-sensors`, but the message must name the
+binary the user actually ran: `severty` reaches the mapper through its own
+`--config`, so a prefix hardcoded to the other stage sends the reader hunting in
+the wrong tool. The run stops before rendering anything, with the tool-error
+exit 2 a bad config key always uses.
+
+📄ci.toml
+```toml
+plugins = ["generic"]
+
+[smells.duplicated-code]
+severty = "suggested"
+```
+
+⌨️
+```json
+[]
+```
+
+```bash
+habit-mapper --config ci.toml
+```
+
+🖥️ ❌ 2
+
+🚨
+```text
+habit-mapper: unknown config key 'severty' in [smells.duplicated-code]; known keys: disabled, guide, severity
+```
+
 ## Executable guides
 
 A guide with a non-`.md` extension is run by the **fix runner** registered for

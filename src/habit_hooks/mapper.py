@@ -33,7 +33,7 @@ def write_stderr(rendered: list[Rendered]) -> None:
 def run(
     findings: list[dict], project_dir: Path, config_path: Path | None = None
 ) -> int:
-    config = load_config(project_dir, config_path)
+    config = load_config(project_dir, config_path, program="habit-mapper")
     resolver = Resolver.discover(project_dir)
     findings = [f for f in findings if not is_disabled(f["smell"], config)]
     if not findings:
@@ -69,7 +69,7 @@ def coach_incomplete_run(project_dir: Path, config_path: Path | None) -> int:
     ``[smells.incomplete-run] disabled`` speaks about code smells and must not
     turn a scan that never ran into a clean one.
     """
-    config = load_config(project_dir, config_path)
+    config = load_config(project_dir, config_path, program="habit-mapper")
     resolver = Resolver.discover(project_dir)
     finding = incomplete_run_finding([EMPTY_STDIN_NOTICE])
     rendered = render_finding(finding, config, resolver)

@@ -26,6 +26,15 @@ class ToolError(SystemExit):
     """A failure of the tool itself, as opposed to a finding: exit 2, not 1."""
 
 
+class ConfigError(ToolError):
+    """A rejected config, raised where the running binary is not known.
+
+    The config loader serves all three console scripts, so it must not name one
+    of them: whoever loaded the config re-raises this as a ``ToolError`` naming
+    itself, and an unnamed one that escapes still exits 2.
+    """
+
+
 def version_line() -> str:
     return f"habit-hooks v{version('habit-hooks')}"
 

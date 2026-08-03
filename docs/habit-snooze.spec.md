@@ -677,6 +677,43 @@ habit-snooze --until-changed --config ci.toml | jq -c '[.[].issues[].key]'
 []
 ```
 
+### A misspelled key in that config names habit-snooze, not the sensors
+
+The config loader is shared with `habit-sensors`, but the message must name the
+binary the user actually ran — here the transformer, reading `[scope]` out of the
+file it was handed. A prefix hardcoded to the other stage sends the reader
+hunting in the wrong tool. The rejection is the tool's own failure, exit 2.
+
+📄ci.toml
+```toml
+[smells.duplicated-code]
+severty = "suggested"
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed --config ci.toml
+```
+
+🖥️ ❌ 2
+
+🚨
+```text
+habit-snooze: unknown config key 'severty' in [smells.duplicated-code]; known keys: disabled, guide, severity
+```
+
 ### The snooze is anchored to `details.file`, not to the key
 
 A sensor keys an issue by whatever groups it best — `deptry` by module name,

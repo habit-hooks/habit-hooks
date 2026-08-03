@@ -35,7 +35,10 @@ class Routing:
     def full_plugin_set(cls, project_dir: Path) -> Routing:
         plugins = sorted(installed_plugin_dirs())
         write_project_config(project_dir, f"plugins = {plugins!r}")
-        return cls(load_config(project_dir), Resolver.discover(project_dir))
+        return cls(
+            load_config(project_dir, program="habit-mapper"),
+            Resolver.discover(project_dir),
+        )
 
     @property
     def languages(self) -> list[str | None]:

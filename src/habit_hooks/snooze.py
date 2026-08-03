@@ -137,7 +137,9 @@ def _write_transformed(
     snoozed = set(load_index(project_dir))
     lapsed: set[str] = set()
     if until_changed:
-        base_ref = load_config(project_dir, config_path).scope.branchBase
+        base_ref = load_config(
+            project_dir, config_path, program="habit-snooze"
+        ).scope.branchBase
         anchors = snoozed_anchors(findings, snoozed)
         lapsed = changed_against_base(anchors, project_dir, base_ref)
     sys.stdout.write(json.dumps(transform(findings, snoozed, lapsed)) + "\n")
