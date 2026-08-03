@@ -14,7 +14,7 @@ from .command_text import expanded, quoted
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
-from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, Spawner, run_part
+from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, LIVE_GROUPS, Spawner, run_part
 
 
 @dataclass(frozen=True)
@@ -44,13 +44,29 @@ class Execution:
         scoped = [sensor for sensor in sensors if self._scoped_files(sensor)]
         if not scoped:
             return Run()
-        with ThreadPoolExecutor(max_workers=len(scoped)) as pool:
-            outputs = list(pool.map(self._safe_sensor, scoped))
         run = Run()
-        for findings, notices in outputs:
+        for findings, notices in self._sensor_outputs(scoped):
             run.findings.extend(findings)
             run.notices.extend(notices)
         return run
+
+    def _sensor_outputs(self, scoped: list[Part]) -> list[tuple[list[dict], list[str]]]:
+        """Every sensor's output, in parallel, ending them all on an interrupt.
+
+        A ``KeyboardInterrupt`` is delivered to the main thread — this one —
+        while the sensors are spawned from worker threads, which never receive
+        it. Leaving it there, the pool's shutdown would then wait for every
+        worker, each blocked until its own command's deadline: up to five
+        minutes of frozen terminal, during exactly the hang that made somebody
+        press the key. Ending the commands here unblocks the workers at once,
+        and it has to happen inside the ``with`` — its exit is the wait.
+        """
+        with ThreadPoolExecutor(max_workers=len(scoped)) as pool:
+            try:
+                return list(pool.map(self._safe_sensor, scoped))
+            except KeyboardInterrupt:
+                LIVE_GROUPS.interrupt()
+                raise
 
     def apply_transformers(
         self, transformers: list[Part], findings: list[dict]

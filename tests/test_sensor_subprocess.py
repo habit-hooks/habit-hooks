@@ -6,6 +6,11 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shlex
+import subprocess
+import sys
+import time
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -110,6 +115,44 @@ def test_a_wedged_sensor_printing_undecodable_bytes_is_still_a_notice(
     assert "sad" in notice
     assert "end" in notice
     assert "b'" not in notice
+
+
+def _surviving_pids(marker: str) -> list[str]:
+    """The processes still running a command tagged ``marker``, given time to die.
+
+    A signalled process does not vanish the instant the signal is sent, so this
+    polls rather than sleeping a guessed amount: it answers at once when the
+    group is already gone, and only waits out the deadline when something lived.
+    """
+    deadline = time.monotonic() + 5
+    while True:
+        found = subprocess.run(["pgrep", "-f", marker], capture_output=True, text=True)
+        pids = found.stdout.split()
+        if not pids or time.monotonic() > deadline:
+            return pids
+        time.sleep(0.05)
+
+
+def test_a_timed_out_sensor_takes_its_whole_pipeline_with_it(tmp_path: Path) -> None:
+    """Killing the shell is not killing the command.
+
+    A sensor is a pipeline — the shipped ``ruff`` and ``eslint`` sensors both
+    pipe their tool through ``jq`` — and those tools are children of the ``bash``
+    we spawned, not of us. Killing ``bash`` alone left them running as orphans
+    past the hook that started them, so the wedged tool the deadline exists to
+    stop went on churning, invisibly, with nothing left to report it to.
+    """
+    marker = f"habit_hooks_probe_{uuid.uuid4().hex}"
+    sleeper = f"{shlex.quote(sys.executable)} -c 'import time; time.sleep(30)' {marker}"
+    part = Part(name="probe", command=f"{sleeper} | {sleeper}", directory=tmp_path)
+    execution = Execution(
+        project_dir=tmp_path, scope=Scope(files=["src/a.py"]), timeout=1.0
+    )
+
+    run = execution.run_sensors([part])
+
+    assert run.failed
+    assert _surviving_pids(marker) == []
 
 
 def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
