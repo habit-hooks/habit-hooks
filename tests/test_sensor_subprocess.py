@@ -31,6 +31,19 @@ def _parent_stdin(data: bytes) -> Iterator[None]:
             os.close(fd)
 
 
+def _timed_out_notice(tmp_path: Path, command: str) -> str:
+    """The notices a sensor wedged by ``command`` leaves on its failed run."""
+    part = Part(name="probe", command=command, directory=tmp_path)
+    execution = Execution(
+        project_dir=tmp_path, scope=Scope(files=["src/a.py"]), timeout=0.3
+    )
+
+    run = execution.run_sensors([part])
+
+    assert run.failed
+    return "\n".join(run.notices)
+
+
 def test_a_wedged_sensor_times_out_into_a_failed_run(tmp_path: Path) -> None:
     """A tool that never returns must not hang the hook forever.
 
@@ -48,6 +61,56 @@ def test_a_wedged_sensor_times_out_into_a_failed_run(tmp_path: Path) -> None:
     assert run.findings == []
     assert run.failed
     assert any("timed out" in notice for notice in run.notices)
+
+
+def test_a_wedged_sensor_quotes_back_the_little_it_managed_to_say(
+    tmp_path: Path,
+) -> None:
+    """What it printed before the kill is the only clue, so it must read as text.
+
+    ``TimeoutExpired`` carries raw bytes whatever the spawn was told, so the
+    diagnosis reached the notice as a ``b'...'`` repr — the tool's own words
+    wrapped in Python syntax, in the one place a user has nothing else to go on.
+    """
+    notice = _timed_out_notice(tmp_path, "echo 'cannot reach registry' >&2; sleep 5")
+
+    assert "cannot reach registry" in notice
+    assert "b'" not in notice
+
+
+def test_a_wedged_sensor_that_said_a_lot_is_still_a_notice(tmp_path: Path) -> None:
+    """A timeout after a warning storm must not crash the run reporting it.
+
+    Past ``DIAGNOSIS_LINE_LIMIT`` the diagnosis is truncated by joining lines,
+    and joining raw bytes raises ``TypeError`` — uncaught anywhere above, so a
+    chatty wedged tool took the whole run down with a traceback instead of
+    leaving the notice + failed run every other spawn failure produces.
+    """
+    storm = 'for i in $(seq 1 25); do echo "warning $i" >&2; done; sleep 5'
+
+    notice = _timed_out_notice(tmp_path, storm)
+
+    assert "warning 1" in notice
+    assert "warning 20" in notice
+    assert "warning 21" not in notice
+    assert "... and 5 more lines" in notice
+
+
+def test_a_wedged_sensor_printing_undecodable_bytes_is_still_a_notice(
+    tmp_path: Path,
+) -> None:
+    """Output that is not text at all must not crash the crash handler.
+
+    A tool killed mid-character, or one printing binary, leaves bytes no codec
+    accepts. Decoding them strictly would raise from inside the very path that
+    exists to report a failure, losing the timeout it was called to describe.
+    """
+    notice = _timed_out_notice(tmp_path, r"printf 'sad \377\376 end' >&2; sleep 5")
+
+    assert "timed out" in notice
+    assert "sad" in notice
+    assert "end" in notice
+    assert "b'" not in notice
 
 
 def test_a_scope_past_the_argv_budget_runs_in_chunks(tmp_path: Path) -> None:

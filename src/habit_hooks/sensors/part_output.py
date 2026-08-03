@@ -60,11 +60,23 @@ def part_timeout(
     run like any crash, and whatever the tool managed to print before it was
     killed is quoted back, as the only clue to what it was stuck on.
     """
-    diagnosis = _first_lines((expiry.stderr or "").strip())
+    diagnosis = _first_lines(_as_text(expiry.stderr).strip())
     return SensorError(
         f"{kind} {part.name!r} timed out after {expiry.timeout:g}s: {part.command}"
         + (f"\n{diagnosis}" if diagnosis else "")
     )
+
+
+def _as_text(output: str | bytes | None) -> str:
+    """A killed part's output as text, whatever the spawn was told to decode.
+
+    ``TimeoutExpired`` carries raw bytes even from a ``text=True`` spawn: the
+    partial reads never reach the decoder. Undecodable bytes are replaced rather
+    than raised on, because this runs inside the handler reporting the failure.
+    """
+    if isinstance(output, bytes):
+        return output.decode("utf-8", errors="replace")
+    return output or ""
 
 
 def _first_lines(diagnosis: str) -> str:
