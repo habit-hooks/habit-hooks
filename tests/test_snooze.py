@@ -89,13 +89,16 @@ def test_config_defaults_to_none() -> None:
     assert parse_args(["--until-changed"]).config is None
 
 
+@pytest.mark.parametrize("transform_flag", ["--until-changed", "--config=ci.toml"])
 @pytest.mark.parametrize("index_op", ["--snooze", "--prune", "--list"])
-def test_until_changed_with_an_index_op_errors_by_name(
-    index_op: str, capsys: pytest.CaptureFixture[str]
+def test_a_transform_flag_with_an_index_op_errors_by_name(
+    transform_flag: str, index_op: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """It used to be accepted and silently ignored; now the conflict is named."""
+    """Both flags shape the transform and have no bearing on an index operation.
+    Each used to be accepted there and then silently ignored — `--prune --config
+    ci.toml` looked like it honoured a config it never read."""
     with pytest.raises(SystemExit):
-        parse_args(["--until-changed", index_op])
+        parse_args([transform_flag, index_op])
     err = capsys.readouterr().err
-    assert "--until-changed" in err
+    assert transform_flag.removesuffix("=ci.toml") in err
     assert index_op in err

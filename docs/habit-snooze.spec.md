@@ -423,6 +423,33 @@ src/x.ts
 src/y.ts
 ```
 
+## An index operation refuses a flag it would only ignore
+
+`--snooze`, `--prune` and `--list` maintain the index; they never run the
+transform. `--until-changed` and `--config` shape only the transform — what
+lapses a snooze, and which file `[scope] branchBase` comes from — so an index
+operation has nothing to do with either. Accepting one of them there and quietly
+dropping it is how `--prune --config ci.toml` looked like it honoured a config it
+never read, so the combination is a usage error naming both flags (exit 2).
+
+📄ci.toml
+```toml
+[scope]
+branchBase = "main"
+```
+
+```bash
+habit-snooze --list --config ci.toml
+```
+
+🖥️ ❌ 2
+
+```bash
+habit-snooze --list --until-changed
+```
+
+🖥️ ❌ 2
+
 ## A corrupt index fails the tool, not the code
 
 The index is a checked-in file people edit by hand, so a broken one is a failure

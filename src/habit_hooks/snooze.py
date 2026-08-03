@@ -156,21 +156,25 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--until-changed", action="store_true")
     parser.add_argument("--config", type=Path)
     args = parser.parse_args(argv)
-    _reject_until_changed_with_index_op(parser, args)
+    _reject_index_op_conflicts(parser, args)
     return args
 
 
-def _reject_until_changed_with_index_op(
+def _reject_index_op_conflicts(
     parser: argparse.ArgumentParser, args: argparse.Namespace
 ) -> None:
-    """``--until-changed`` ratchets the transform and has no bearing on the index
-    operations. Combining them used to be accepted and silently dropped (#86);
-    name the conflict instead of ignoring one of the two flags."""
-    if not args.until_changed:
+    """``--until-changed`` ratchets the transform and ``--config`` says which file
+    its base ref comes from; neither has any bearing on an index operation, which
+    never runs the transform. Combining them used to be accepted with one of the
+    two flags silently dropped (#86), so `--prune --config ci.toml` looked like it
+    honoured a config it never read. Name the conflict instead."""
+    index_op = next((op for op in ("snooze", "prune", "list") if getattr(args, op)), None)
+    if index_op is None:
         return
-    for index_op in ("snooze", "prune", "list"):
-        if getattr(args, index_op):
-            parser.error(f"argument --until-changed: not allowed with --{index_op}")
+    transform_flags = {"--until-changed": args.until_changed, "--config": args.config}
+    for flag, given in transform_flags.items():
+        if given:
+            parser.error(f"argument {flag}: not allowed with --{index_op}")
 
 
 def main(argv: list[str] | None = None) -> int:
