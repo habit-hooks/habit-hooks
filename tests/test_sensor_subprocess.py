@@ -1,6 +1,6 @@
-"""Robustness of the sensor subprocess layer: a deadline, a bounded argv, and an
-own stdin — the three ways an unusual-but-real run turned into a hang, a
-traceback, or a lost run (issue #96)."""
+"""Robustness of the sensor subprocess layer: a deadline and an own stdin — two
+of the ways an unusual-but-real run turned into a hang or a lost run (issue #96).
+How its argv is bounded is ``test_sensor_argv.py``."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import os
 from collections.abc import Iterator
 from pathlib import Path
 
-from habit_hooks.argv_budget import ARGUMENT_BUDGET
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
 from habit_hooks.sensors.model import Part
@@ -111,32 +110,6 @@ def test_a_wedged_sensor_printing_undecodable_bytes_is_still_a_notice(
     assert "sad" in notice
     assert "end" in notice
     assert "b'" not in notice
-
-
-def test_a_scope_past_the_argv_budget_runs_in_chunks(tmp_path: Path) -> None:
-    """A file list too long for one command line must not raise ``OSError``.
-
-    Above the platform's single-argument cap the whole list in one ``bash -c``
-    argument fails the spawn; ``_safe_sensor`` never caught that, so it escaped
-    as a traceback out of an ordinary CI-sized run. Chunked, every file reaches
-    a sensor invocation and every invocation's findings come back.
-    """
-    (tmp_path / "count.py").write_text(
-        "import sys, json\n"
-        'print(json.dumps([{"smell": "s", "count": len(sys.argv) - 1,'
-        ' "issues": []}]))\n'
-    )
-    part = Part(
-        name="probe", command="${python} ${dir}/count.py ${files}", directory=tmp_path
-    )
-    files = [f"generated/module_{index:06d}.py" for index in range(8_000)]
-    assert sum(len(name) + 1 for name in files) > 2 * ARGUMENT_BUDGET
-    execution = Execution(project_dir=tmp_path, scope=Scope(files=files))
-
-    findings = execution.run_sensor(part)
-
-    assert len(findings) > 1
-    assert sum(finding["count"] for finding in findings) == len(files)
 
 
 def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:

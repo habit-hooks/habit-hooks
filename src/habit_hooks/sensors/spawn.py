@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .model import Part
-from .part_output import part_timeout
+from .part_output import part_spawn_failure, part_timeout
 
 # Seconds one invocation may run before it is killed. A wedged tool — waiting on
 # input, or churning on a pathological repo — otherwise blocks the hook forever
@@ -60,12 +60,16 @@ class Spawner:
 def run_part(
     kind: str, part: Part, run: Callable[[], subprocess.CompletedProcess[str]]
 ) -> subprocess.CompletedProcess[str]:
-    """``run()``'s result, its timeout raised as the ``SensorError`` a crash is.
+    """``run()``'s result, its spawn failures raised as the ``SensorError`` they are.
 
     A wedged tool that never returns must not block the hook: its deadline
-    becomes the same notice + failed run any other spawn failure produces.
+    becomes the same notice + failed run any other spawn failure produces. A
+    spawn the operating system refuses outright is that failure one step
+    earlier, and raises an ``OSError`` nothing between here and ``main`` caught.
     """
     try:
         return run()
     except subprocess.TimeoutExpired as expiry:
         raise part_timeout(kind, part, expiry) from None
+    except OSError as refusal:
+        raise part_spawn_failure(kind, part, refusal) from None

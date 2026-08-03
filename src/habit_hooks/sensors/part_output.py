@@ -67,6 +67,18 @@ def part_timeout(
     )
 
 
+def part_spawn_failure(kind: str, part: Part, refusal: OSError) -> SensorError:
+    """The operating system refused to start it, so it never got to speak.
+
+    An argument list past a cap the argv budget guessed wrong, a project
+    directory deleted mid-run, no ``bash`` to run it: a failure before the
+    command existed, leaving nothing to quote back but the system's own words.
+    It travels the same notice + failed run channel a crash does, because a
+    layer that runs other people's programs must never fail as a traceback.
+    """
+    return SensorError(f"{kind} {part.name!r} could not run: {part.command}\n{refusal}")
+
+
 def _as_text(output: str | bytes | None) -> str:
     """A killed part's output as text, whatever the spawn was told to decode.
 

@@ -4,14 +4,13 @@ JSON findings it emits — the bin/PATH + subprocess layer of the ETL."""
 from __future__ import annotations
 
 import json
-import shlex
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..argv_budget import within_argument_limits
+from ..argv_budget import ARGUMENT_BUDGET, within_argument_limits
 from ..scope import Scope, matching
+from .command_text import expanded, quoted
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
@@ -122,10 +121,15 @@ class Execution:
         the spawn (a raw ``OSError`` ``_safe_sensor`` never caught, escaping an
         ordinary CI-sized run as a traceback); one that reads its own paths
         (``knip``, ``deptry``, ``jscpd``) runs once, not once per chunk.
+
+        The whole command ends up as one ``bash -c`` argument, so that is what
+        the budget is spent on: the paths are measured quoted, as they will be
+        spelled there, and what the rest of the command costs comes off first.
         """
-        files = self._scoped_files(sensor)
+        files = self._quoted_files(sensor)
         split = "${files}" in sensor.command and files
-        chunks = within_argument_limits(files) if split else [files]
+        budget = ARGUMENT_BUDGET - len(self._expand_files(sensor, []))
+        chunks = within_argument_limits(files, budget) if split else [files]
         return [self._expand_files(sensor, chunk) for chunk in chunks]
 
     def _safe_sensor(self, sensor: Part) -> tuple[list[dict], list[str]]:
@@ -147,25 +151,13 @@ class Execution:
 
     def _expand(self, part: Part) -> str:
         """The command over the whole scope — its transformer form and one chunk."""
-        return self._expand_files(part, self._scoped_files(part))
+        return self._expand_files(part, self._quoted_files(part))
 
-    def _expand_files(self, part: Part, files: list[str]) -> str:
-        """The command to run over ``files``, with every substituted value quoted.
+    def _quoted_files(self, part: Part) -> list[str]:
+        return quoted(self._scoped_files(part))
 
-        A command is a shell string — sensors pipe through ``jq`` — so every
-        value spliced into it has to be quoted or the shell reads it as syntax.
-        A path is the dangerous one: it comes from the work tree, so an
-        unquoted ``${files}`` lets a filename execute its own contents.
-        """
-        files_text = " ".join(shlex.quote(f) for f in files)
-        args = " ".join(shlex.quote(arg) for arg in part.args)
-        return (
-            part.command.replace("${python}", shlex.quote(sys.executable))
-            .replace("${dir}", shlex.quote(str(part.directory)))
-            .replace("${args}", args)
-            .replace("${files}", files_text)
-            .replace("${config}", self._config_flag())
-        )
+    def _expand_files(self, part: Part, quoted_files: list[str]) -> str:
+        return expanded(part, quoted_files, self.config_path)
 
     def _scoped_files(self, part: Part) -> list[str]:
         """The run's scope, narrowed to this sensor's own ``files`` if it has any.
@@ -177,18 +169,6 @@ class Execution:
         if part.files is None:
             return self.scope.files
         return matching(self.scope.files, part.files)
-
-    def _config_flag(self) -> str:
-        """``--config <path>`` when the run named a config, else nothing.
-
-        A transformer runs as its own process, so the only way it sees the run's
-        ``--config`` is to be handed it. The placeholder carries the whole flag,
-        not just the path, so a run with no ``--config`` expands to nothing
-        rather than a dangling ``--config`` with no argument.
-        """
-        if self.config_path is None:
-            return ""
-        return f"--config {shlex.quote(str(self.config_path))}"
 
     @property
     def _spawner(self) -> Spawner:
