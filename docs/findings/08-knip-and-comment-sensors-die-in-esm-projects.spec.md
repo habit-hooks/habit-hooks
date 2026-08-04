@@ -1,4 +1,4 @@
-# 08. The Node helpers break in an ESM project
+# 08. The knip and comment sensors die in `"type": "module"` projects
 
 The typescript plugin ships two helper scripts — `sensors/knip.js` and
 `sensors/comment.js` — written as CommonJS and named `.js`. Node does not decide
