@@ -42,7 +42,12 @@ jobs:
         run: |
           mkdir -p upload
           mv "dist/${{ matrix.dist }}-"*.whl "dist/${{ matrix.dist }}-"*.tar.gz upload/
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      # v1.14.0 pinned packaging==25.0, which rejects the Metadata-Version 2.5
+      # every `uv build` here emits: "'2.5' is not a valid metadata version",
+      # raised by twine's check before anything is uploaded. v1.14.2 pins
+      # packaging==26.2 / twine==7.0.0, which accept it. Keep this action new
+      # enough for whatever metadata version the pinned uv writes.
+      - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26 # v1.14.2
         with:
           packages-dir: upload/
           skip-existing: true
