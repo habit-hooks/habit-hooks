@@ -12,7 +12,6 @@ outside this repository (#109).
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 from attrs import define, field
@@ -20,6 +19,7 @@ from attrs import define, field
 from .catalogue import UNCOACHED_SUGGEST
 from .config_guard import (
     PLUGIN_CONFIG_KEYS,
+    read_toml,
     reject_unknown,
     reject_unknown_uncoached_value,
     settable,
@@ -98,10 +98,8 @@ def _build_config(data: dict) -> Config:
 
 
 def _read_toml(path: Path) -> dict:
-    if not path.is_file():
-        return {}
-    with path.open("rb") as f:
-        return tomllib.load(f)
+    """The file's contents, or nothing at all if there is no such file."""
+    return read_toml(path) if path.is_file() else {}
 
 
 def _plugin_configs(plugins: list[str], project_dir: Path) -> list[dict]:

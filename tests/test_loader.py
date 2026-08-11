@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from plugin_fixture import loader_for, write_plugin, write_project_config
 
 
@@ -55,3 +57,17 @@ def test_files_override_replaces_the_sensor_spec_default(tmp_path: Path) -> None
 def test_a_sensor_declaring_no_files_carries_none(tmp_path: Path) -> None:
     part = _one_sensor(tmp_path, 'command = "echo ${files}"')
     assert part.files is None
+
+
+def test_a_sensor_spec_that_is_not_toml_is_refused_by_name(tmp_path: Path) -> None:
+    """A part spec is hand-written too, so it earns the same refusal the project
+    config does (#114) rather than a ``tomllib`` traceback: one shared read means
+    every TOML this tool opens answers a slip in it the same way."""
+    spec = tmp_path / ".habit-hooks" / "fixt" / "sensors" / "s.toml"
+
+    with pytest.raises(SystemExit) as failure:
+        _one_sensor(tmp_path, 'command = "echo')
+
+    assert str(failure.value) == (
+        f"{spec}: invalid TOML: Unterminated string (at end of document)"
+    )

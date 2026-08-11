@@ -3,19 +3,13 @@ per-sensor args and disable overrides — the loading half of the ETL."""
 
 from __future__ import annotations
 
-import tomllib
 from dataclasses import dataclass
-from pathlib import Path
 
 from ..cli import ToolError
 from ..config import Config
+from ..config_guard import read_toml
 from ..resolve import Resolver
 from .model import Part, Plugin
-
-
-def _read_toml(path: Path) -> dict:
-    with path.open("rb") as f:
-        return tomllib.load(f)
 
 
 @dataclass(frozen=True)
@@ -32,7 +26,7 @@ class PluginLoader:
     def load_plugin(self, name: str) -> Plugin:
         self.resolver.require_plugin(name)
         path = self.resolver.in_plugin(name, "config.toml")
-        spec = _read_toml(path) if path else {}
+        spec = read_toml(path) if path else {}
         sensors = [
             self.resolve_part([name], "sensors", sensor)
             for sensor in spec.get("sensors", [])
@@ -50,7 +44,7 @@ class PluginLoader:
             raise ToolError(
                 f"habit-sensors: no {kind[:-1]} {name!r} in {plugins} or the core"
             )
-        spec = _read_toml(path)
+        spec = read_toml(path)
         if kind != "sensors":
             return Part(name, spec["command"], path.parent)
         return Part(

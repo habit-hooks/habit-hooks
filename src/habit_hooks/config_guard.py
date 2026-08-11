@@ -7,12 +7,20 @@ documented-but-dead key, and silently ignoring it is why both keep shipping
 loader-populated internals). The same rule covers a *value* nothing consumes:
 a misspelled ``uncoached`` would otherwise quietly pick a policy (#111).
 
+A file that is not TOML at all is the same kind of refusal, which is why reading
+one lives here too: unprotected, ``tomllib``'s own exception escaped as a
+traceback at exit **1** — the code reserved for an enforced finding — so CI read
+a missing ``]`` as a smell in the code rather than a typo in a config (#114).
+
 The rejection names no binary, because all three console scripts load a config
 through this guard and one hardcoded name sends the other two's users to the
 wrong tool; ``cli.run_console`` names it when it prints it.
 """
 
 from __future__ import annotations
+
+import tomllib
+from pathlib import Path
 
 from attrs import fields
 
@@ -24,6 +32,21 @@ from .cli import ConfigError
 # read by the config loader. Unlike the project config these are not one attrs
 # type, so the allowed set is named here.
 PLUGIN_CONFIG_KEYS = frozenset({"sensors", "transformers", "language", "files", "runners"})
+
+
+def read_toml(path: Path) -> dict:
+    """``path`` parsed, or a ``ConfigError`` naming the file and what is wrong.
+
+    Every TOML this tool reads goes through here — the project config, a
+    plugin's, a sensor or transformer spec — so a hand-edit slip in any of them
+    answers with one line rather than a stack trace. ``tomllib``'s own text is
+    the diagnosis: it already carries the line and column to go and look at.
+    """
+    with path.open("rb") as file:
+        try:
+            return tomllib.load(file)
+        except tomllib.TOMLDecodeError as invalid:
+            raise ConfigError(f"{path}: invalid TOML: {invalid}") from None
 
 
 def settable(cls: type) -> set[str]:

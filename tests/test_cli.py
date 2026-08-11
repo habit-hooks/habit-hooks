@@ -78,6 +78,24 @@ def test_a_tool_failure_exits_two_not_one(
     assert sensors.main(["--branch", "nope"]) == 2
 
 
+def test_a_malformed_config_fails_the_tool_not_the_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A config that is not TOML at all exited 1 — the code reserved for an
+    enforced finding — so CI reading the exit code concluded the code had a
+    smell. The tool never ran: that is a 2, on one named line (#114)."""
+    config = tmp_path / ".habit-hooks" / "config.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text('files = ["src/**"\n')
+    monkeypatch.chdir(tmp_path)
+
+    assert sensors.main(["--all"]) == 2
+    assert capsys.readouterr().err == (
+        f"habit-sensors: {config}: invalid TOML: Unclosed array"
+        " (at end of document)\n"
+    )
+
+
 @pytest.mark.parametrize("value", ["0", "-1"])
 def test_last_rejects_a_non_positive_count_by_name(
     value: str, capsys: pytest.CaptureFixture[str]

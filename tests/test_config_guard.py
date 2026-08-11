@@ -1,10 +1,12 @@
-"""Unit tests for the unknown-key guard, at every level.
+"""Unit tests for every refusal a config can earn, at every level.
 
-A key nothing consumes is a typo or a documented-but-dead key, so it is rejected
-by name rather than ignored (#102). The rejection names no binary here: all three
-console scripts share this one loader, so the name is added where the failure is
-printed (``test_cli.py``). Loading and merging a config that passes the guard is
-``test_config.py``.
+A key or value nothing consumes is a typo or a documented-but-dead setting, so it
+is rejected by name rather than ignored (#102, #111); a file that is not TOML at
+all is refused the same way rather than escaping as a ``tomllib`` traceback at
+the exit code an enforced finding uses (#114). The rejection names no binary
+here: all three console scripts share this one loader, so the name is added where
+the failure is printed (``test_cli.py``). Loading and merging a config that
+passes the guard is ``test_config.py``.
 """
 
 from __future__ import annotations
@@ -24,6 +26,49 @@ def _project(tmp_path: Path, body: str) -> Path:
 
 def _load(project_dir: Path) -> None:
     load_config(project_dir)
+
+
+def _refusal(project_dir: Path) -> str:
+    with pytest.raises(SystemExit) as failure:
+        _load(project_dir)
+    return str(failure.value)
+
+
+def _config_path(project_dir: Path) -> Path:
+    return project_dir / ".habit-hooks" / "config.toml"
+
+
+def test_an_unclosed_array_is_refused_by_file_and_reason(tmp_path: Path) -> None:
+    """One missing ``]`` — the commonest hand-edit slip there is — reached
+    ``tomllib.load`` unprotected, so the answer was a stack trace. The file and
+    tomllib's own words are what a reader needs; the traceback is not."""
+    project = _project(tmp_path, 'plugins = ["generic"]\nfiles   = ["src/**"')
+
+    assert _refusal(project) == (
+        f"{_config_path(project)}: invalid TOML: Unclosed array (at end of document)"
+    )
+
+
+def test_a_duplicated_table_is_refused_the_same_way(tmp_path: Path) -> None:
+    """The other everyday TOML slip lands in the same place."""
+    body = '[scope]\nbranchBase = "main"\n\n[scope]\nmainBranch = "x"'
+    project = _project(tmp_path, body)
+
+    assert _refusal(project) == (
+        f"{_config_path(project)}: invalid TOML: "
+        "Cannot declare ('scope',) twice (at line 4, column 7)"
+    )
+
+
+def test_a_malformed_plugin_config_is_refused_too(tmp_path: Path) -> None:
+    """The guard fires on plugin-shipped TOML as it does on the project's."""
+    project = _project(tmp_path, 'plugins = ["alpha"]')
+    write_plugin(project, "alpha", {"config.toml": 'sensors = ["s"'})
+
+    assert _refusal(project) == (
+        f"{project / '.habit-hooks' / 'alpha' / 'config.toml'}: invalid TOML: "
+        "Unclosed array (at end of document)"
+    )
 
 
 def test_an_unknown_root_key_is_rejected_by_name(tmp_path: Path) -> None:
