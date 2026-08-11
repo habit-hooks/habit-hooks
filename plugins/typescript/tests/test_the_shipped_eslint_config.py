@@ -118,6 +118,46 @@ def test_the_unused_local_is_reported_by_the_typescript_rule(tmp_path: Path) -> 
     ]
 
 
+def test_the_config_loads_from_where_it_ships(tmp_path: Path) -> None:
+    """Once the sensor names the shipped config, that file is read from wherever
+    habit-hooks is installed — for a consumer, a Python ``site-packages`` tree
+    with no ``node_modules`` anywhere above it. A bare ``import`` in the config
+    resolves against *that* directory and dies with ``ERR_MODULE_NOT_FOUND``, so
+    the parser and plugin have to come from the project, which is where eslint
+    itself came from.
+    """
+    project = _project(tmp_path)
+    installed = tmp_path / "site-packages" / "habit_hooks_typescript"
+    installed.mkdir(parents=True)
+    shipped = installed / SHIPPED_CONFIG.name
+    shipped.write_bytes(SHIPPED_CONFIG.read_bytes())
+
+    messages = _messages(project, shipped)
+
+    assert [message["line"] for message in messages] == [UNUSED_LOCAL_LINE], messages
+
+
+def test_a_flat_config_above_the_project_is_still_the_project_s_own(
+    tmp_path: Path,
+) -> None:
+    """eslint discovers a flat config by walking up from where it runs, so a
+    monorepo root's config is one the project already has. The sensor has to
+    make the same walk: stopping at the project directory would name ours over a
+    config eslint would have found, which is the override the rule forbids."""
+    project = _project(tmp_path)
+    (tmp_path / "eslint.config.mjs").write_text(
+        'export default [{ files: ["**/*.ts"], rules: { "no-console": "error" } }];\n',
+        encoding="utf-8",
+    )
+    (project / "src" / "repository.ts").write_text(
+        'console.log("shipping this by accident");\n', encoding="utf-8"
+    )
+
+    findings = _sensor_findings(project)
+
+    assert [finding["smell"] for finding in findings] == ["no-console"], findings
+
+
 def test_the_typescript_rule_arrives_as_the_unused_variable_smell(
     tmp_path: Path,
 ) -> None:

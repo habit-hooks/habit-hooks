@@ -1,5 +1,14 @@
-import tseslint from "@typescript-eslint/eslint-plugin";
-import tsparser from "@typescript-eslint/parser";
+import { createRequire } from "node:module";
+import path from "node:path";
+
+// This file is read from wherever habit-hooks is installed — for a consumer, a
+// Python site-packages tree with no node_modules anywhere above it — so a bare
+// `import` here resolves against THAT directory and dies with
+// ERR_MODULE_NOT_FOUND. eslint itself comes from the project's own
+// node_modules, so its parser and plugin are resolved from the project too.
+const fromProject = createRequire(path.join(process.cwd(), "eslint.config.mjs"));
+const tseslint = fromProject("@typescript-eslint/eslint-plugin");
+const tsparser = fromProject("@typescript-eslint/parser");
 
 export default [
   {

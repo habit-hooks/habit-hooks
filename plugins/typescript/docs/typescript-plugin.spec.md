@@ -54,10 +54,17 @@ $PWD/node_modules/.bin:$PATH
 
 ## The eslint adapter
 
-The `eslint` adapter runs eslint with the shipped flat config and a jq transform
-in its command flattens the per-file `messages[]`, remaps each rule ID to a
-canonical smell, and groups one finding per smell, stamping `source:
-"eslint:<rule>"` on each issue.
+The `eslint` adapter runs eslint and a jq transform in its command flattens the
+per-file `messages[]`, remaps each rule ID to a canonical smell, and groups one
+finding per smell, stamping `source: "eslint:<rule>"` on each issue.
+
+**None of the cases below writes an `eslint.config.*`**, and they report anyway:
+the plugin ships a flat config with the thresholds its smells are defined against
+(`max-params: 3`, `max-depth: 4`, `complexity: 10`, `max-lines-per-function: 12`)
+and the sensor falls back to it. Only after establishing the project has written
+none — eslint's own six flat-config filenames, looked for the way eslint looks
+for them, up from the project — does the sensor name the shipped file. A project
+that has written one gets exactly that, and the last case here is the proof.
 
 A message eslint raises about a *file* rather than about a rule carries
 `ruleId: null` — an ignored file in the scope, an `eslint-disable` directive
@@ -67,8 +74,6 @@ run with it. The adapter drops those messages before the map sees them, and
 passes `--no-warn-ignored` so the commonest of them is never raised at all. A
 `fatal` message is the one exception: it has no rule ID either and is exactly
 what `parse-error` exists to report, so it is kept.
-
-📄eslint.config.mjs @plugins/typescript/src/habit_hooks_typescript/eslint.config.mjs
 
 📄.habit-hooks/config.toml
 ```toml
@@ -111,8 +116,9 @@ habit-sensors --all | jq -f finding.jq
 ### A file the eslint config ignores costs the run nothing
 
 The scope hands the sensor every `*.ts` file the project has, including ones the
-project's own eslint config ignores — the shipped config ignores
-`tests/fixtures/**`. Eslint's "File ignored because of a matching ignore
+eslint config in force ignores — the shipped config ignores `tests/fixtures/**`,
+and its ignore patterns are read against the project, not against the directory
+the plugin is installed in. Eslint's "File ignored because of a matching ignore
 pattern" notice is not a smell and must not become one; the real smell next to
 it still reports.
 
@@ -308,6 +314,41 @@ habit-sensors --all | jq -f finding.jq
   "line": 1,
   "source": "eslint:no-console"
 }
+```
+
+### A project's own flat config wins over the shipped one
+
+Installing habit-hooks must never override a developer's existing preferences, so
+the shipped config is the answer to "this project has none" and nothing more. The
+project below has written a flat config that enforces `no-console` and says
+nothing about parameter counts, so the four-parameter function the shipped config
+exists to catch is silent. That answer is reachable from no other config in the
+picture, which is what makes it proof the project's own file is what ran — and
+the project's config brings no TypeScript parser, so the source stays inside what
+eslint's own parser reads.
+
+📄eslint.config.mjs
+```javascript
+export default [
+  { files: ["**/*.ts"], rules: { "no-console": "error" } },
+];
+```
+
+📄src/billing.ts
+```typescript
+export function charge(a, b, c, d) {
+  console.log("charging");
+  return a + b + c + d;
+}
+```
+
+```bash
+habit-sensors --all | jq -c '[.[] | {smell, source: .issues[0].details.source}]'
+```
+
+🖥️ ✅
+```json
+[{"smell":"no-console","source":"eslint:no-console"}]
 ```
 
 ## knip sensor
