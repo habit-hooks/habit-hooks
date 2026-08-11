@@ -2,8 +2,7 @@
 
 These pin the loader's behaviour: defaults, nested construction, and merging the
 active plugins' own contributions. Rejecting unknown keys is
-``test_config_keys.py``. Every load here runs as the sensors stage — which binary
-loads a valid config changes nothing about the config it gets.
+``test_config_keys.py``.
 """
 
 from __future__ import annotations
@@ -43,6 +42,15 @@ def test_missing_config_yields_defaults(tmp_path: Path) -> None:
     assert config.scope.autoBranchOffMain is False
     assert config.scope.branchBase == "main"
     assert config.scope.mainBranch == "main"
+
+
+def test_a_caller_that_names_no_program_still_loads(tmp_path: Path) -> None:
+    """The call a project's own transformer makes, spelled out rather than routed
+    through ``_load``. A transformer is a separate process, and importing this
+    function is the only way one has ever had to read ``[scope] branchBase``, so a
+    required keyword argument here broke every caller outside this repo (#109).
+    """
+    assert load_config(tmp_path).scope.branchBase == "main"
 
 
 _POPULATED_CONFIG = """

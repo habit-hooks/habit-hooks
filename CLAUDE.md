@@ -212,6 +212,18 @@ The layout the spec harnesses rely on survives: each plugin still has its own
 tree's `.bin`. pnpm does not hoist transitive deps, so `.bin` is now only those
 direct tools — do not add a sensor that spawns a transitive binary.
 
+### `docs/` is user-facing documentation that doubles as acceptance test (human-requested by Ivett)
+
+Every `.spec.md` under `docs/` is documentation first: it is written for someone
+learning how habit-hooks behaves, and pytest executing each case is what keeps
+that documentation honest. A bug fix does not earn a place there. Its regression
+test is a unit test under `tests/`, named for the behaviour it protects — even
+when the bug was first reproduced as a `docs/findings/NN-….spec.md`, which is a
+reporting convenience for review and not the fix's home. The question to ask of
+a case before adding it to `docs/` is whether a user reading it to learn the
+tool would want it; if the honest answer is "it is here so this bug cannot come
+back", it belongs in `tests/`.
+
 ## Gotchas
 
 ### A git-backed spec case without a ceiling can rewrite THIS repo
