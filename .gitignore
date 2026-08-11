@@ -16,6 +16,9 @@ __pycache__/
 
 # Workflow orchestration script (run from ~/.claude, never a repo deliverable)
 .claude/workflows-build-overnight.js
+
+# Agent worktrees (created by the harness inside the checkout)
+.claude/worktrees/
 /scratches/
 
 # unsupervised-issues run signals (live mode switch + stop flag)
