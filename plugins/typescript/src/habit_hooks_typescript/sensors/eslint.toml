@@ -23,6 +23,7 @@ eslint -f json --no-warn-ignored "${shipped[@]}" $files | jq '[.[] | .filePath a
   smell: (if .fatal then "parse-error" else ({
     "max-lines-per-function": "oversized-function",
     "max-params": "too-many-parameters",
+    "@typescript-eslint/max-params": "too-many-parameters",
     "complexity": "high-complexity",
     "max-depth": "deep-nesting",
     "max-lines": "oversized-file",
