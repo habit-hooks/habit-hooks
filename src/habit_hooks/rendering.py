@@ -15,7 +15,14 @@ from typing import NoReturn
 
 from jinja2 import Environment, FunctionLoader
 
-from .catalogue import DEFAULT_SEVERITY, ENFORCED, UNCOACHED_GUIDE
+from .catalogue import (
+    DEFAULT_SEVERITY,
+    ENFORCED,
+    SUGGESTED,
+    UNCOACHED_ENFORCE,
+    UNCOACHED_GUIDE,
+    UNCOACHED_IGNORE,
+)
 from .cli import ToolError
 from .config import Config
 from .resolve import Resolver
@@ -30,16 +37,35 @@ class Rendered:
     stderr: str = ""
 
 
+def _declared_severity(smell: str, config: Config) -> str | None:
+    override = config.smells.get(smell)
+    return override.severity if override and override.severity else None
+
+
+def _is_uncoached(smell: str, config: Config) -> bool:
+    """A smell nobody has decided about: not catalogued, and not declared here.
+
+    A ``[smells.<name>] severity`` is that decision, so it takes the smell out of
+    the ``uncoached`` policy's reach in all three of its values.
+    """
+    return smell not in DEFAULT_SEVERITY and _declared_severity(smell, config) is None
+
+
 def is_disabled(smell: str, config: Config) -> bool:
     override = config.smells.get(smell)
-    return bool(override and override.disabled)
+    if override and override.disabled:
+        return True
+    return config.uncoached == UNCOACHED_IGNORE and _is_uncoached(smell, config)
 
 
 def severity_of(smell: str, config: Config) -> str:
-    override = config.smells.get(smell)
-    if override and override.severity:
-        return override.severity
-    return DEFAULT_SEVERITY.get(smell, ENFORCED)
+    declared = _declared_severity(smell, config)
+    if declared:
+        return declared
+    # Only ``enforce`` lets an uncoached smell block; under ``ignore`` the
+    # finding never reaches here, having been dropped as disabled.
+    uncoached = ENFORCED if config.uncoached == UNCOACHED_ENFORCE else SUGGESTED
+    return DEFAULT_SEVERITY.get(smell, uncoached)
 
 
 def guide_names(smell: str, config: Config) -> list[str]:

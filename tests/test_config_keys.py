@@ -51,6 +51,20 @@ def test_an_unknown_smell_key_is_rejected_by_name(tmp_path: Path) -> None:
         _load(project)
 
 
+def test_an_unknown_uncoached_value_is_rejected_with_the_valid_ones(
+    tmp_path: Path,
+) -> None:
+    """A value nothing consumes is a typo the same way a key is (#111). Reading
+    ``"supress"`` as the default would silently mean ``enforce``, which is the
+    behaviour the project was trying to turn off."""
+    project = _project(tmp_path, 'uncoached = "supress"')
+    with pytest.raises(SystemExit, match=r"'supress'") as failure:
+        _load(project)
+    message = str(failure.value)
+    assert "'uncoached'" in message
+    assert "'enforce', 'ignore', 'suggest'" in message
+
+
 def test_an_unknown_plugin_config_key_is_rejected_by_name(tmp_path: Path) -> None:
     """The guard fires on plugin-shipped config too, not only the project's."""
     project = _project(tmp_path, 'plugins = ["alpha"]')

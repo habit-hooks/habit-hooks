@@ -40,6 +40,15 @@ DEFAULT_SEVERITY: dict[str, str] = {
 
 UNCOACHED_GUIDE = "uncoached.md"
 
+# What a run does with a smell this catalogue does not name — the root
+# ``uncoached`` config key (#111). The catalogue is the record of what has been
+# decided worth failing a build over, so a name absent from it has had no such
+# decision made about it and coaches without blocking by default.
+UNCOACHED_SUGGEST = "suggest"
+UNCOACHED_IGNORE = "ignore"
+UNCOACHED_ENFORCE = "enforce"
+UNCOACHED_POLICIES = (UNCOACHED_SUGGEST, UNCOACHED_IGNORE, UNCOACHED_ENFORCE)
+
 
 def incomplete_run_finding(notices: list[str]) -> dict:
     """The reserved-smell finding a failed run carries on the pipe.

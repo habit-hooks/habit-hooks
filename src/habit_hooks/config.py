@@ -1,16 +1,13 @@
 """Load the merged TOML config across the resolution chain.
 
-Unknown keys are rejected at every level — project *and* plugin config — with a
-``ConfigError`` (exit 2): a key nothing consumes is a typo or a
-documented-but-dead key, and silently ignoring it is why both keep shipping
-(#102). The allowed keys are the type's declared attrs fields (minus
-loader-populated internals). The rejection names no binary, because all three
-console scripts load a config here and one hardcoded name sends the other two's
-users to the wrong tool; ``cli.run_console`` names it when it prints it. Loading
-takes no argument for that name — a project's own transformer is a separate
-process, and importing ``load_config`` is the only way one has to read
-``[scope] branchBase``, so an argument here breaks every caller outside this
-repository (#109).
+What a config may say — and the ``ConfigError`` that refuses anything else — is
+:mod:`habit_hooks.config_guard`; this module is the loading around it: the shape
+of each section, the plugin defaults it merges, and the order they win in.
+
+Loading takes no argument for the running binary's name — a project's own
+transformer is a separate process, and importing ``load_config`` is the only way
+one has to read ``[scope] branchBase``, so an argument here breaks every caller
+outside this repository (#109).
 """
 
 from __future__ import annotations
@@ -18,9 +15,15 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from attrs import define, field, fields
+from attrs import define, field
 
-from .cli import ConfigError
+from .catalogue import UNCOACHED_SUGGEST
+from .config_guard import (
+    PLUGIN_CONFIG_KEYS,
+    reject_unknown,
+    reject_unknown_uncoached_value,
+    settable,
+)
 from .resolve import Resolver
 
 
@@ -54,6 +57,9 @@ class Config:
     # drops it or orders it against its own steps.
     transformers: list[str] = field(factory=lambda: ["snooze"])
     files: list[str] | None = None
+    # What happens to a smell the catalogue does not name: it coaches without
+    # failing the run unless this says otherwise (see ``rendering.severity_of``).
+    uncoached: str = UNCOACHED_SUGGEST
     scope: ScopeDefaults = field(factory=ScopeDefaults)
     sensors: dict[str, SensorOverride] = field(factory=dict)
     runners: dict[str, str] = field(factory=dict)
@@ -64,31 +70,6 @@ class Config:
     plugin_languages: dict[str, str] = field(factory=dict, metadata={"internal": True})
 
 
-# The keys a plugin ``config.toml`` may set: ``sensors``/``transformers``/
-# ``language`` read in ``sensors/loader.py``; ``files``/``runners``/``language``
-# read by the helpers below. Unlike the project config these are not one attrs
-# type, so the allowed set is named here.
-_PLUGIN_CONFIG_KEYS = frozenset({"sensors", "transformers", "language", "files", "runners"})
-
-
-def _settable(cls: type) -> set[str]:
-    """The keys a user may set on ``cls``: its attrs fields, minus internals."""
-    return {f.name for f in fields(cls) if f.metadata.get("internal") is not True}
-
-
-def _reject_unknown(allowed: frozenset[str] | set[str], data: dict, where: str) -> None:
-    """Fail clearly on any key in ``data`` that ``where`` does not consume."""
-    unknown = sorted(key for key in data if key not in allowed)
-    if not unknown:
-        return
-    label = "key" if len(unknown) == 1 else "keys"
-    names = ", ".join(repr(key) for key in unknown)
-    raise ConfigError(
-        f"unknown config {label} {names} in {where}; "
-        f"known keys: {', '.join(sorted(allowed))}"
-    )
-
-
 def _build_mapping(cls: type, data: object, section: str) -> dict:
     if not isinstance(data, dict):
         return {}
@@ -96,16 +77,18 @@ def _build_mapping(cls: type, data: object, section: str) -> dict:
     for name, value in data.items():
         if not isinstance(value, dict):
             continue
-        _reject_unknown(_settable(cls), value, f"[{section}.{name}]")
+        reject_unknown(settable(cls), value, f"[{section}.{name}]")
         result[name] = cls(**value)
     return result
 
 
 def _build_config(data: dict) -> Config:
-    _reject_unknown(_settable(Config), data, "the project config")
+    reject_unknown(settable(Config), data, "the project config")
     known = dict(data)
+    if "uncoached" in known:
+        reject_unknown_uncoached_value(known["uncoached"])
     if isinstance(known.get("scope"), dict):
-        _reject_unknown(_settable(ScopeDefaults), known["scope"], "[scope]")
+        reject_unknown(settable(ScopeDefaults), known["scope"], "[scope]")
         known["scope"] = ScopeDefaults(**known["scope"])
     if "sensors" in known:
         known["sensors"] = _build_mapping(SensorOverride, known["sensors"], "sensors")
@@ -133,7 +116,7 @@ def _plugin_configs(plugins: list[str], project_dir: Path) -> list[dict]:
     for plugin in plugins:
         path = resolver.in_plugin(plugin, "config.toml")
         data = _read_toml(path) if path else {}
-        _reject_unknown(_PLUGIN_CONFIG_KEYS, data, f"the {plugin!r} plugin config")
+        reject_unknown(PLUGIN_CONFIG_KEYS, data, f"the {plugin!r} plugin config")
         configs.append(data)
     return configs
 

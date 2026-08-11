@@ -34,14 +34,19 @@ def test_missing_config_yields_defaults(tmp_path: Path) -> None:
     assert config.plugins == ["generic"]
     assert config.transformers == ["snooze"]
     assert config.files is None
+    assert config.uncoached == "suggest"
     assert config.runners == {}
     assert config.sensors == {}
     assert config.smells == {}
-    assert isinstance(config.scope, ScopeDefaults)
-    assert config.scope.changedOnly is False
-    assert config.scope.autoBranchOffMain is False
-    assert config.scope.branchBase == "main"
-    assert config.scope.mainBranch == "main"
+
+
+def test_missing_config_yields_the_scope_defaults(tmp_path: Path) -> None:
+    scope = _load(tmp_path).scope
+    assert isinstance(scope, ScopeDefaults)
+    assert scope.changedOnly is False
+    assert scope.autoBranchOffMain is False
+    assert scope.branchBase == "main"
+    assert scope.mainBranch == "main"
 
 
 def test_a_caller_that_names_no_program_still_loads(tmp_path: Path) -> None:
