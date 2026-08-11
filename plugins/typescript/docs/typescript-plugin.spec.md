@@ -302,9 +302,10 @@ habit-sensors --all | jq -f finding.jq
 
 The `knip` sensor runs knip with the shipped `knip.json` and shapes its JSON into
 findings. Unused files come from knip's top-level `files` array, not from an issue
-row; `classMembers`/`enumMembers` arrive as object maps and are flattened; any key
-the plugin does not coach (`types`, …) passes through under its own name rather
-than vanishing.
+row; `classMembers`/`enumMembers` arrive as object maps and are flattened; and
+every key is **translated into a catalogue smell** — a key the plugin has no smell
+for is dropped rather than forwarded under knip's own name, because a name with no
+guide and no severity behind it can only fail a run without explaining itself.
 
 The shipped `knip.json` marks production patterns with a trailing `!` on both
 `entry` and `project`, which gates a second `knip --production` pass. The default
@@ -454,12 +455,13 @@ habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .is
 }
 ```
 
-### A knip issue type outside the map passes through uncoached
+### An unused type export maps to unused-export
 
-An unused *type* export lands under knip's `types` key, which the plugin does not
-map to a canonical smell. It surfaces under its own name (`types`, sourced
-`knip:types`) rather than being silently discarded — the same pass-through the
-eslint adapter gives an unmapped rule ID.
+An unused *type* export lands under knip's `types` key. Dead is dead: an export
+nothing imports reads the same whether it is a value or a type, so `types` (with
+`nsExports` and `nsTypes`) translates to `unused-export` and is coached by that
+smell's guide. The `source` keeps knip's own key, so the report still says which
+of them fired.
 
 📄src/cli.ts
 ```typescript
@@ -482,11 +484,61 @@ habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .is
 🖥️ ✅
 ```json
 {
-  "smell": "types",
+  "smell": "unused-export",
   "language": "typescript",
   "key": "NeverUsedType",
   "file": "src/helper.ts",
   "source": "knip:types"
+}
+```
+
+### A knip issue type outside the vocabulary is dropped
+
+knip reports more than this plugin has smells for. `binaries` is one: a
+`package.json` script running a command the manifest does not declare — which is
+a defect when the command should have been a dependency, and correct-by-design
+when it is a tool that legitimately comes from `PATH`. habit-hooks has taken no
+decision about it, so the sensor drops it rather than forwarding a name with no
+guide behind it; the run reports what it *can* coach, here the unused export
+beside it, and nothing else.
+
+This is where the knip sensor deliberately differs from the eslint adapter,
+which passes an unmapped rule ID through: knip's key set is knip's own, while an
+eslint rule ID comes from a config the project wrote and turned on itself.
+
+📄package.json
+```json
+{
+  "name": "demo",
+  "version": "0.0.0",
+  "scripts": { "check": "habit-hooks --all" }
+}
+```
+
+📄src/cli.ts
+```typescript
+import { used } from "./helper";
+
+used();
+```
+
+📄src/helper.ts
+```typescript
+export function used(): void {}
+
+export function neverUsed(): void {}
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, key: .issues[0].key, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "unused-export",
+  "key": "neverUsed",
+  "source": "knip:exports"
 }
 ```
 

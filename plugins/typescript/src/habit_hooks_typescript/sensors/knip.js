@@ -3,16 +3,23 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 // The knip issue keys this plugin coaches, and the canonical smell each maps to.
-// Everything else knip reports (types, nsExports, duplicates, a future key, …)
-// is surfaced under its own key as an uncoached smell rather than dropped — the
-// same pass-through the eslint sensor gives an unmapped rule ID.
+// A sensor emits smells from OUR vocabulary, so translating knip's key set is
+// this file's job: a key absent from this map is dropped here rather than
+// forwarded under knip's own name, where it would have no guide, no catalogue
+// severity and nothing a reader could act on (#111). Dropped today:
+// `binaries`, `duplicates`, `catalog` — plus `unlisted` and `unresolved`, which
+// name real defects and are waiting on smells of their own (#124).
 const SMELL_BY_KEY = {
   files: "unused-file",
   exports: "unused-export",
+  types: "unused-export",
+  nsExports: "unused-export",
+  nsTypes: "unused-export",
   dependencies: "unused-dependency",
   devDependencies: "unused-dependency",
   optionalPeerDependencies: "unused-dependency",
   classMembers: "unused-class-member",
+  enumMembers: "unused-class-member",
 };
 
 // Test-only dead code — code the --production pass finds unused once test
@@ -120,7 +127,8 @@ function findings(defaultReport, productionReport) {
   const defaultRows = rawOccurrences(defaultReport);
   const grouped = new Map();
   for (const row of defaultRows) {
-    const smell = SMELL_BY_KEY[row.knipKey] || row.knipKey;
+    const smell = SMELL_BY_KEY[row.knipKey];
+    if (!smell) continue;
     add(grouped, smell, issueFrom(row, `knip:${row.knipKey}`));
   }
   if (productionReport) {
