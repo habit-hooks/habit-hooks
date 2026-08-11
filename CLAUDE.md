@@ -26,6 +26,23 @@ plugins". `${dir}` in a sensor command resolves to the plugin's package-data dir
 so helper-script paths (`${dir}/line-count.py`, `${dir}/../.jscpd.json`) keep
 working once the layout is preserved under the import package.
 
+### Installing a plugin does not enable it, so every hint names the config line (agent decision)
+
+`plugins` in `.habit-hooks/config.toml` is the only thing that makes a plugin
+run; installing the package merely puts it within reach. A hint that named only
+the install was therefore a loop with no exit — `pip install habit-hooks-python`
+kept printing to someone who had just run it, and nothing in the line could
+change the outcome. `recommend._hint` names enabling either way and drops the
+install half for a plugin already on hand, asking `Resolver.has_plugin` — the
+same question `require_plugin` asks, so "you configured a plugin that is not
+there" and "you have a plugin you never switched on" can never disagree. Vendored
+under `.habit-hooks/<name>/` counts as on hand, so the README's vendoring route
+is never told to install what it has.
+
+The spec cases vendor the plugin they are about rather than leaning on the dev
+environment having it installed: what a doc case asserts must come from the files
+the case writes, or its expected output silently depends on `uv sync`.
+
 ### Sensor `args` live in the sensor's own toml, not the plugin `config.toml` (agent decision)
 
 A sensor's default CLI args (e.g. line-count's `--max 200`) live as `args = [...]`

@@ -1054,20 +1054,35 @@ habit-sensors: unknown config key 'severty' in [smells.duplicated-code]; known k
 ## Plugin recommendation
 
 When the project clearly uses a language no active plugin covers, the runner
-prints a **non-fatal** hint to stderr naming the plugin to install. The hint
-never changes the findings on stdout nor the exit code; it is suppressed for any
-language an active plugin already declares.
+prints a **non-fatal** hint to stderr naming the plugin. The hint never changes
+the findings on stdout nor the exit code; it is suppressed for any language an
+active plugin already declares.
 
-### A used language with no active plugin is recommended on stderr
+Installing a plugin does not switch it on — a plugin runs only once `plugins` in
+`.habit-hooks/config.toml` names it — so every hint names that step. A plugin
+that is nowhere on the machine is hinted as ``consider `pip install
+habit-hooks-python`, then add "python" to `plugins` in .habit-hooks/config.toml``;
+one that is already there drops the install half and asks only for the config
+line, so following a hint is never a loop.
+
+### A used language whose plugin is not enabled is recommended on stderr
 
 Here only `generic` is active (it declares no language), and a `*.py` file is in
-scope. The runner still exits per its findings (exit 0, the finding on stdout),
-and prints the Python recommendation to stderr.
+scope. The `python` plugin is on hand — vendored below, exactly as an installed
+`habit-hooks-python` would be — but `plugins` does not name it, so the hint asks
+for the one step that is missing. The runner still exits per its findings (exit
+0, the finding on stdout).
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
 files   = ["**/*.py"]
+```
+
+📄.habit-hooks/python/config.toml
+```toml
+language = "python"
+sensors  = []
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -1101,7 +1116,7 @@ habit-sensors --all | jq '.'
 
 🚨
 ```text
-habit-sensors: detected python; consider `pip install habit-hooks-python`
+habit-sensors: detected python; the python plugin is installed but not enabled — add "python" to `plugins` in .habit-hooks/config.toml
 ```
 
 ### An already-active plugin's language is not recommended
@@ -1148,12 +1163,20 @@ habit-sensors --all 2>&1 >/dev/null
 
 A non-TypeScript project may carry a `package.json` only to configure a Node tool
 (a linter, a duplication detector). That alone is **not** a TypeScript signal —
-with no `tsconfig.json` and no `*.ts`/`*.tsx` in scope, no recommendation prints.
+with no `tsconfig.json` and no `*.ts`/`*.tsx` in scope, no TypeScript
+recommendation prints. The Python one still does, from the same run, which is
+what makes this case a discriminator rather than an empty assertion.
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["generic"]
 files   = ["**/*.py"]
+```
+
+📄.habit-hooks/python/config.toml
+```toml
+language = "python"
+sensors  = []
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -1187,7 +1210,7 @@ habit-sensors --all 2>&1 >/dev/null
 
 🖥️ ✅
 ```text
-habit-sensors: detected python; consider `pip install habit-hooks-python`
+habit-sensors: detected python; the python plugin is installed but not enabled — add "python" to `plugins` in .habit-hooks/config.toml
 ```
 
 ### A tsconfig.json signals TypeScript
@@ -1199,6 +1222,12 @@ A `tsconfig.json` is a real TypeScript signal, so with no active plugin declarin
 ```toml
 plugins = ["generic"]
 files   = ["**/*.py"]
+```
+
+📄.habit-hooks/typescript/config.toml
+```toml
+language = "typescript"
+sensors  = []
 ```
 
 📄.habit-hooks/generic/config.toml
@@ -1227,7 +1256,7 @@ habit-sensors --all 2>&1 >/dev/null
 
 🖥️ ✅
 ```text
-habit-sensors: detected typescript; consider `pip install habit-hooks-typescript`
+habit-sensors: detected typescript; the typescript plugin is installed but not enabled — add "typescript" to `plugins` in .habit-hooks/config.toml
 ```
 
 ## Version and argument validation

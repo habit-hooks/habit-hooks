@@ -71,9 +71,19 @@ class Resolver:
         package = self.package_dirs.get(plugin)
         return [override] if package is None else [override, package]
 
+    def has_plugin(self, plugin: str) -> bool:
+        """Whether this plugin's files resolve at all — vendored or installed.
+
+        The question behind both "you configured a plugin that is not there"
+        (:meth:`require_plugin`) and its mirror image, "you have a plugin you
+        never switched on" (``recommend``), so the two can never disagree about
+        what counts as having one.
+        """
+        return self.in_plugin(plugin, "config.toml") is not None
+
     def require_plugin(self, plugin: str) -> None:
         """Fail clearly if a configured plugin is neither overridden nor installed."""
-        if self.in_plugin(plugin, "config.toml") is not None:
+        if self.has_plugin(plugin):
             return
         raise ToolError(
             f"habit-sensors: plugin {plugin!r} is not installed — "

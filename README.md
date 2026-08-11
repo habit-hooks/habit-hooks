@@ -87,6 +87,10 @@ Alternatively, vendor a plugin's files under `.habit-hooks/<plugin>/` in your pr
 install — including one that cannot add extras (e.g. Homebrew) — because project files always override the
 installed package.
 
+**Installing a plugin does not switch it on.** However it got onto the machine, a plugin runs only once your
+`.habit-hooks/config.toml` names it in `plugins` (see [Quick start](#quick-start) below) — so an install is
+always two steps.
+
 The detectors themselves are **not** bundled — each plugin shells out to the real tool. Install the ones the
 plugins you enable need:
 

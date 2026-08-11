@@ -16,7 +16,7 @@ from pathlib import Path
 from ..catalogue import incomplete_run_finding
 from ..cli import add_version_flag, run_console
 from ..config import Config, load_config
-from ..recommend import recommendations
+from ..recommend import PluginStatus, recommendations
 from ..resolve import Resolver
 from ..scope import resolve_scope
 from ..snooze import SNOOZE_TRANSFORMERS
@@ -133,6 +133,16 @@ def main(argv: list[str] | None = None) -> int:
     return run_console("habit-sensors", _emit_findings, argv)
 
 
+def _with_incomplete_run(run: Run) -> list[dict]:
+    """The run's findings, plus its own ``incomplete-run`` when it failed.
+
+    Appended after every transformer has run, so a snooze can never mute it (#88).
+    """
+    if run.failed:
+        return [*run.findings, incomplete_run_finding(run.notices)]
+    return run.findings
+
+
 def _emit_findings(argv: list[str]) -> int:
     args = parse_args(argv)
     project_dir = Path.cwd()
@@ -140,17 +150,17 @@ def _emit_findings(argv: list[str]) -> int:
     scope = resolve_scope(args, config, project_dir)
     loader = PluginLoader(Resolver.discover(project_dir), config)
     run = run_sensors(loader, Execution(project_dir, scope, args.config))
-    findings = run.findings
-    # Appended after every transformer has run, so a snooze can never mute it (#88).
-    if run.failed:
-        findings = [*findings, incomplete_run_finding(run.notices)]
-    sys.stdout.write(json.dumps(findings) + "\n")
-    # Why the scope came out empty first: a run that measured nothing must say so
-    # rather than let every sensor report clean over it.
-    for notice in [*scope.notices, *run.notices]:
-        sys.stderr.write(notice + "\n")
-    for hint in recommendations(project_dir, scope.files, run.active_languages):
-        sys.stderr.write(hint + "\n")
+    sys.stdout.write(json.dumps(_with_incomplete_run(run)) + "\n")
+    plugins = PluginStatus(run.active_languages, loader.resolver.has_plugin)
+    # Why the scope came out empty comes first: a run that measured nothing must
+    # say so rather than let every sensor report clean over it. The hints follow,
+    # advisory to the last — stdout and the exit code are already settled.
+    for line in [
+        *scope.notices,
+        *run.notices,
+        *recommendations(project_dir, scope.files, plugins),
+    ]:
+        sys.stderr.write(line + "\n")
     return 1 if run.failed else 0
 
 

@@ -90,6 +90,12 @@ now loud.
 - `--file` accepts absolute paths (what an editor hook passes), and says so on
   stderr when the named file is outside `[files]` instead of printing a clean run
   over nothing.
+- **The plugin recommendation is no longer a dead end.** Installing a plugin does
+  not switch it on, so `consider pip install habit-hooks-python` kept printing
+  after you had installed it — the one instruction that could not change the
+  outcome. Every hint now names the config line that enables the plugin, and a
+  plugin already on the machine (installed or vendored) is told to enable it
+  rather than to install what it has.
 
 ### Internal
 - CI now runs `habit-hooks` against its own source, lints the plugins tree, and
