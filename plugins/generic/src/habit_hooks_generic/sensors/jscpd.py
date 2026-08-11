@@ -29,8 +29,18 @@ def scan_paths(config: str) -> list[str]:
 def run_jscpd(
     paths: list[str], config: str, output: Path
 ) -> subprocess.CompletedProcess[str]:
+    """What jscpd said, or what a shell says about a jscpd nobody installed.
+
+    An absent tool raised a ``FileNotFoundError`` out of here and twenty lines of
+    Python internals became the sensor's diagnosis (#114). This wrapper is what
+    looks for jscpd, so it answers the way the shell would have — and that phrase
+    is what the run recognises to name the missing tool.
+    """
     command = ["jscpd", "--reporters", "json", "--output", str(output), "--config", config]
-    return subprocess.run([*command, *paths], capture_output=True, text=True)
+    try:
+        return subprocess.run([*command, *paths], capture_output=True, text=True)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(command, 127, "", "jscpd: command not found\n")
 
 
 def occurrence(side: dict) -> dict:

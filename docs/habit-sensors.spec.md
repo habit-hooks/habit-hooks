@@ -516,9 +516,10 @@ the break instead of rendering clean over it (#88).
 
 Naming the sensor and its command says *what* broke, never *why*, so whatever
 the tool wrote to stderr is carried into the notice — the same way a failing
-transformer's own message is. Here that is the shell reporting a tool nobody
-installed; for the real case that prompted it, a Node sensor naming the package
-it could not `require`.
+transformer's own message is. Here that is the real case that prompted it: a Node
+sensor naming the package it could not `require`. The one failure answered in
+habit-hooks' own words instead is a command nobody installed, where the tool
+never ran and so has no words of its own (#114).
 
 📄.habit-hooks/config.toml
 ```toml
@@ -543,7 +544,7 @@ command = "cat ${dir}/ok.json"
 
 📄.habit-hooks/generic/sensors/broken.toml
 ```toml
-command = "echo 'this-tool-does-not-exist: command not found' >&2; exit 127"
+command = "echo \"Error: Cannot find module 'ts-morph'\" >&2; exit 1"
 ```
 
 ```bash
@@ -560,8 +561,8 @@ habit-sensors --all | jq '[.[].smell]'
 
 🚨
 ```text
-habit-sensors: sensor 'broken' failed: echo 'this-tool-does-not-exist: command not found' >&2; exit 127
-this-tool-does-not-exist: command not found
+habit-sensors: sensor 'broken' failed: echo "Error: Cannot find module 'ts-morph'" >&2; exit 1
+Error: Cannot find module 'ts-morph'
 ```
 
 ### A failed run is coached

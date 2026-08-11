@@ -1,6 +1,7 @@
 """Robustness of the sensor subprocess layer: a deadline and an own stdin — two
 of the ways an unusual-but-real run turned into a hang or a lost run (issue #96).
-How its argv is bounded is ``test_sensor_argv.py``."""
+How its argv is bounded is ``test_sensor_argv.py``; how a failure that has
+finished is described is ``test_part_output.py``."""
 
 from __future__ import annotations
 

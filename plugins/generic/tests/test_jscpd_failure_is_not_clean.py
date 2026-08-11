@@ -45,9 +45,13 @@ def _requires_jscpd() -> None:
         pytest.skip("jscpd is not installed at the repo root (pnpm install)")
 
 
-def _run_sensor(project: Path, config: Path) -> subprocess.CompletedProcess[str]:
+def _run_sensor(
+    project: Path, config: Path, path: str | None = None
+) -> subprocess.CompletedProcess[str]:
     environment = dict(os.environ)
-    environment["PATH"] = f"{JSCPD_BIN}{os.pathsep}{environment['PATH']}"
+    environment["PATH"] = (
+        path if path is not None else f"{JSCPD_BIN}{os.pathsep}{environment['PATH']}"
+    )
     return subprocess.run(
         [sys.executable, str(SENSOR), "--config", str(config)],
         cwd=project,
@@ -85,6 +89,25 @@ def test_a_jscpd_that_cannot_scan_fails_instead_of_reporting_clean(
     assert result.returncode == 1, result.stdout
     assert result.stdout.strip() == ""
     assert "no such file or directory" in result.stderr.lower()
+
+
+def test_a_jscpd_nobody_installed_answers_the_way_a_shell_does(
+    tmp_path: Path,
+) -> None:
+    """An absent tool raised a ``FileNotFoundError`` out of ``subprocess.run``,
+    and twenty lines of Python internals became the sensor's diagnosis (#114).
+
+    This wrapper stands in for the shell when it looks for jscpd, so it answers
+    the way a shell does — ``jscpd: command not found`` — which is the phrase the
+    run recognises to name the missing tool instead of quoting a traceback back.
+    """
+    config = _config(tmp_path, ["src"])
+
+    result = _run_sensor(tmp_path, config, path="/nonexistent")
+
+    assert result.returncode != 0
+    assert result.stdout.strip() == ""
+    assert result.stderr.strip() == "jscpd: command not found"
 
 
 def test_finding_no_clones_is_clean_even_though_jscpd_writes_no_report(
