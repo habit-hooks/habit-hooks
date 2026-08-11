@@ -93,6 +93,27 @@ is a different question from which snoozes lapse), so the widening lives in
 replaces them wholesale. That is why `config.py` imports `Resolver` — the merge
 needs the override chain, and only `files` has a plugin-supplied default.
 
+### `load_config` names no binary; `run_console` does (human-requested by Ivett, issue #109)
+
+`config.load_config(project_dir, config_path=None)` takes no argument for the
+running binary's name, and must not grow one. A project's own transformer is a
+separate process, and importing `load_config` is the only way one has ever had to
+read `[scope] branchBase` — so a required argument here breaks every caller
+outside this repository (it did), and a defaulted one only postpones the same
+break. The loader raises an unnamed `ConfigError`; `cli.run_console` — already
+the single place a `ToolError` is written to stderr — prefixes the binary's name
+(`cli._named`) as it prints it, so each of `habit-sensors`, `habit-mapper` and
+`habit-snooze` answers under its own name. Only `ConfigError` is prefixed: every
+other `ToolError` is raised somewhere that knows the binary and says so already,
+and prefixing those would double the name.
+
+`run_console(program, body, argv)` hands `body` the raw argv and lets it call
+its own `parse_args` rather than taking a parse callable as well (agent
+decision) — the repo's own `max-args = 3` gate leaves no room for a fourth
+parameter. Parsing inside `body` changes nothing: argparse's usage error is a
+plain `SystemExit(2)`, not a `ToolError`, so it passes through the handler
+untouched.
+
 ### A run that did not complete never renders as clean — including an empty pipe (agent decision, issues #88, #103)
 
 `incomplete-run` is a reserved smell, and `catalogue.incomplete_run_finding`

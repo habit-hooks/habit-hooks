@@ -1,12 +1,16 @@
 """Load the merged TOML config across the resolution chain.
 
 Unknown keys are rejected at every level — project *and* plugin config — with a
-named ``ToolError`` (exit 2): a key nothing consumes is a typo or a
+``ConfigError`` (exit 2): a key nothing consumes is a typo or a
 documented-but-dead key, and silently ignoring it is why both keep shipping
 (#102). The allowed keys are the type's declared attrs fields (minus
-loader-populated internals). Which binary the rejection names is the caller's to
-say (``load_config``'s ``program``): all three console scripts load a config
-here, and one hardcoded name sends the other two's users to the wrong tool.
+loader-populated internals). The rejection names no binary, because all three
+console scripts load a config here and one hardcoded name sends the other two's
+users to the wrong tool; ``cli.run_console`` names it when it prints it. Loading
+takes no argument for that name — a project's own transformer is a separate
+process, and importing ``load_config`` is the only way one has to read
+``[scope] branchBase``, so an argument here breaks every caller outside this
+repository (#109).
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from pathlib import Path
 
 from attrs import define, field, fields
 
-from .cli import ConfigError, ToolError
+from .cli import ConfigError
 from .resolve import Resolver
 
 
@@ -176,11 +180,8 @@ def _plugin_runners(configs: list[dict]) -> dict[str, str]:
     return runners
 
 
-def load_config(
-    project_dir: Path, config_path: Path | None = None, *, program: str
-) -> Config:
-    """Merge the project's ``.habit-hooks/config.toml`` over the plugin defaults,
-    naming ``program`` — the binary the user ran — in any rejection message.
+def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
+    """Merge the project's ``.habit-hooks/config.toml`` over the plugin defaults.
 
     ``files`` and ``[runners]`` are the root keys a plugin supplies a default for:
     a project that names no ``files`` inherits what its plugins call source (and
@@ -188,11 +189,8 @@ def load_config(
     under the project's, which win per extension.
     """
     path = config_path or project_dir / ".habit-hooks" / "config.toml"
-    try:
-        config = _build_config(_read_toml(path))
-        plugin_configs = _plugin_configs(config.plugins, project_dir)
-    except ConfigError as error:
-        raise ToolError(f"{program}: {error}") from error
+    config = _build_config(_read_toml(path))
+    plugin_configs = _plugin_configs(config.plugins, project_dir)
     if config.files is None:
         config.files = _plugin_files(plugin_configs) or None
     config.runners = {**_plugin_runners(plugin_configs), **config.runners}

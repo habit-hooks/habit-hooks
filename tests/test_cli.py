@@ -16,8 +16,10 @@ import pytest
 
 from git_repo import repository_with_committed_file
 from habit_hooks import hooks, mapper, sensors, snooze
+from habit_hooks.cli import ConfigError, ToolError, run_console
 
 _VERSION_LINE = f"habit-hooks v{version('habit-hooks')}"
+_REJECTION = "unknown config key 'severty' in [smells.duplicated-code]"
 
 
 @pytest.mark.parametrize("main", [sensors.main, mapper.main, snooze.main])
@@ -61,3 +63,31 @@ def test_last_rejects_a_non_positive_count_by_name(
         sensors.parse_args(["--last", value])
     assert failure.value.code == 2
     assert "--last" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("program", ["habit-sensors", "habit-mapper", "habit-snooze"])
+def test_a_rejected_config_names_the_binary_that_printed_it(
+    program: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One loader serves all three binaries and cannot know which one ran, so a
+    hardcoded prefix sent a ``habit-mapper --config`` user hunting through
+    habit-sensors for their typo. The entry point names it instead."""
+
+    def reject(_: list[str]) -> int:
+        raise ConfigError(_REJECTION)
+
+    assert run_console(program, reject, []) == 2
+    assert capsys.readouterr().err == f"{program}: {_REJECTION}\n"
+
+
+def test_a_failure_that_already_names_itself_is_not_named_twice(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Only a rejected config is raised where the binary is unknown; every other
+    ``ToolError`` is raised somewhere that knows and says so already."""
+
+    def fail(_: list[str]) -> int:
+        raise ToolError("habit-sensors: not a git repository")
+
+    assert run_console("habit-sensors", fail, []) == 2
+    assert capsys.readouterr().err == "habit-sensors: not a git repository\n"

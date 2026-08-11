@@ -110,7 +110,7 @@ def _bypasses_snooze(args: argparse.Namespace) -> bool:
 
 def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
     """The run's config, minus the snooze transformers when the mode bypasses them."""
-    config = load_config(project_dir, args.config, program="habit-sensors")
+    config = load_config(project_dir, args.config)
     if _bypasses_snooze(args):
         config.transformers = [
             name for name in config.transformers if name not in SNOOZE_TRANSFORMERS
@@ -119,10 +119,11 @@ def _configure(args: argparse.Namespace, project_dir: Path) -> Config:
 
 
 def main(argv: list[str] | None = None) -> int:
-    return run_console(parse_args, _emit_findings, argv)
+    return run_console("habit-sensors", _emit_findings, argv)
 
 
-def _emit_findings(args: argparse.Namespace) -> int:
+def _emit_findings(argv: list[str]) -> int:
+    args = parse_args(argv)
     project_dir = Path.cwd()
     config = _configure(args, project_dir)
     scope = resolve_scope(args, config, project_dir)

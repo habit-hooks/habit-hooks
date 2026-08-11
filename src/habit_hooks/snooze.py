@@ -137,9 +137,7 @@ def _write_transformed(
     snoozed = set(load_index(project_dir))
     lapsed: set[str] = set()
     if until_changed:
-        base_ref = load_config(
-            project_dir, config_path, program="habit-snooze"
-        ).scope.branchBase
+        base_ref = load_config(project_dir, config_path).scope.branchBase
         anchors = snoozed_anchors(findings, snoozed)
         lapsed = changed_against_base(anchors, project_dir, base_ref)
     sys.stdout.write(json.dumps(transform(findings, snoozed, lapsed)) + "\n")
@@ -178,17 +176,17 @@ def _reject_index_op_conflicts(
 
 
 def main(argv: list[str] | None = None) -> int:
-    return run_console(parse_args, _run_snooze_command, argv)
+    return run_console("habit-snooze", _run_snooze_command, argv)
 
 
-def _run_snooze_command(args: argparse.Namespace) -> int:
+def _run_snooze_command(argv: list[str]) -> int:
     """A corrupt index is a failure of the tool itself — a checked-in file a human
     edits, not a statement about the code — so it exits 2 like a rejected config
     or an unresolvable ref (#103). The `--prune` refusal is the other kind, a
     judgement about the run, and keeps exit 1.
     """
     try:
-        return run(args, Path.cwd())
+        return run(parse_args(argv), Path.cwd())
     except SnoozeError as error:
         sys.stderr.write(f"habit-snooze: {error}\n")
         return EXIT_TOOL_ERROR

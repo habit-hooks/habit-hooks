@@ -1,9 +1,10 @@
-"""Unit tests for the unknown-key guard, at every level and for every binary.
+"""Unit tests for the unknown-key guard, at every level.
 
 A key nothing consumes is a typo or a documented-but-dead key, so it is rejected
-by name rather than ignored (#102) — and the rejection names the binary that
-loaded the config, since all three console scripts share this one loader.
-Loading and merging a config that passes the guard is ``test_config.py``.
+by name rather than ignored (#102). The rejection names no binary here: all three
+console scripts share this one loader, so the name is added where the failure is
+printed (``test_cli.py``). Loading and merging a config that passes the guard is
+``test_config.py``.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ def _project(tmp_path: Path, body: str) -> Path:
 
 
 def _load(project_dir: Path) -> None:
-    load_config(project_dir, program="habit-sensors")
+    load_config(project_dir)
 
 
 def test_an_unknown_root_key_is_rejected_by_name(tmp_path: Path) -> None:
@@ -58,13 +59,11 @@ def test_an_unknown_plugin_config_key_is_rejected_by_name(tmp_path: Path) -> Non
         _load(project)
 
 
-@pytest.mark.parametrize("program", ["habit-sensors", "habit-mapper", "habit-snooze"])
-def test_a_rejected_key_names_the_binary_that_loaded_it(
-    tmp_path: Path, program: str
-) -> None:
-    """One loader serves all three binaries, so a hardcoded prefix sent a
-    ``habit-mapper --config`` user hunting through habit-sensors for their typo."""
+def test_a_rejection_names_no_binary(tmp_path: Path) -> None:
+    """The loader is also imported by a project's own transformer, which is a
+    separate process and no binary of ours (#109), so it takes no argument for a
+    name — and cannot invent one for the message either."""
     project = _project(tmp_path, '[smells.duplicated-code]\nseverty = "suggested"')
     with pytest.raises(SystemExit) as failure:
-        load_config(project, program=program)
-    assert str(failure.value).startswith(f"{program}: unknown config key")
+        load_config(project)
+    assert str(failure.value).startswith("unknown config key")

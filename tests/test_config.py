@@ -27,7 +27,7 @@ def _write(tmp_path: Path, body: str) -> Path:
 
 
 def _load(project_dir: Path) -> Config:
-    return load_config(project_dir, program="habit-sensors")
+    return load_config(project_dir)
 
 
 def test_missing_config_yields_defaults(tmp_path: Path) -> None:

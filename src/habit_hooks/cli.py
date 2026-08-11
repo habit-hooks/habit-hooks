@@ -29,9 +29,10 @@ class ToolError(SystemExit):
 class ConfigError(ToolError):
     """A rejected config, raised where the running binary is not known.
 
-    The config loader serves all three console scripts, so it must not name one
-    of them: whoever loaded the config re-raises this as a ``ToolError`` naming
-    itself, and an unnamed one that escapes still exits 2.
+    The config loader serves all three console scripts — and any third-party
+    caller besides — so it must not name one of them. ``run_console`` adds the
+    name as it prints the failure; being a ``ToolError`` it still exits 2, named
+    or not.
     """
 
 
@@ -44,19 +45,33 @@ def add_version_flag(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--version", action="version", version=version_line())
 
 
+def _named(error: ToolError, program: str) -> str:
+    """The line to print for ``error``, prefixed with ``program`` if it needs it.
+
+    A ``ConfigError`` comes out of the loader all three console scripts share,
+    which cannot know which binary the user ran; every other ``ToolError`` is
+    raised where the name is known and already carries it.
+    """
+    return f"{program}: {error}" if isinstance(error, ConfigError) else str(error)
+
+
 def run_console(
-    parse: Callable[[list[str]], argparse.Namespace],
-    body: Callable[[argparse.Namespace], int],
+    program: str,
+    body: Callable[[list[str]], int],
     argv: list[str] | None,
 ) -> int:
-    """A console script's entry point: parse ``argv`` (defaulting to
-    ``sys.argv``), run ``body`` over the parsed args, and map a ``ToolError`` to
-    exit 2. An argparse usage error (its own ``SystemExit(2)``) and
-    ``--version``'s ``SystemExit(0)`` are not ``ToolError`` and pass through
-    unchanged, so a bad flag stays 2 and a version query stays 0.
+    """A console script's entry point: run ``body`` over ``argv`` (defaulting to
+    ``sys.argv``) and map a ``ToolError`` to exit 2. An argparse usage error (its
+    own ``SystemExit(2)``) and ``--version``'s ``SystemExit(0)`` are not
+    ``ToolError`` and pass through unchanged, so a bad flag stays 2 and a version
+    query stays 0.
+
+    ``program`` is the binary this entry point *is*. It is the only place that
+    knows, which is why an unnamed failure is named here rather than threaded
+    through everything a console script calls.
     """
     try:
-        return body(parse(argv if argv is not None else sys.argv[1:]))
+        return body(argv if argv is not None else sys.argv[1:])
     except ToolError as error:
-        sys.stderr.write(f"{error}\n")
+        sys.stderr.write(f"{_named(error, program)}\n")
         return EXIT_TOOL_ERROR

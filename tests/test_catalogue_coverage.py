@@ -36,7 +36,7 @@ class Routing:
         plugins = sorted(installed_plugin_dirs())
         write_project_config(project_dir, f"plugins = {plugins!r}")
         return cls(
-            load_config(project_dir, program="habit-mapper"),
+            load_config(project_dir),
             Resolver.discover(project_dir),
         )
 

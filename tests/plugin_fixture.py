@@ -36,5 +36,5 @@ def write_plugin(project_dir: Path, name: str, files: dict[str, str]) -> None:
 
 
 def loader_for(project_dir: Path) -> PluginLoader:
-    config = load_config(project_dir, program="habit-sensors")
+    config = load_config(project_dir)
     return PluginLoader(Resolver.discover(project_dir), config)
