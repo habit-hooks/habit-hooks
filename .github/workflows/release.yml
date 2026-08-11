@@ -47,7 +47,13 @@ jobs:
       # raised by twine's check before anything is uploaded. v1.14.2 pins
       # packaging==26.2 / twine==7.0.0, which accept it. Keep this action new
       # enough for whatever metadata version the pinned uv writes.
-      - uses: pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26 # v1.14.2
+      #
+      # Pin the COMMIT this action's tag points at, never the annotated tag's
+      # own object SHA: the action runs `ghcr.io/pypa/gh-action-pypi-publish:<the
+      # sha you wrote here>`, and an image is published per commit — a tag-object
+      # SHA fails with `manifest unknown` after the whole build has run. Resolve
+      # it with `git rev-parse v1.14.2^{commit}`, not `git rev-parse v1.14.2`.
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: upload/
           skip-existing: true
