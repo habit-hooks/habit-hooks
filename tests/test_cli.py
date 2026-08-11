@@ -41,6 +41,32 @@ def test_the_pipeline_entry_point_also_reports_the_version(
     assert capsys.readouterr().out.strip() == _VERSION_LINE
 
 
+@pytest.mark.parametrize("flag", ["--help", "-h"])
+def test_the_pipeline_entry_point_prints_its_own_usage(
+    flag: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Forwarded to ``habit-sensors``, the usage text lands on the pipe where
+    ``habit-mapper`` expects findings JSON — so asking for help answered with a
+    ``JSONDecodeError`` and the usage was never seen by anybody. It is answered
+    here, before either stage is spawned, under the pipeline's own name."""
+    assert hooks.main([flag]) == 0
+    usage = capsys.readouterr().out
+    assert usage.startswith("usage: habit-hooks ")
+    for scope_flag in ("--all", "--file", "--branch", "--last", "--since"):
+        assert scope_flag in usage
+
+
+def test_the_sensors_stage_keeps_its_own_usage(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The pipeline's help is the same parser under a different name, so this
+    pins that naming it ``habit-hooks`` never renames the stage's own help."""
+    with pytest.raises(SystemExit) as exit_:
+        sensors.parse_args(["--help"])
+    assert exit_.value.code == 0
+    assert capsys.readouterr().out.startswith("usage: habit-sensors ")
+
+
 def test_a_tool_failure_exits_two_not_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

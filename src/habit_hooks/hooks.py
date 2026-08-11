@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .cli import version_line
+from .sensors import build_parser
 
 
 def sibling(name: str) -> str:
@@ -29,10 +30,15 @@ def mapper_args(args: list[str]) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
-    # Answer --version here: forwarded to habit-sensors it would print the version
-    # onto the pipe where habit-mapper expects findings JSON, so handle it first.
+    # Both are answered here, before anything is spawned: forwarded to
+    # habit-sensors they print onto the pipe where habit-mapper expects findings
+    # JSON, so the version arrived as an unparseable line and the usage text as a
+    # JSONDecodeError the user read instead of the help they asked for (#114).
     if "--version" in args:
         sys.stdout.write(version_line() + "\n")
+        return 0
+    if any(flag in args for flag in ("--help", "-h")):
+        build_parser("habit-hooks").print_help()
         return 0
     sensors = subprocess.Popen([sibling("habit-sensors"), *args], stdout=subprocess.PIPE)
     mapper = subprocess.Popen(

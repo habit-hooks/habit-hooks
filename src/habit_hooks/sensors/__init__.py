@@ -30,6 +30,7 @@ __all__ = [
     "Plugin",
     "Run",
     "SensorError",
+    "build_parser",
     "incomplete_run_finding",
     "main",
     "parse_args",
@@ -46,8 +47,14 @@ def _positive_int(value: str) -> int:
     return number
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="habit-sensors")
+def build_parser(prog: str) -> argparse.ArgumentParser:
+    """The flags a run is spelled with, under whichever binary owns them.
+
+    ``habit-hooks`` forwards every one of these to this stage, so it builds the
+    same parser under its own name to answer ``--help`` (#114) — one definition,
+    so the pipeline's usage can never drift from what it actually forwards.
+    """
+    parser = argparse.ArgumentParser(prog=prog)
     add_version_flag(parser)
     parser.add_argument("--config", type=Path)
     # Emit findings before the snooze transformers filter them, so `--prune` sees
@@ -59,7 +66,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     modes.add_argument("--branch", nargs="?", const="", metavar="base")
     modes.add_argument("--last", type=_positive_int)
     modes.add_argument("--since")
-    return parser.parse_args(argv)
+    return parser
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    return build_parser("habit-sensors").parse_args(argv)
 
 
 def _stamp_language(findings: list[dict], language: str | None) -> list[dict]:
