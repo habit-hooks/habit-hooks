@@ -239,14 +239,17 @@ none", never as an override — so a sensor may only reach for its bundled confi
 after establishing the project has no config of its own, and must not pass it
 unconditionally.
 
-The shipped `eslint.config.mjs` and `knip.json` are currently dead weight,
-because neither sensor passes `--config` at all: the tools' own discovery finds
-the project's config, which satisfies this rule by accident, but a project
-*without* one falls through to the tool's defaults (knip) or a hard error
-(eslint) rather than to ours. Issues #113 (eslint) and #120 (knip) carry
-executable specs pinning both halves — the fallback that is missing, and the
-project-wins behaviour that must survive the fix — on the
-`findings/executable-specs` branch.
+**The question has to be the tool's own** (#113, #120), or a project is told its
+config was found where the tool would not have found it — and the sensor then
+either speaks over a real config or withholds the fallback from a project that
+has none. Both live typescript sensors ask it verbatim: `sensors/eslint.toml`
+walks up from the project over eslint 10's six `FLAT_CONFIG_FILENAMES`
+(`lib/config/config-loader.js`) because eslint's own lookup is a `findUp`, so a
+monorepo root's config counts as the project's; `sensors/knip.cjs`
+(`projectConfig`) checks knip's eight `KNIP_CONFIG_LOCATIONS` plus a `knip` key
+in `package.json`, in the project directory only, because knip's `findFile`
+never walks up. Copy the tool's list and its search shape, not the other
+sensor's.
 
 **jscpd is the shape to copy** (issue #125). `jscpd.toml` hands the sensor
 `--fallback-config`, never `--config`, and `config_arguments` names it only
@@ -259,11 +262,33 @@ one the sensor passes **nothing at all** and lets jscpd discover it: that is the
 only arrangement under which their habit-hooks run is the run they get from the
 tool directly. An unparseable `package.json` counts as absent, as it does to
 jscpd, so a typo in a file the sensor only peeks at cannot break the run.
+=======
+**The question has to be the tool's own** (#113, #120), or a project is told its
+config was found where the tool would not have found it — and the sensor then
+either speaks over a real config or withholds the fallback from a project that
+has none. Both live typescript sensors ask it verbatim: `sensors/eslint.toml`
+walks up from the project over eslint 10's six `FLAT_CONFIG_FILENAMES`
+(`lib/config/config-loader.js`) because eslint's own lookup is a `findUp`, so a
+monorepo root's config counts as the project's; `sensors/knip.cjs`
+(`projectConfig`) checks knip's eight `KNIP_CONFIG_LOCATIONS` plus a `knip` key
+in `package.json`, in the project directory only, because knip's `findFile`
+never walks up. Copy the tool's list and its search shape, not the other
+sensor's.
+>>>>>>> 3a2caa3 (docs: record how a sensor asks whether the project has a config of its own)
 
-Guard it in a plugin's acceptance spec with a case that writes **no** config for
-the wrapped tool. Every case in `plugins/typescript/docs/typescript-plugin.spec.md`
-copies the shipped config into the case dir first, which is why that suite
-asserts the intent while the code does not implement it.
+A sensor that gates anything on the config's *contents* must read the config it
+just decided to run: `knip.cjs` settles `configInForce()` once and threads it
+into both `runKnip` and `configMarksProduction`. Re-deriving it by discovery is
+how the `--production` pass stayed off in exactly the case it exists for.
+
+Guard both halves in the plugin's acceptance spec: a case that writes **no**
+config for the wrapped tool, and a case whose own config produces an answer the
+shipped one cannot. `plugins/typescript/docs/typescript-plugin.spec.md` used to
+copy the shipped config into every case dir, which is what let it assert the
+intent while the code did not implement it; now no case writes one unless it is
+the case demonstrating that a project's own wins. The generic plugin's jscpd
+sensor still passes `--config` unconditionally — that is #125, the same rule in
+the other direction, so do not copy `jscpd.toml` as the shape for this.
 
 ### A sensor emits vocabulary smells only; `uncoached` answers for the rest (human-requested by Ivett, issue #111)
 
@@ -400,6 +425,26 @@ guard the production pass never contributes a **test file** itself
 file looks unused to it, and reporting one would invite deleting real
 coverage. `classMembers`/`enumMembers` object maps are flattened before
 use so they never reach `.map` (the crash #99 fixed).
+
+### A shipped ESM config resolves its imports from where it is, not from the project
+
+`eslint --config <abs path>` reads the file from wherever habit-hooks is
+installed, and a bare `import` inside it resolves against **that** directory —
+for a consumer, a Python `site-packages` tree with no `node_modules` anywhere
+above it. `eslint.config.mjs` therefore died on
+`ERR_MODULE_NOT_FOUND: Cannot find package '@typescript-eslint/eslint-plugin'`
+the moment the sensor started naming it, while passing in this repo by pure
+luck of layout (`plugins/typescript/node_modules` is one of its ancestors). It
+now resolves its parser and plugin through `createRequire` anchored at
+`process.cwd()` — the project, which is where eslint itself came from
+(`spawn.py` puts `<project>/node_modules/.bin` on PATH). Any future config a
+plugin ships and passes by path needs the same treatment; ESM ignores
+`NODE_PATH`, so there is no environment-level escape.
+
+The other half of that arrangement is knip's, and it is the opposite of jscpd's:
+knip resolves a config's relative `entry`/`project` globs against **cwd**, not
+against the config file, so the shipped `src/**` patterns still mean the
+consumer's tree when passed by absolute path.
 
 ### JSDoc nodes are not MultiLineCommentTrivia in ts-morph
 
