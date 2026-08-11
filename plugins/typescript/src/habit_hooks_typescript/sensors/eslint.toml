@@ -9,13 +9,14 @@ set -o pipefail
 flat_config_filenames="eslint.config.js eslint.config.mjs eslint.config.cjs"
 flat_config_filenames="$flat_config_filenames eslint.config.ts eslint.config.mts eslint.config.cts"
 shipped=(--config ${dir}/../eslint.config.mjs)
-searched=$PWD
-while true; do
+searched=$(pwd -P)
+while [ -n "$searched" ]; do
   for name in $flat_config_filenames; do
     if [ -f "$searched/$name" ]; then shipped=(); break 2; fi
   done
-  if [ "$searched" = "/" ]; then break; fi
-  searched=$(dirname "$searched")
+  parent=$(dirname "$searched")
+  if [ "$parent" = "$searched" ]; then break; fi
+  searched=$parent
 done
 eslint -f json --no-warn-ignored "${shipped[@]}" $files | jq '[.[] | .filePath as $file | .messages[]
 | select(.ruleId != null or .fatal) | {

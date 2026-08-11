@@ -262,19 +262,6 @@ one the sensor passes **nothing at all** and lets jscpd discover it: that is the
 only arrangement under which their habit-hooks run is the run they get from the
 tool directly. An unparseable `package.json` counts as absent, as it does to
 jscpd, so a typo in a file the sensor only peeks at cannot break the run.
-=======
-**The question has to be the tool's own** (#113, #120), or a project is told its
-config was found where the tool would not have found it — and the sensor then
-either speaks over a real config or withholds the fallback from a project that
-has none. Both live typescript sensors ask it verbatim: `sensors/eslint.toml`
-walks up from the project over eslint 10's six `FLAT_CONFIG_FILENAMES`
-(`lib/config/config-loader.js`) because eslint's own lookup is a `findUp`, so a
-monorepo root's config counts as the project's; `sensors/knip.cjs`
-(`projectConfig`) checks knip's eight `KNIP_CONFIG_LOCATIONS` plus a `knip` key
-in `package.json`, in the project directory only, because knip's `findFile`
-never walks up. Copy the tool's list and its search shape, not the other
-sensor's.
->>>>>>> 3a2caa3 (docs: record how a sensor asks whether the project has a config of its own)
 
 A sensor that gates anything on the config's *contents* must read the config it
 just decided to run: `knip.cjs` settles `configInForce()` once and threads it
