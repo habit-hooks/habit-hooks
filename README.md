@@ -390,9 +390,11 @@ coaches (`suggested`, exit 0); config can override it per smell.
 | `duplicated-code` | suggested |
 | `swallowed-exception` | suggested |
 
-A smell with no configured guide falls through to an **uncoached** bucket (defaulting to `enforced`) rather than
-being dropped, so unknown sensor output is always surfaced. To coach it, drop a `guides/<smell>.md` file in the
-appropriate plugin override directory.
+A smell with no catalogue entry falls through to an **uncoached** bucket rather than being dropped, so unknown
+sensor output is always surfaced. By default it coaches without failing the run — the catalogue is the record of
+what is worth failing a build over, and this name is not in it. Set the root `uncoached` key to `ignore` or
+`enforce` to change that for the whole project, or `[smells.<name>] severity` for one smell. To coach it properly,
+drop a `guides/<smell>.md` file in the appropriate plugin override directory.
 
 ## Sample output
 

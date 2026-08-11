@@ -27,7 +27,7 @@ config file is read by both, each picking out the keys it cares about:
 | Stage | Reads |
 |-------|-------|
 | **`habit-sensors`** (the runner) | `plugins`, `transformers`, `files`, `[scope]`, `[sensors.*]` |
-| **`habit-mapper`** (the router)  | `[smells.*]`, `[runners]` |
+| **`habit-mapper`** (the router)  | `[smells.*]`, `uncoached`, `[runners]` |
 
 ## Root keys
 
@@ -38,12 +38,14 @@ These live at the top level of the **project** `config.toml`.
 | `plugins`      | An **ordered** list of plugins to activate, **selecting among the installed plugin packages** by name. The order is a priority: it is the order sensors run, and the order the mapper looks up guides — for a finding it takes the first plugin whose declared language matches, in this order, then falls back to the languageless `generic` last (so a language plugin's guide wins over generic's wherever `generic` sits in the list). A listed plugin that is neither installed nor overridden under `.habit-hooks/<plugin>/` fails with an error naming its `pip install habit-hooks-<plugin>` command. `generic` is listed explicitly like any other plugin, so a project can drop it. |
 | `transformers` | An ordered list of transformers applied to the concatenated findings of the whole run, in order. **Defaults to `["snooze"]`**, so a checked-in snooze index takes effect with no wiring; the core ships that transformer, so the default resolves whatever `plugins` names. Naming the key replaces the list wholesale — write `transformers = []` to drop snooze, or name `snooze-until-changed` for the ratchet variant below. |
 | `files`        | Discovery globs (pathspec / gitignore) — what this project counts as source, in **every** scope mode. Defaults to what the loaded plugins declare (below); naming it replaces those wholesale. |
+| `uncoached`    | What happens to a smell the catalogue does not name: `suggest` (**the default** — coached, exits 0), `ignore` (dropped), or `enforce` (coached, fails the run). Any other value is rejected by name. |
 | `[scope]`      | Git-scoping defaults for a run with no scope flag. |
 
 ```toml
 plugins = ["generic", "python"]
 transformers = ["snooze"]
 files = ["**/*.py"]
+uncoached = "suggest"
 ```
 
 ### The transformers the core ships
@@ -161,6 +163,33 @@ Two rules cover the rest:
   `node_modules`, `.venv` and `.git`; the run says so on stderr instead of
   reporting clean over an empty scope.
 
+### `uncoached` — what a smell nobody catalogued does
+
+Sensors can report smells this product has never taken a decision about: a
+project's own sensor, or a wrapped tool naming something the catalogue
+([smell-vocabulary.md](smell-vocabulary.md)) has no entry for. `uncoached` is
+that decision, taken once for all of them:
+
+| Value       | The finding is… |
+|-------------|-----------------|
+| `suggest`   | **The default.** Coached with the generic `uncoached.md` guidance and counted in the report, but it does not fail the run. The catalogue is the record of what is worth failing a build over, so a name absent from it has had no such decision made about it. |
+| `ignore`    | Dropped — neither coached nor counted, exactly as `[smells.<name>] disabled` drops one smell. Use it when a tool's extra output is noise here. |
+| `enforce`   | Coached and **fails the run** (exit 1). Use it to hold the line that anything a sensor reports must be either fixed or given a home in config. |
+
+```toml
+uncoached = "suggest"
+```
+
+A misspelled value is **rejected** (exit 2) naming the key, what you wrote and
+the three it accepts — a typo must never quietly pick a policy for you.
+
+**A `[smells.<name>] severity` wins over it, in all three values.** Declaring a
+severity is the project deciding about that one smell, which takes it out of
+`uncoached`'s reach — so a single smell can be promoted to blocking without
+promoting the rest, and `uncoached = "ignore"` still reports the one smell you
+declared. Smells the catalogue *does* name are never affected: `uncoached`
+answers only for the ones it does not.
+
 ### `[scope]`
 
 When a run is invoked with no explicit scope flag (`--all`, `--branch`, …), the
@@ -272,13 +301,19 @@ by default, without the project configuring anything.
 ## Custom smells
 
 A project (or plugin) sensor may emit a smell that is not in the catalogue.
-Declare it under `[smells.<name>]` with a `severity` so it routes the way you want
-instead of escalating with the generic uncoached prompt:
+Undeclared, it is whatever `uncoached` says — by default coached with the generic
+prompt and green. Declare it under `[smells.<name>]` with a `severity` to route it
+the way you want instead:
 
 ```toml
 [smells.custom-marker]
 severity = "enforced"
 ```
+
+That declaration is what lifts the smell out of the `uncoached` policy, so it
+keeps blocking however that key is set — and, conversely, an
+`uncoached = "enforce"` project can hold one experimental smell at `suggested`
+while everything unknown blocks.
 
 Pair the declaration with a sensor that emits the smell (a `sensors/<name>.toml`
 whose command produces findings with that `smell` key) and a matching
@@ -295,6 +330,7 @@ is optional:
 plugins = ["generic", "typescript"]              # ordered = lookup priority; drop "generic" to disable it
 transformers = ["snooze"]                         # applied to the whole run's findings, in order
 files = ["**/*.ts", "**/*.tsx", "**/*.js"]        # list form — pathspec has no brace expansion
+uncoached = "suggest"                             # a smell the catalogue never named: suggest | ignore | enforce
 
 [scope]
 changedOnly = false

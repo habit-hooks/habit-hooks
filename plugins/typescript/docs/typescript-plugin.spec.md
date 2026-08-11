@@ -271,6 +271,11 @@ A project that adds its own rules to the config still gets findings for them —
 an unmapped rule ID becomes the smell verbatim. The mapper has no guide for it,
 so it reports uncoached rather than disappearing.
 
+This is the opposite of what the knip sensor does with a key it cannot translate,
+and the difference is deliberate: an eslint rule ID comes from a config **this
+project wrote**, so an unmapped rule is one it turned on itself and wants to hear
+about. knip's key set is knip's own, and nobody here chose it.
+
 📄eslint.config.mjs
 ```javascript
 export default [

@@ -79,9 +79,9 @@ map-block), and the smell key each maps to.
 | `eslint:@typescript-eslint/no-inferrable-types`   | `redundant-type-annotation` |
 | `comment:non-essential`                           | `non-essential-comment`     |
 | `jscpd:duplication`                               | `duplicated-code`           |
-| `knip:classMembers`                               | `unused-class-member`       |
+| `knip:classMembers`, `knip:enumMembers`           | `unused-class-member`       |
 | `knip:files`                                      | `unused-file`               |
-| `knip:exports`                                    | `unused-export`             |
+| `knip:exports`, `knip:types`, `knip:nsExports`, `knip:nsTypes` | `unused-export` |
 | `knip:dependencies`                               | `unused-dependency`         |
 | `knip:production:*`                               | `test-only-dead-code`       |
 | `eslint:fatal`                                    | `parse-error`               |
@@ -90,9 +90,14 @@ The knip sensor runs two passes when the config marks production patterns with a
 trailing `!`. The default pass produces the `knip:<key>` smells above; the gated
 `knip --production` pass contributes the dead code the default pass did not name
 (code kept alive only by a test) as `test-only-dead-code`, sourced
-`knip:production:<key>`. A knip key the plugin does not map (`types`, `nsExports`,
-…) passes through under its own name as an uncoached smell rather than being
-dropped.
+`knip:production:<key>`.
+
+A knip key with no row above (`binaries`, `duplicates`, `catalog`, and for now
+`unlisted`/`unresolved`) is **dropped at the sensor**. Translating a tool's key
+set into this vocabulary is the sensor's job, and a key forwarded under knip's own
+name would have no guide and no severity behind it. The eslint sensor is the
+deliberate exception — it passes an unmapped rule ID through, because that ID
+comes from a config the project wrote and turned on itself.
 
 ## Python plugin translation
 
@@ -143,5 +148,10 @@ same function.
 
 ## Uncoached smells
 
-A smell with no configured guidance falls through to an **uncoached** bucket
-rather than being dropped, so unknown sensor output is always surfaced.
+A smell with no entry above still renders — through the generic `uncoached.md`
+guidance — so a sensor a project wrote itself is always surfaced. It does not
+fail the run: this catalogue is the record of what is worth failing a build over,
+and a name absent from it has had no such decision made about it. A project moves
+that answer with the root `uncoached` key (`suggest` / `ignore` / `enforce`, see
+[config.md](config.md)), or per smell with `[smells.<name>] severity`, which wins
+over it.

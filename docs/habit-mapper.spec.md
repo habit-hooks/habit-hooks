@@ -544,11 +544,15 @@ habit-mapper
 biome: prefer `===`/`!==` over loose equality.
 ```
 
-### An unknown smell escalates with the default guidance
+### An unknown smell is coached with the default guidance, and stays green
 
-A smell with no catalogue entry has no tuned guide. It defaults to `enforced`
-and renders the generic `uncoached.md` guidance, so it fails the run rather than
-slipping through.
+A smell with no catalogue entry has no tuned guide, so it renders the generic
+`uncoached.md` guidance. It does not fail the run: the catalogue is the record of
+what this product has decided is worth failing a build over, and a name absent
+from it has had no such decision made about it. Surfacing it keeps the finding
+visible without turning someone else's vocabulary into a gate — and the root
+`uncoached` key ([config.md](config.md)) moves that answer for a project that
+wants `ignore` or `enforce` instead.
 
 ⌨️
 ```json
@@ -567,7 +571,7 @@ slipping through.
 habit-mapper
 ```
 
-🖥️ ❌ 1
+🖥️ ✅
 ```text
 ── mystery-rule (1 issue) ──
 
@@ -769,6 +773,163 @@ habit-mapper
 ✅ Habit Hooks: automated checks passed.
 
 Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
+```
+
+### `uncoached = "ignore"` drops a smell nobody catalogued
+
+`ignore` takes the other answer to the same question: a smell the catalogue does
+not name is dropped through the same seam as `[smells.<name>] disabled` — neither
+coached nor counted. The catalogued `warning-comment` beside it still coaches, so
+this is the unknown name being dropped, not the run going quiet.
+
+📄.habit-hooks/config.toml
+```toml
+uncoached = "ignore"
+```
+
+📄.habit-hooks/generic/guides/warning-comment.md
+```markdown
+{% for v in issues -%}
+{{ v.details.file }}:{{ v.details.line }} {{ v.details.message }}
+{% endfor %}
+Resolve or remove these markers before merging.
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "mystery-rule",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
+  },
+  {
+    "smell": "warning-comment",
+    "details": {},
+    "issues": [
+      {
+        "key": "src/api.ts",
+        "details": { "file": "src/api.ts", "line": 14, "message": "TODO handle retry" }
+      }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ✅
+```text
+── warning-comment (1 issue) ──
+
+src/api.ts:14 TODO handle retry
+
+Resolve or remove these markers before merging.
+```
+
+### `uncoached = "enforce"` fails the run on a smell nobody catalogued
+
+`enforce` holds the line that anything a sensor reports must be either fixed or
+given a home in config. The same finding that stays green by default now blocks.
+
+📄.habit-hooks/config.toml
+```toml
+uncoached = "enforce"
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "mystery-rule",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+
+### A declared severity outranks the `uncoached` policy
+
+Declaring `[smells.<name>] severity` is the project deciding about that one
+smell, which takes it out of the policy's reach. Here everything unknown is
+dropped, yet `mystery-rule` — declared `enforced` and paired with its own guide —
+still coaches and still fails the run.
+
+📄.habit-hooks/config.toml
+```toml
+uncoached = "ignore"
+
+[smells.mystery-rule]
+severity = "enforced"
+```
+
+📄.habit-hooks/generic/guides/mystery-rule.md
+```markdown
+This project has decided about this one.
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "mystery-rule",
+    "details": {},
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 1
+```text
+── mystery-rule (1 issue) ──
+
+This project has decided about this one.
+```
+
+### A misspelled `uncoached` value is rejected, not read as a default
+
+A value nothing consumes is a typo the same way a key is, and reading `supress`
+as the default would silently mean the opposite of what was intended. The run
+stops with the tool-error exit 2, naming the key, what was written, and the three
+values it accepts.
+
+📄.habit-hooks/config.toml
+```toml
+uncoached = "supress"
+```
+
+⌨️
+```json
+[]
+```
+
+```bash
+habit-mapper
+```
+
+🖥️ ❌ 2
+
+🚨
+```text
+habit-mapper: unknown 'uncoached' value 'supress' in the project config; known values: 'enforce', 'ignore', 'suggest'
 ```
 
 ### An explicit `--config` is read instead of the default file

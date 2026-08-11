@@ -100,7 +100,8 @@ running binary's name, and must not grow one. A project's own transformer is a
 separate process, and importing `load_config` is the only way one has ever had to
 read `[scope] branchBase` — so a required argument here breaks every caller
 outside this repository (it did), and a defaulted one only postpones the same
-break. The loader raises an unnamed `ConfigError`; `cli.run_console` — already
+break. Loading raises an unnamed `ConfigError` (from `config_guard`, which owns
+every refusal a config can earn); `cli.run_console` — already
 the single place a `ToolError` is written to stderr — prefixes the binary's name
 (`cli._named`) as it prints it, so each of `habit-sensors`, `habit-mapper` and
 `habit-snooze` answers under its own name. Only `ConfigError` is prefixed: every
@@ -188,6 +189,32 @@ Guard it in a plugin's acceptance spec with a case that writes **no** config for
 the wrapped tool. Every case in `plugins/typescript/docs/typescript-plugin.spec.md`
 copies the shipped config into the case dir first, which is why that suite
 asserts the intent while the code does not implement it.
+
+### A sensor emits vocabulary smells only; `uncoached` answers for the rest (human-requested by Ivett, issue #111)
+
+Translating a wrapped tool's key set into `docs/smell-vocabulary.md` is the
+**sensor's** job, not the mapper's. A key the plugin has no smell for is dropped
+at the sensor rather than forwarded under the tool's own name: forwarded, it has
+no guide and no catalogue severity, so it can only fail a run and then decline to
+explain why (`binaries` turned an untouched repository red). Adding a key to a
+sensor's map therefore means adding the smell — catalogue entry, guide,
+vocabulary line — or leaving the key dropped (`unlisted`/`unresolved` are
+deliberately dropped until #124 gives them both).
+
+**The eslint sensor is the deliberate exception**: it keeps
+`[.ruleId] // .ruleId`. knip's key set is knip's own, but an eslint rule ID comes
+from a config the project wrote, so an unmapped rule is one the project turned on
+itself and forwarding it saves running lint separately. That is the test for any
+future wrapped tool — whose vocabulary is it?
+
+Whatever still arrives uncatalogued is the core's decision, not the sensor's: the
+root `uncoached` key (`suggest` default / `ignore` / `enforce`) replaces the old
+`ENFORCED` fallback in `rendering.severity_of`. It is a **root** key because
+`[smells]` is keyed by smell name and a scalar there collides exactly as
+`sensors = [...]` does with `[sensors.<name>]`. `ignore` drops the finding
+through `is_disabled`, the same seam as `[smells.<name>] disabled`; a
+`[smells.<name>] severity` is the project deciding about that one smell and wins
+over all three values (`rendering._is_uncoached`).
 
 ### The Node dev tools are one pnpm workspace, not three npm installs (agent decision)
 
@@ -296,10 +323,8 @@ dead — which is why the shipped `knip.json` lists `tests/**` and
 guard the production pass never contributes a **test file** itself
 (`isTestFile`/`TEST_FILE`): that pass drops test entries, so every test
 file looks unused to it, and reporting one would invite deleting real
-coverage. Unmapped and future knip keys pass through under their own name
-as uncoached smells (`SMELL_BY_KEY[key] || key`) rather than vanishing,
-and `classMembers`/`enumMembers` object maps are flattened before use so
-they never reach `.map` (the crash #99 fixed).
+coverage. `classMembers`/`enumMembers` object maps are flattened before
+use so they never reach `.map` (the crash #99 fixed).
 
 ### JSDoc nodes are not MultiLineCommentTrivia in ts-morph
 
