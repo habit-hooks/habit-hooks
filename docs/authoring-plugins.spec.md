@@ -198,7 +198,7 @@ habit-sensors --all
 
 🚨
 ```text
-habit-sensors: sensor 'todo' cannot take arguments — its command has no '${args}' to expand ['--ignore-case'] into; remove the 'args', or override the sensor with a command that spells '${args}'
+habit-sensors: sensor 'todo' cannot take arguments — its command has no '${args}' to expand ['--ignore-case'] into; remove the 'args', clear a plugin's own default with [sensors.todo] args = [], or override the sensor with a command that spells '${args}'
 ```
 
 The same refusal covers a plugin that ships an unusable `args` default in its own

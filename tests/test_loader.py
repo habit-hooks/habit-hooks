@@ -43,6 +43,18 @@ def test_args_override_reaches_the_part(tmp_path: Path) -> None:
     assert loader_for(tmp_path).load_plugin("fixt").sensors[0].args == ["--from-project"]
 
 
+def test_an_emptied_args_override_clears_the_specs_default(tmp_path: Path) -> None:
+    """``args = []`` is a value, not an absence, so it clears what the plugin
+    shipped. That is the only way out for a consumer whose run is refused over a
+    plugin's own unusable ``args`` default (``command_text.reject_unusable_args``),
+    so the loader must not read the empty list as "nothing set" and fall through.
+    """
+    _one_sensor(tmp_path, 'command = "echo"\nargs = ["--from-spec"]')
+    write_project_config(tmp_path, 'plugins = ["fixt"]\n[sensors.s]\nargs = []')
+
+    assert loader_for(tmp_path).load_plugin("fixt").sensors[0].args == []
+
+
 def test_sensor_spec_files_default_reaches_the_part(tmp_path: Path) -> None:
     part = _one_sensor(tmp_path, 'command = "echo ${files}"\nfiles = ["src/**"]')
     assert part.files == ["src/**"]

@@ -58,8 +58,9 @@ def test_args_a_command_has_nowhere_to_put_are_refused_by_name(tmp_path: Path) -
 
     assert str(refusal.value) == (
         "sensor 'comment' cannot take arguments — its command has no '${args}' "
-        "to expand ['-v'] into; remove the 'args', or override the sensor with a "
-        "command that spells '${args}'"
+        "to expand ['-v'] into; remove the 'args', clear a plugin's own default "
+        "with [sensors.comment] args = [], or override the sensor with a command "
+        "that spells '${args}'"
     )
 
 

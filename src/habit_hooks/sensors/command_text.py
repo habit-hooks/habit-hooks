@@ -64,7 +64,8 @@ def _refuse_unusable_arguments(part: Part) -> None:
         return
     raise ConfigError(
         f"sensor {part.name!r} cannot take arguments — its command has no "
-        f"'${{args}}' to expand {part.args} into; remove the 'args', or override "
+        f"'${{args}}' to expand {part.args} into; remove the 'args', clear a "
+        f"plugin's own default with [sensors.{part.name}] args = [], or override "
         "the sensor with a command that spells '${args}'"
     )
 

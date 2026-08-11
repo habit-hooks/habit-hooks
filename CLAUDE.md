@@ -50,7 +50,7 @@ in `sensors/<name>.toml` and expand into the command via `${args}`. They cannot 
 in the plugin `config.toml` because `sensors = [...]` (the ordered list) and a
 `[sensors.<name>]` table collide as the same TOML key. A project replaces them
 wholesale via `.habit-hooks/config.toml` `[sensors.<name>] args = [...]`
-(replace-on-override — `SensorOverride.args`, threaded in `sensors._sensor_args`).
+(replace-on-override — `SensorOverride.args`, threaded in `loader._sensor_setting`).
 
 **A command with no `${args}` refuses args rather than dropping them**
 (`command_text._refuse_unusable_arguments`, the only place that knows both the
