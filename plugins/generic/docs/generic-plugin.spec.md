@@ -81,9 +81,11 @@ habit-sensors --all | jq .
 ## jscpd emits duplicated-code for a cloned block
 
 The `jscpd` sensor wraps the real jscpd CLI and shapes each clone into a
-`duplicated-code` finding listing both occurrences in `issues`. The plugin ships
-`.jscpd.json` (`path: ["src"]`, `minLines: 5`, `minTokens: 50`, `threshold: 0`),
-so jscpd scans `src` and reports the duplicated block.
+`duplicated-code` finding listing both occurrences in `issues`. This project has
+no jscpd config of its own — a `package.json` without a `jscpd` key is not one —
+so the plugin's shipped `.jscpd.json` (`path: ["src"]`, `minLines: 5`,
+`minTokens: 50`, `threshold: 0`) applies, and jscpd scans `src` and reports the
+duplicated block.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -92,6 +94,14 @@ files   = ["src/**"]
 
 [sensors.line-count]
 disabled = true
+```
+
+📄package.json
+```json
+{
+  "name": "example",
+  "private": true
+}
 ```
 
 📄src/a.ts
@@ -132,4 +142,112 @@ habit-sensors --all | jq '.[] | {smell, files: [.issues[].key | sub(".*/"; "")],
   ],
   "source": "jscpd:duplication"
 }
+```
+
+## A project's own jscpd config wins over the shipped one
+
+The shipped `.jscpd.json` answers "this project has none"; it never overrides a
+project that has thought about its own. habit-hooks looks exactly where jscpd
+looks — a `.jscpd.json` in the project root, or a `jscpd` key in `package.json`
+— and when it finds one it stands aside and lets jscpd read it.
+
+So this project's `path: ["lib"]` decides what is scanned, and the shipped
+`path: ["src"]` never gets a say: the clone under `lib` is reported and the one
+under `src` is not. `lib` is relative, and resolves against the project.
+
+jscpd honours `.gitignore`, walking up until it finds a repository — so the case
+is its own, as a real project is. Without that it would walk out into
+habit-hooks' checkout, whose `.gitignore` covers the very directory these cases
+run in, and jscpd would scan nothing.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
+
+```bash
+git init -q
+```
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["**/*.ts"]
+
+[sensors.line-count]
+disabled = true
+```
+
+📄.jscpd.json
+```json
+{
+  "path": ["lib"],
+  "minLines": 5,
+  "minTokens": 50
+}
+```
+
+📄src/a.ts
+```typescript
+export function alpha(x: number, y: number) {
+  const sum = x + y;
+  const product = x * y;
+  const diff = x - y;
+  const quotient = x / y;
+  const scaled = sum * product;
+  return { sum, product, diff, quotient };
+}
+```
+
+📄src/b.ts
+```typescript
+export function beta(x: number, y: number) {
+  const sum = x + y;
+  const product = x * y;
+  const diff = x - y;
+  const quotient = x / y;
+  const scaled = sum * product;
+  return { sum, product, diff, quotient };
+}
+```
+
+📄lib/c.ts
+```typescript
+export function gamma(a: number, b: number) {
+  const total = a + b;
+  const scaled = a * b;
+  const gap = a - b;
+  const ratio = a / b;
+  const mixed = total * scaled;
+  return { total, scaled, gap, ratio, mixed };
+}
+```
+
+📄lib/d.ts
+```typescript
+export function delta(a: number, b: number) {
+  const total = a + b;
+  const scaled = a * b;
+  const gap = a - b;
+  const ratio = a / b;
+  const mixed = total * scaled;
+  return { total, scaled, gap, ratio, mixed };
+}
+```
+
+```bash
+habit-sensors --all | jq '[.[] | {smell, files: [.issues[].key]}]'
+```
+
+🖥️ ✅
+```json
+[
+  {
+    "smell": "duplicated-code",
+    "files": [
+      "lib/c.ts",
+      "lib/d.ts"
+    ]
+  }
+]
 ```

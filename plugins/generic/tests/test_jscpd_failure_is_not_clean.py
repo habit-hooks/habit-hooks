@@ -15,73 +15,34 @@ enough to make this decision.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
-import sys
 from pathlib import Path
 
-import pytest
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-SENSOR = _REPO_ROOT / "plugins/generic/src/habit_hooks_generic/sensors/jscpd.py"
-JSCPD_BIN = _REPO_ROOT / "node_modules" / ".bin"
-
-CLONED_BLOCK = (
-    "export function {name}(x: number, y: number) {{\n"
-    "  const sum = x + y;\n"
-    "  const product = x * y;\n"
-    "  const diff = x - y;\n"
-    "  const quotient = x / y;\n"
-    "  const scaled = sum * product;\n"
-    "  const shifted = diff - quotient;\n"
-    "  const blended = scaled + shifted;\n"
-    "  return {{ sum, product, diff, quotient, scaled, shifted, blended }};\n"
-    "}}\n"
-)
-
-
-def _requires_jscpd() -> None:
-    if not (JSCPD_BIN / "jscpd").exists():
-        pytest.skip("jscpd is not installed at the repo root (pnpm install)")
+from jscpd_sensor import requires_jscpd, run_sensor, write_clones, write_json
 
 
 def _run_sensor(
     project: Path, config: Path, path: str | None = None
 ) -> subprocess.CompletedProcess[str]:
-    environment = dict(os.environ)
-    environment["PATH"] = (
-        path if path is not None else f"{JSCPD_BIN}{os.pathsep}{environment['PATH']}"
-    )
-    return subprocess.run(
-        [sys.executable, str(SENSOR), "--config", str(config)],
-        cwd=project,
-        capture_output=True,
-        text=True,
-        env=environment,
-    )
+    """The project configures nothing, so the named config is what runs."""
+    return run_sensor(project, ["--fallback-config", str(config)], path=path)
 
 
 def _config(project: Path, scan: list[str], threshold: int = 100) -> Path:
-    config = project / "cfg.json"
-    config.write_text(
-        json.dumps(
-            {"path": scan, "threshold": threshold, "minLines": 5, "minTokens": 50}
-        )
+    return write_json(
+        project / "cfg.json",
+        {"path": scan, "threshold": threshold, "minLines": 5, "minTokens": 50},
     )
-    return config
 
 
 def _sources(project: Path, names: list[str]) -> None:
-    source = project / "src"
-    source.mkdir()
-    for name in names:
-        (source / f"{name}.ts").write_text(CLONED_BLOCK.format(name=name))
+    write_clones(project / "src", names)
 
 
 def test_a_jscpd_that_cannot_scan_fails_instead_of_reporting_clean(
     tmp_path: Path,
 ) -> None:
-    _requires_jscpd()
+    requires_jscpd()
     config = _config(tmp_path, ["no-such-directory"])
 
     result = _run_sensor(tmp_path, config)
@@ -119,7 +80,7 @@ def test_finding_no_clones_is_clean_even_though_jscpd_writes_no_report(
     that finds nothing leaves no file behind — indistinguishable, by that signal
     alone, from a scan that never happened. Its exit code is what separates them.
     """
-    _requires_jscpd()
+    requires_jscpd()
     source = tmp_path / "src"
     source.mkdir()
     (source / "a.ts").write_text("export const p = 1;\n")
@@ -133,7 +94,7 @@ def test_finding_no_clones_is_clean_even_though_jscpd_writes_no_report(
 
 
 def test_clones_are_reported(tmp_path: Path) -> None:
-    _requires_jscpd()
+    requires_jscpd()
     _sources(tmp_path, ["alpha", "beta"])
     config = _config(tmp_path, ["src"])
 
@@ -144,9 +105,24 @@ def test_clones_are_reported(tmp_path: Path) -> None:
     assert [finding["smell"] for finding in findings] == ["duplicated-code"]
 
 
+def test_a_fallback_config_that_is_not_there_fails_the_run(tmp_path: Path) -> None:
+    """The project configures nothing and neither, somehow, do we.
+
+    Nothing to fall back to is a broken install, not an empty project — and it
+    is reached before jscpd is ever spawned, so nothing downstream would notice
+    a `[]` printed here.
+    """
+    _sources(tmp_path, ["alpha", "beta"])
+
+    result = _run_sensor(tmp_path, tmp_path / "absent.json")
+
+    assert result.returncode != 0
+    assert result.stdout.strip() == ""
+
+
 def test_crossing_the_threshold_is_a_result_not_a_failure(tmp_path: Path) -> None:
     """jscpd exits non-zero here, but it wrote a report — so it is read."""
-    _requires_jscpd()
+    requires_jscpd()
     _sources(tmp_path, ["alpha", "beta"])
     config = _config(tmp_path, ["src"], threshold=0)
 

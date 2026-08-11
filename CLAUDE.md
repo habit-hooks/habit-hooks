@@ -192,11 +192,25 @@ a run's output drifts from a coached incomplete run's.
 
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
-When `jscpd --config <abs path>` loads `.jscpd.json`, its `path: ["src"]` resolves
+When `jscpd --config <abs path>` loads a config, its `path: ["src"]` resolves
 relative to the config file's directory, so a plugin-shipped config scans nothing
-in the consumer repo. `plugins/generic/sensors/jscpd.py` therefore reads `path`
-out of the config and passes those as positional args (resolved against cwd),
-keeping the config the single source for threshold/ignore/minLines/minTokens.
+in the consumer repo. `plugins/generic/src/habit_hooks_generic/sensors/jscpd.py`
+therefore reads `path` out of **its own** config and passes those as positional
+args (resolved against cwd), keeping the config the single source for
+threshold/ignore/minLines/minTokens. A project's own config needs none of this —
+it already sits in the project — so that branch passes neither `--config` nor
+paths and lets jscpd discover and resolve it (see the precedence note below).
+
+Do not "make it uniform" by re-passing a discovered config's `path` positionally.
+jscpd resolves a config's `path` to an **absolute** one where a positional
+relative path stays relative, and it matches its `.gitignore`-derived globs
+against whichever spelling arrives — so re-spelling their path changes which of
+their own ignore rules bite (see the gotcha below). Standing aside is the only
+arrangement in which a project's habit-hooks run is the run they get from `jscpd`
+directly. It is also why the spec case with a project config runs its own `git
+init`: cases run in `<repo>/.spec-runs/`, which this repo's `.gitignore` covers,
+and jscpd's upward walk for a repository would otherwise find ours and scan
+nothing.
 
 ### A wrapped tool's own config wins; ours is only the fallback (human-requested by Ivett)
 
@@ -214,9 +228,19 @@ the project's config, which satisfies this rule by accident, but a project
 (eslint) rather than to ours. Issues #113 (eslint) and #120 (knip) carry
 executable specs pinning both halves — the fallback that is missing, and the
 project-wins behaviour that must survive the fix — on the
-`findings/executable-specs` branch. jscpd is the shape to copy: `jscpd.toml`
-names its config explicitly, and the note above covers how its relative paths
-resolve.
+`findings/executable-specs` branch.
+
+**jscpd is the shape to copy** (issue #125). `jscpd.toml` hands the sensor
+`--fallback-config`, never `--config`, and `config_arguments` names it only
+after `project_configures_jscpd` finds nothing. What counts as "a config of its
+own" is read out of the pinned tool rather than guessed — jscpd 4's
+`prepareOptions` reads `.jscpd.json` in the directory it runs in, then a `jscpd`
+key in `package.json`, and nothing else — so a project is never told its config
+was honoured where the tool would not have looked. When the project does have
+one the sensor passes **nothing at all** and lets jscpd discover it: that is the
+only arrangement under which their habit-hooks run is the run they get from the
+tool directly. An unparseable `package.json` counts as absent, as it does to
+jscpd, so a typo in a file the sensor only peeks at cannot break the run.
 
 Guard it in a plugin's acceptance spec with a case that writes **no** config for
 the wrapped tool. Every case in `plugins/typescript/docs/typescript-plugin.spec.md`
@@ -416,6 +440,24 @@ plus `--no-warn-ignored` to stop the commonest of them being raised at all.
 `plugins/python/.../sensors/ruff.toml` has the same `{...}[.code]` shape and is
 safe only because `--select` pins the codes and ruff spells a syntax error
 `invalid-syntax` rather than `null` — if that ever changes, it fails the same way.
+
+### jscpd ignores a checkout that *lives* under a path its own `.gitignore` covers
+
+jscpd's `initIgnore` turns each line of `<cwd>/.gitignore` into globs, and a line
+containing a slash becomes `**/<line>/**` — matched against the **absolute**
+paths a config-derived `path` produces, filesystem prefix and all. A checkout at
+`…/habit-hooks/.claude/worktrees/agent-x/` therefore ignores its entire self
+against this repo's own `.claude/worktrees/` line: zero files scanned, zero
+clones, exit 0, a clean run. Proven by two fixtures identical but for their path
+(ordinary → the planted clone; under `.claude/worktrees/` → nothing), and by
+running `jscpd` bare in a worktree, which is equally blind. It is the tool's
+behaviour, not the sensor's — and the sensor reproducing it exactly is the point
+of the precedence rule above.
+
+The consequence for us: **inside an agent worktree `uv run habit-hooks --all`
+proves nothing about jscpd.** An ordinary checkout and CI are unaffected (no
+ignored segment in their paths). To check duplication from inside a worktree,
+run jscpd with positional relative paths, as the fallback branch does.
 
 ### A sensor named `ruff.toml` collides with ruff's config discovery
 
