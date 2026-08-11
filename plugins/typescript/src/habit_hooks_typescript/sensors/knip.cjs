@@ -41,11 +41,27 @@ const DEAD_CODE_KEYS = new Set([
   "enumMembers",
 ]);
 
-// The production markers are read from a plain-JSON knip config; a jsonc/ts/js
-// config that JSON.parse cannot read falls back to a single (default) pass
-// rather than risk mangling glob patterns like ``src/**/*`` while stripping
-// comments.
-const JSON_CONFIG_FILES = ["knip.json", ".knip.json"];
+// Every place knip 5 looks for a config (``constants.js``
+// KNIP_CONFIG_LOCATIONS), resolved against the project alone — knip's
+// ``findFile`` never walks up. Asking the question knip's own way is what stops
+// a project being told its config was found when knip would not have found it.
+const KNIP_CONFIG_LOCATIONS = [
+  "knip.json",
+  "knip.jsonc",
+  ".knip.json",
+  ".knip.jsonc",
+  "knip.ts",
+  "knip.js",
+  "knip.config.ts",
+  "knip.config.js",
+];
+
+// knip merges a ``knip`` key in the manifest whether or not a config file is
+// found, so a project carrying only that has still stated its preferences.
+const MANIFEST = "package.json";
+
+// The config this plugin ships, beside the sensors directory it runs from.
+const SHIPPED_CONFIG = path.join(__dirname, "..", "knip.json");
 
 // A file the --production pass must never call dead, because that pass ignores
 // test entries and would otherwise report every test file as unused.
@@ -55,8 +71,8 @@ function isTestFile(file) {
   return TEST_FILE.test(file);
 }
 
-function runKnip(extraArgs) {
-  return spawnSync("knip", ["--reporter", "json", ...extraArgs], {
+function runKnip(args) {
+  return spawnSync("knip", ["--reporter", "json", ...args], {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -143,25 +159,46 @@ function findings(defaultReport, productionReport) {
   return [...grouped.values()];
 }
 
-function readJsonConfig() {
-  for (const name of JSON_CONFIG_FILES) {
+// The knip config the project wrote, or null. Existence is the whole test: what
+// a config says is knip's business, and a file knip would load is one this
+// plugin must not speak over.
+function projectConfig() {
+  for (const name of KNIP_CONFIG_LOCATIONS) {
     const file = path.resolve(name);
-    if (!fs.existsSync(file)) continue;
-    try {
-      return JSON.parse(fs.readFileSync(file, "utf8"));
-    } catch {
-      return null;
-    }
+    if (fs.existsSync(file)) return file;
   }
-  const pkg = path.resolve("package.json");
-  if (fs.existsSync(pkg)) {
-    try {
-      return JSON.parse(fs.readFileSync(pkg, "utf8")).knip ?? null;
-    } catch {
-      return null;
-    }
+  const manifest = path.resolve(MANIFEST);
+  return readJson(manifest)?.knip != null ? manifest : null;
+}
+
+// The config the run will actually use, and the args that make knip use it. The
+// project's own is left for knip's discovery to find — naming it would still be
+// us choosing — and ours is named only in its absence, and only if it is really
+// there (a sensor vendored on its own arrives without it).
+function configInForce() {
+  const own = projectConfig();
+  if (own !== null) return { file: own, args: [] };
+  if (!fs.existsSync(SHIPPED_CONFIG)) return { file: null, args: [] };
+  return { file: SHIPPED_CONFIG, args: ["--config", SHIPPED_CONFIG] };
+}
+
+function readJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return null;
   }
-  return null;
+}
+
+// The production markers are read from a plain-JSON knip config; a jsonc/ts/js
+// config that JSON.parse cannot read falls back to a single (default) pass
+// rather than risk mangling glob patterns like ``src/**/*`` while stripping
+// comments.
+function settingsIn(file) {
+  if (file === null) return null;
+  const parsed = readJson(file);
+  if (parsed === null) return null;
+  return path.basename(file) === MANIFEST ? (parsed.knip ?? null) : parsed;
 }
 
 function marksProduction(patterns) {
@@ -173,11 +210,15 @@ function marksProduction(patterns) {
 
 // A gated second pass only runs when the config marks production patterns with a
 // trailing ``!`` on BOTH entry and project — the precondition without which knip
-// --production analyses nothing. Detected here exactly as knip requires it.
-function configMarksProduction() {
-  const config = readJsonConfig();
+// --production analyses nothing. Detected here exactly as knip requires it, and
+// read off the config that is in force: read it off any other and the pass stays
+// off in precisely the case it exists for.
+function configMarksProduction(file) {
+  const settings = settingsIn(file);
   return (
-    config != null && marksProduction(config.entry) && marksProduction(config.project)
+    settings != null &&
+    marksProduction(settings.entry) &&
+    marksProduction(settings.project)
   );
 }
 
@@ -186,14 +227,15 @@ function report(result) {
 }
 
 function main() {
-  const base = runKnip([]);
+  const config = configInForce();
+  const base = runKnip(config.args);
   if (knipCrashed(base)) {
     process.stderr.write(base.stderr || String(base.error));
     return 2;
   }
   let production = null;
-  if (configMarksProduction()) {
-    const pass = runKnip(["--production"]);
+  if (configMarksProduction(config.file)) {
+    const pass = runKnip([...config.args, "--production"]);
     if (knipCrashed(pass)) {
       process.stderr.write(pass.stderr || String(pass.error));
       return 2;

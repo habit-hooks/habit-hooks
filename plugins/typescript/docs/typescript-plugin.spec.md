@@ -353,22 +353,30 @@ habit-sensors --all | jq -c '[.[] | {smell, source: .issues[0].details.source}]'
 
 ## knip sensor
 
-The `knip` sensor runs knip with the shipped `knip.json` and shapes its JSON into
-findings. Unused files come from knip's top-level `files` array, not from an issue
-row; `classMembers`/`enumMembers` arrive as object maps and are flattened; and
-every key is **translated into a catalogue smell** — a key the plugin has no smell
-for is dropped rather than forwarded under knip's own name, because a name with no
+The `knip` sensor runs knip and shapes its JSON into findings. Unused files come
+from knip's top-level `files` array, not from an issue row;
+`classMembers`/`enumMembers` arrive as object maps and are flattened; and every
+key is **translated into a catalogue smell** — a key the plugin has no smell for
+is dropped rather than forwarded under knip's own name, because a name with no
 guide and no severity behind it can only fail a run without explaining itself.
+
+**Most of the cases below write no knip config**, and they still report what the
+plugin tuned for: the sensor names the shipped `knip.json` once it has
+established the project wrote none of the config files knip itself looks for.
+Without that, knip's defaults take `project` to be the whole tree, and a build
+helper nothing is meant to import comes back as dead code. A project that has
+written a config gets exactly that one, and the cases that declare their own are
+the proof.
 
 The shipped `knip.json` marks production patterns with a trailing `!` on both
 `entry` and `project`, which gates a second `knip --production` pass. The default
 pass is authoritative for every issue type; the `--production` pass contributes
 only the dead code the default pass did not already name — code alive solely
 because a test references it — as the separate `test-only-dead-code` smell, so its
-coaching can say "delete the test too".
+coaching can say "delete the test too". The gate reads the markers of whichever
+config is in force, so a project config carrying none never runs a second pass.
 
-Every case here disables the other two sensors and ships the plugin's real
-`knip.json`. A case that needs a different knip config re-declares it.
+Every case here disables the other two sensors.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -380,8 +388,6 @@ disabled = true
 [sensors.comment]
 disabled = true
 ```
-
-📄knip.json @plugins/typescript/src/habit_hooks_typescript/knip.json
 
 ### An unused export maps to unused-export
 
@@ -688,6 +694,92 @@ habit-sensors --all | jq -c 'map(.smell) | sort'
 🖥️ ✅
 ```json
 []
+```
+
+### A build helper outside src/ is not the consumer's dead code
+
+The project has written no knip config, so the shipped one runs — and its
+`project` stops at `src/**`. `tools/generate.ts` is a build helper nothing is
+meant to import; knip's own defaults take the whole tree and would report it as
+dead code the consumer is told to delete. The genuinely unused export beside it
+still reports, so the narrowing is a narrowing and not a silenced sensor.
+
+📄src/cli.ts
+```typescript
+import { used } from "./helper";
+
+used();
+```
+
+📄src/helper.ts
+```typescript
+export function used(): void {}
+
+export function neverUsed(): void {}
+```
+
+📄tools/generate.ts
+```typescript
+export function generate(): void {}
+```
+
+```bash
+habit-sensors --all | jq -c '[.[] | {smell, keys: [.issues[].key], source: .issues[0].details.source}]'
+```
+
+🖥️ ✅
+```json
+[{"smell":"unused-export","keys":["neverUsed"],"source":"knip:exports"}]
+```
+
+### A project's own knip config wins, gate included
+
+The other half of the rule, taken to the part a fallback is most likely to
+break. This project's config carries no `!` anywhere, so the gated
+`--production` pass must not run even though the config the plugin ships does
+carry the markers: the gate reads whichever config is in force, not whichever
+one we happen to ship. `testOnly` is reachable from the test the project listed
+as an entry and stays silent; `neverUsed` still reports, so the silence is an
+answer rather than a dead sensor.
+
+📄knip.json
+```json
+{
+  "entry": ["src/cli.ts", "tests/**"],
+  "project": ["src/**/*.ts"]
+}
+```
+
+📄src/helper.ts
+```typescript
+export function prodUsed(): void {}
+
+export function testOnly(): void {}
+
+export function neverUsed(): void {}
+```
+
+📄src/cli.ts
+```typescript
+import { prodUsed } from "./helper";
+
+prodUsed();
+```
+
+📄tests/helper.test.ts
+```typescript
+import { testOnly } from "../src/helper";
+
+testOnly();
+```
+
+```bash
+habit-sensors --all | jq -c '[.[] | {smell, keys: [.issues[].key], source: .issues[0].details.source}]'
+```
+
+🖥️ ✅
+```json
+[{"smell":"unused-export","keys":["neverUsed"],"source":"knip:exports"}]
 ```
 
 ## comment sensor maps a non-essential comment to non-essential-comment
