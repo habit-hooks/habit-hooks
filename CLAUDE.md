@@ -93,6 +93,24 @@ is a different question from which snoozes lapse), so the widening lives in
 replaces them wholesale. That is why `config.py` imports `Resolver` — the merge
 needs the override chain, and only `files` has a plugin-supplied default.
 
+### A config's schema is `config_schema.py`; finding and merging it is `config.py` (human-requested by Ivett)
+
+`config_schema.py` answers what a config **is** and may **say**: the attrs types
+(`Config`, `ScopeDefaults`, `SensorOverride`, `SmellOverride`), `settable()`
+reflecting over their fields, `PLUGIN_CONFIG_KEYS`, the legal `uncoached` values,
+and every refusal over all of that (`read_toml`, `reject_unknown`,
+`reject_unknown_uncoached_value`). `config.py` is the loading around it: the file
+it reads, the override chain, the plugin defaults, the `files` merge. The
+dependency runs one way (`config` → `config_schema`), and the split keeps both
+under the repo's own 200-line `oversized-file` gate.
+
+The line is schema vs loading, **not** refusing vs the rest. An earlier
+`config_guard.py` drew it the second way: named for a concept but holding schema
+facts, so "what keys does `Config` accept?" was answered in two files and
+`settable(Config)` reached across the boundary to describe a type it did not own.
+Under size pressure again, move a whole concern across this line rather than
+drawing a new one.
+
 ### `load_config` names no binary; `run_console` does (human-requested by Ivett, issue #109)
 
 `config.load_config(project_dir, config_path=None)` takes no argument for the
@@ -100,7 +118,7 @@ running binary's name, and must not grow one. A project's own transformer is a
 separate process, and importing `load_config` is the only way one has ever had to
 read `[scope] branchBase` — so a required argument here breaks every caller
 outside this repository (it did), and a defaulted one only postpones the same
-break. Loading raises an unnamed `ConfigError` (from `config_guard`, which owns
+break. Loading raises an unnamed `ConfigError` (from `config_schema`, which owns
 every refusal a config can earn); `cli.run_console` — already
 the single place a `ToolError` is written to stderr — prefixes the binary's name
 (`cli._named`) as it prints it, so each of `habit-sensors`, `habit-mapper` and
@@ -128,7 +146,7 @@ answer with a Python stack trace. Three separate seams keep them honest:
   Its usage is `sensors.build_parser("habit-hooks")`: the stage's own parser
   under another `prog`, so what the help lists cannot drift from what is
   forwarded.
-- **Every TOML this tool opens goes through `config_guard.read_toml`** — the
+- **Every TOML this tool opens goes through `config_schema.read_toml`** — the
   project config, a plugin's, a sensor or transformer spec. It turns a
   `TOMLDecodeError` into the same unnamed `ConfigError` an unknown key raises:
   exit 2, naming the file and quoting tomllib, whose own text already carries the

@@ -1,11 +1,15 @@
-"""Refuse a config this tool cannot honour, naming what it could not honour.
+"""What a config is, what it may say, and the refusal of anything else.
+
+The shape of every section is the attrs types below, and the keys a user may set
+are their declared fields minus the loader-populated internals — so one
+definition answers both "what does this section hold?" and "what may the TOML
+name?". Finding, merging and resolving a config is :mod:`habit_hooks.config`.
 
 Unknown keys are rejected at every level — project *and* plugin config — with a
 ``ConfigError`` (exit 2): a key nothing consumes is a typo or a
 documented-but-dead key, and silently ignoring it is why both keep shipping
-(#102). The allowed keys are the type's declared attrs fields (minus
-loader-populated internals). The same rule covers a *value* nothing consumes:
-a misspelled ``uncoached`` would otherwise quietly pick a policy (#111).
+(#102). The same rule covers a *value* nothing consumes: a misspelled
+``uncoached`` would otherwise quietly pick a policy (#111).
 
 A file that is not TOML at all is the same kind of refusal, which is why reading
 one lives here too: unprotected, ``tomllib``'s own exception escaped as a
@@ -13,8 +17,8 @@ traceback at exit **1** — the code reserved for an enforced finding — so CI 
 a missing ``]`` as a smell in the code rather than a typo in a config (#114).
 
 The rejection names no binary, because all three console scripts load a config
-through this guard and one hardcoded name sends the other two's users to the
-wrong tool; ``cli.run_console`` names it when it prints it.
+through here and one hardcoded name sends the other two's users to the wrong
+tool; ``cli.run_console`` names it when it prints it.
 """
 
 from __future__ import annotations
@@ -22,10 +26,54 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from attrs import fields
+from attrs import define, field, fields
 
-from .catalogue import UNCOACHED_POLICIES
+from .catalogue import UNCOACHED_POLICIES, UNCOACHED_SUGGEST
 from .cli import ConfigError
+
+
+@define
+class SmellOverride:
+    severity: str | None = None
+    guide: str | None = None
+    disabled: bool | None = None
+
+
+@define
+class ScopeDefaults:
+    changedOnly: bool = False
+    autoBranchOffMain: bool = False
+    branchBase: str = "main"
+    mainBranch: str = "main"
+
+
+@define
+class SensorOverride:
+    disabled: bool | None = None
+    files: list[str] | None = None
+    args: list[str] | None = None
+
+
+@define
+class Config:
+    plugins: list[str] = field(factory=lambda: ["generic"])
+    # Snooze is on by default so a checked-in index takes effect without wiring;
+    # naming `transformers` replaces the list wholesale, which is how a project
+    # drops it or orders it against its own steps.
+    transformers: list[str] = field(factory=lambda: ["snooze"])
+    files: list[str] | None = None
+    # What happens to a smell the catalogue does not name: it coaches without
+    # failing the run unless this says otherwise (see ``rendering.severity_of``).
+    uncoached: str = UNCOACHED_SUGGEST
+    scope: ScopeDefaults = field(factory=ScopeDefaults)
+    sensors: dict[str, SensorOverride] = field(factory=dict)
+    runners: dict[str, str] = field(factory=dict)
+    smells: dict[str, SmellOverride] = field(factory=dict)
+    # Each active plugin's declared language (generic declares none). The mapper
+    # reads it to prefer, for a finding of a given language, a plugin that speaks
+    # it over the languageless fallback. Populated by the loader, never from TOML.
+    plugin_languages: dict[str, str] = field(factory=dict, metadata={"internal": True})
+
 
 # The keys a plugin ``config.toml`` may set: ``sensors``/``transformers``/
 # ``language`` read in ``sensors/loader.py``; ``files``/``runners``/``language``

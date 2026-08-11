@@ -1,8 +1,9 @@
-"""Load the merged TOML config across the resolution chain.
+"""Find, merge and resolve the TOML config across the resolution chain.
 
-What a config may say — and the ``ConfigError`` that refuses anything else — is
-:mod:`habit_hooks.config_guard`; this module is the loading around it: the shape
-of each section, the plugin defaults it merges, and the order they win in.
+What a config *is* — the shape of each section, and the ``ConfigError`` that
+refuses anything else — is :mod:`habit_hooks.config_schema`; this module is the
+loading around it: the file it reads, the plugin defaults it merges, and the
+order they win in.
 
 Loading takes no argument for the running binary's name — a project's own
 transformer is a separate process, and importing ``load_config`` is the only way
@@ -14,60 +15,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from attrs import define, field
-
-from .catalogue import UNCOACHED_SUGGEST
-from .config_guard import (
+from .config_schema import (
     PLUGIN_CONFIG_KEYS,
+    Config,
+    ScopeDefaults,
+    SensorOverride,
+    SmellOverride,
     read_toml,
     reject_unknown,
     reject_unknown_uncoached_value,
     settable,
 )
 from .resolve import Resolver
-
-
-@define
-class SmellOverride:
-    severity: str | None = None
-    guide: str | None = None
-    disabled: bool | None = None
-
-
-@define
-class ScopeDefaults:
-    changedOnly: bool = False
-    autoBranchOffMain: bool = False
-    branchBase: str = "main"
-    mainBranch: str = "main"
-
-
-@define
-class SensorOverride:
-    disabled: bool | None = None
-    files: list[str] | None = None
-    args: list[str] | None = None
-
-
-@define
-class Config:
-    plugins: list[str] = field(factory=lambda: ["generic"])
-    # Snooze is on by default so a checked-in index takes effect without wiring;
-    # naming `transformers` replaces the list wholesale, which is how a project
-    # drops it or orders it against its own steps.
-    transformers: list[str] = field(factory=lambda: ["snooze"])
-    files: list[str] | None = None
-    # What happens to a smell the catalogue does not name: it coaches without
-    # failing the run unless this says otherwise (see ``rendering.severity_of``).
-    uncoached: str = UNCOACHED_SUGGEST
-    scope: ScopeDefaults = field(factory=ScopeDefaults)
-    sensors: dict[str, SensorOverride] = field(factory=dict)
-    runners: dict[str, str] = field(factory=dict)
-    smells: dict[str, SmellOverride] = field(factory=dict)
-    # Each active plugin's declared language (generic declares none). The mapper
-    # reads it to prefer, for a finding of a given language, a plugin that speaks
-    # it over the languageless fallback. Populated by the loader, never from TOML.
-    plugin_languages: dict[str, str] = field(factory=dict, metadata={"internal": True})
 
 
 def _build_mapping(cls: type, data: object, section: str) -> dict:

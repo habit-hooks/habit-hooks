@@ -2,7 +2,7 @@
 
 These pin the loader's behaviour: defaults, nested construction, and merging the
 active plugins' own contributions. Refusing a config — an unknown key, an unknown
-value, a file that is not TOML at all — is ``test_config_guard.py``.
+value, a file that is not TOML at all — is ``test_config_schema.py``.
 """
 
 from __future__ import annotations

@@ -5,8 +5,8 @@ is rejected by name rather than ignored (#102, #111); a file that is not TOML at
 all is refused the same way rather than escaping as a ``tomllib`` traceback at
 the exit code an enforced finding uses (#114). The rejection names no binary
 here: all three console scripts share this one loader, so the name is added where
-the failure is printed (``test_cli.py``). Loading and merging a config that
-passes the guard is ``test_config.py``.
+the failure is printed (``test_cli.py``). Loading and merging a config the
+schema accepts is ``test_config.py``.
 """
 
 from __future__ import annotations

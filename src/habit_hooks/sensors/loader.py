@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ..cli import ToolError
 from ..config import Config
-from ..config_guard import read_toml
+from ..config_schema import read_toml
 from ..resolve import Resolver
 from .model import Part, Plugin
 
