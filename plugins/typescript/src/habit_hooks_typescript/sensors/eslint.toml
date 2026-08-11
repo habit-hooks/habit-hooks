@@ -9,16 +9,23 @@
 # config nobody asked for and call itself complete. Should that wording ever
 # change, a config-less project fails loudly here instead of being mis-linted
 # quietly, which is the direction to be wrong in.
+#
+# `${args}` is the project's own `[sensors.eslint] args`, and it goes into the
+# bare run: a project whose config sits where eslint's lookup cannot reach it
+# says so with `--config`, and passing that first is what makes eslint succeed —
+# so the fallback branch is never entered and our config is never named. It goes
+# into the fallback too, because those args are the project's whichever config is
+# in force, and last, because eslint takes the last `--config` it is given.
 command = """
 files=$(printf '%s\\n' ${files} | grep -E '\\.(tsx?|jsx?|[cm]js)$' || true)
 if [ -z "$files" ]; then echo '[]'; exit 0; fi
 set -o pipefail
 complaint=$(mktemp)
 trap 'rm -f "$complaint"' EXIT
-report=$(eslint -f json --no-warn-ignored $files 2>"$complaint")
+report=$(eslint -f json --no-warn-ignored ${args} $files 2>"$complaint")
 status=$?
 if [ "$status" -gt 1 ] && grep -qF "couldn't find an eslint.config" "$complaint"; then
-  report=$(eslint -f json --no-warn-ignored --config ${dir}/../eslint.config.mjs $files 2>"$complaint")
+  report=$(eslint -f json --no-warn-ignored --config ${dir}/../eslint.config.mjs ${args} $files 2>"$complaint")
   status=$?
 fi
 if [ "$status" -gt 1 ] || [ -z "$report" ]; then cat "$complaint" >&2; exit 2; fi

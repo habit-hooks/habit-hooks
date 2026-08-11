@@ -24,6 +24,11 @@ NO_CONSOLE_CONFIG = (
 CONSOLE_TS = 'console.log("shipping this by accident");\n'
 UNLOADABLE_CONFIG = 'throw new Error("this project\'s own config is broken");\n'
 
+# Trips `no-console` under the config above and `eqeqeq` under the shipped one,
+# so which config ran is legible from the smell alone.
+BOTH_TS = 'if (1 == "1") { console.log("shipping this by accident"); }\n'
+UNDISCOVERABLE = Path("configs") / "eslint.mjs"
+
 
 def test_a_flat_config_below_the_project_is_still_the_project_s_own(
     tmp_path: Path,
@@ -71,6 +76,27 @@ def test_a_project_that_wrote_no_config_gets_the_shipped_one(tmp_path: Path) -> 
     issue = findings[0]["issues"][0]
     assert issue["details"]["source"] == "eslint:@typescript-eslint/no-unused-vars"
     assert issue["details"]["line"] == UNUSED_LOCAL_LINE
+
+
+def test_a_config_named_through_the_sensor_s_args_is_the_config_that_runs(
+    tmp_path: Path,
+) -> None:
+    """The documented escape hatch for a config eslint's own lookup cannot reach.
+
+    A project that keeps its config somewhere eslint never looks says so with
+    ``[sensors.eslint] args = ["--config", "configs/eslint.mjs"]``. Dropped, those
+    args make eslint report no config at all, our fallback answers a question the
+    project already answered, and their own rule is never mentioned — a wrong
+    answer that reads as a clean run.
+    """
+    consumer = project(tmp_path)
+    (consumer / UNDISCOVERABLE.parent).mkdir()
+    (consumer / UNDISCOVERABLE).write_text(NO_CONSOLE_CONFIG, encoding="utf-8")
+    (consumer / "src" / "repository.ts").write_text(BOTH_TS, encoding="utf-8")
+
+    findings = sensor_findings(consumer, args=("--config", str(UNDISCOVERABLE)))
+
+    assert [finding["smell"] for finding in findings] == ["no-console"], findings
 
 
 def test_a_config_eslint_cannot_load_fails_the_run_rather_than_falling_back(

@@ -1,1 +1,6 @@
-command = "node ${dir}/knip.cjs"
+# The helper spawns knip itself, so `${args}` — the project's own
+# `[sensors.knip] args` — arrives as the helper's argv and is forwarded from
+# there. A `--config` among them is the project naming its config, and the helper
+# treats it as one: ours is not named alongside it, and the production gate reads
+# the markers of the config the args chose.
+command = "node ${dir}/knip.cjs ${args}"

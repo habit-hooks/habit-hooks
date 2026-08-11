@@ -9,28 +9,19 @@ answer has to reach the gate on the second ``--production`` pass, which reads th
 trailing ``!`` markers — read them off a config that is not the one running and
 the pass stays off in exactly the case it exists for (#120).
 
-knip is stubbed by a script that records the argv it was spawned with: what is
-under test is which config the sensor names and how many passes it runs, not
-what knip makes of either. The real tool is exercised by
-``plugins/typescript/docs/typescript-plugin.spec.md``.
+knip is stubbed by a script that records the argv it was spawned with
+(``knip_project.py``): what is under test is which config the sensor names and
+how many passes it runs, not what knip makes of either. The real tool is
+exercised by ``plugins/typescript/docs/typescript-plugin.spec.md``.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import stat
-import subprocess
 from pathlib import Path
 
 import pytest
-
-PLUGIN = Path(__file__).parents[1]
-PACKAGE = PLUGIN / "src" / "habit_hooks_typescript"
-SENSOR = PACKAGE / "sensors" / "knip.cjs"
-SHIPPED_CONFIG = PACKAGE / "knip.json"
-
-EMPTY_REPORT = {"files": [], "issues": []}
+from knip_project import SHIPPED_CONFIG, passes, project
 
 # Every place knip 5 looks for a config, as `constants.js` KNIP_CONFIG_LOCATIONS
 # spells them, plus the manifest key it merges in regardless.
@@ -49,49 +40,13 @@ KNIP_CONFIG_LOCATIONS = [
 MARKED = '{"entry": ["src/cli.ts!"], "project": ["src/**/*.ts!"]}'
 UNMARKED = '{"entry": ["src/cli.ts"], "project": ["src/**/*.ts"]}'
 
-RECORDING_STUB = """#!/bin/sh
-printf '%s\\t' "$@" >> "$(dirname "$0")/argv.log"
-printf '\\n' >> "$(dirname "$0")/argv.log"
-cat "$(dirname "$0")/report.json"
-"""
-
-
-def _project_with_a_stubbed_knip(tmp_path: Path) -> Path:
-    """A project whose `knip` on PATH records its argv and prints an empty run."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    (bin_dir / "report.json").write_text(json.dumps(EMPTY_REPORT), encoding="utf-8")
-    stub = bin_dir / "knip"
-    stub.write_text(RECORDING_STUB, encoding="utf-8")
-    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
-
-    project = tmp_path / "demo"
-    project.mkdir()
-    (project / "package.json").write_text('{"name": "demo"}', encoding="utf-8")
-    return project
-
-
-def _passes(project: Path) -> list[list[str]]:
-    """The argv of every knip the sensor spawned, in order."""
-    bin_dir = project.parent / "bin"
-    subprocess.run(
-        ["node", str(SENSOR)],
-        cwd=project,
-        env={**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"},
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    log = (bin_dir / "argv.log").read_text(encoding="utf-8")
-    return [line.rstrip("\t").split("\t") for line in log.splitlines()]
-
 
 def test_the_shipped_config_is_named_when_the_project_wrote_none(
     tmp_path: Path,
 ) -> None:
-    project = _project_with_a_stubbed_knip(tmp_path)
+    consumer = project(tmp_path)
 
-    first, *_ = _passes(project)
+    first, *_ = passes(consumer)
 
     assert "--config" in first, first
     assert first[first.index("--config") + 1] == str(SHIPPED_CONFIG)
@@ -102,10 +57,10 @@ def test_a_config_the_project_wrote_is_left_for_knip_to_find(
     location: str, tmp_path: Path
 ) -> None:
     """Naming ours would override it; naming theirs would still be us choosing."""
-    project = _project_with_a_stubbed_knip(tmp_path)
-    (project / location).write_text(UNMARKED, encoding="utf-8")
+    consumer = project(tmp_path)
+    (consumer / location).write_text(UNMARKED, encoding="utf-8")
 
-    first, *_ = _passes(project)
+    first, *_ = passes(consumer)
 
     assert "--config" not in first, first
 
@@ -115,12 +70,12 @@ def test_a_knip_key_in_the_manifest_is_a_config_the_project_wrote(
 ) -> None:
     """knip merges `package.json#knip` whether or not a config file is found, so
     a project that has only that has still stated its preferences."""
-    project = _project_with_a_stubbed_knip(tmp_path)
-    (project / "package.json").write_text(
+    consumer = project(tmp_path)
+    (consumer / "package.json").write_text(
         json.dumps({"name": "demo", "knip": json.loads(UNMARKED)}), encoding="utf-8"
     )
 
-    first, *_ = _passes(project)
+    first, *_ = passes(consumer)
 
     assert "--config" not in first, first
 
@@ -130,13 +85,13 @@ def test_the_gate_reads_the_shipped_markers_when_ours_is_in_force(
 ) -> None:
     """The shipped config carries `!` on both keys, so the pass it gates runs —
     and runs against the same config, or the two passes disagree about the tree."""
-    project = _project_with_a_stubbed_knip(tmp_path)
+    consumer = project(tmp_path)
 
-    passes = _passes(project)
+    spawned = passes(consumer)
 
-    assert len(passes) == 2, passes
-    assert "--production" in passes[1]
-    assert passes[1][passes[1].index("--config") + 1] == str(SHIPPED_CONFIG)
+    assert len(spawned) == 2, spawned
+    assert "--production" in spawned[1]
+    assert spawned[1][spawned[1].index("--config") + 1] == str(SHIPPED_CONFIG)
 
 
 def test_a_project_config_without_markers_runs_no_production_pass(
@@ -144,20 +99,70 @@ def test_a_project_config_without_markers_runs_no_production_pass(
 ) -> None:
     """`--production` analyses nothing without `!` on both keys, so the gate must
     read the project's markers — not the ones the shipped config happens to have."""
-    project = _project_with_a_stubbed_knip(tmp_path)
-    (project / "knip.json").write_text(UNMARKED, encoding="utf-8")
+    consumer = project(tmp_path)
+    (consumer / "knip.json").write_text(UNMARKED, encoding="utf-8")
 
-    assert len(_passes(project)) == 1
+    assert len(passes(consumer)) == 1
 
 
 def test_a_project_config_with_markers_still_gates_the_production_pass(
     tmp_path: Path,
 ) -> None:
     """The project's own config decides the gate in both directions."""
-    project = _project_with_a_stubbed_knip(tmp_path)
-    (project / "knip.json").write_text(MARKED, encoding="utf-8")
+    consumer = project(tmp_path)
+    (consumer / "knip.json").write_text(MARKED, encoding="utf-8")
 
-    passes = _passes(project)
+    spawned = passes(consumer)
 
-    assert len(passes) == 2, passes
-    assert "--config" not in passes[1], passes[1]
+    assert len(spawned) == 2, spawned
+    assert "--config" not in spawned[1], spawned[1]
+
+
+def test_the_sensor_s_args_reach_knip(tmp_path: Path) -> None:
+    """`[sensors.knip] args` is the project telling knip something, so knip has to
+    hear it — this sensor spawns the tool itself, and args it does not forward are
+    args the tool never sees."""
+    consumer = project(tmp_path)
+
+    first, *_ = passes(consumer, ("--exclude", "files"))
+
+    assert first[first.index("--exclude") + 1] == "files", first
+
+
+def test_a_config_named_through_the_args_is_the_one_in_force(tmp_path: Path) -> None:
+    """A project that keeps its config off knip's search list names it through the
+    args, which is as much a config of its own as writing `knip.json`. Ours must
+    not be named alongside it — knip takes the last `--config` it is given, so a
+    second one is us deciding which of the two wins."""
+    consumer = project(tmp_path)
+    (consumer / "custom.json").write_text(MARKED, encoding="utf-8")
+
+    first, *_ = passes(consumer, ("--config", "custom.json"))
+
+    assert str(SHIPPED_CONFIG) not in first, first
+    assert first[first.index("--config") + 1] == "custom.json", first
+
+
+def test_a_config_flag_with_nothing_after_it_is_knip_s_error_to_report(
+    tmp_path: Path,
+) -> None:
+    """`args = ["--config"]` names no file, so it names no config — it is a
+    mistake, and knip's own parser is what says so. Reading the flag as an answer
+    yields a boolean, and resolving that would take the sensor down with a
+    TypeError before knip ever got to explain itself."""
+    consumer = project(tmp_path)
+
+    first, *_ = passes(consumer, ("--config",))
+
+    assert first[first.index("--config") + 1] == str(SHIPPED_CONFIG), first
+    assert first[-1] == "--config", first
+
+
+def test_the_gate_reads_the_config_the_args_named(tmp_path: Path) -> None:
+    """The production pass is gated on the markers of the config actually running.
+    This config carries none, so the pass stays off — where the shipped config it
+    replaced carries them and would have run it."""
+    consumer = project(tmp_path)
+    (consumer / "custom.json").write_text(UNMARKED, encoding="utf-8")
+
+    assert len(passes(consumer, ("--config", "custom.json"))) == 1

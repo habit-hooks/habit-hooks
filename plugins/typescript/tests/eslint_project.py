@@ -74,28 +74,37 @@ def messages(project: Path, config: Path) -> list[dict]:
 
 
 def sensor_run(
-    project: Path, files: tuple[str, ...] = ("src/repository.ts",)
+    project: Path,
+    files: tuple[str, ...] = ("src/repository.ts",),
+    args: tuple[str, ...] = (),
 ) -> subprocess.CompletedProcess[str]:
     """What the eslint sensor's command does over ``files``, as the runner does it.
 
     The placeholders are filled the way the runner fills them
     (``sensors/command_text.py``): ``${dir}`` is the sensor directory, ``${files}``
-    the scoped paths, each already shell-quoted.
+    the scoped paths and ``${args}`` the project's ``[sensors.eslint] args``, each
+    already shell-quoted.
     """
     command = tomllib.loads(SENSORS.joinpath("eslint.toml").read_text("utf-8"))
     script = (
         command["command"]
         .replace("${dir}", shlex.quote(str(SENSORS)))
-        .replace("${args}", "")
-        .replace("${files}", " ".join(shlex.quote(file) for file in files))
+        .replace("${args}", _quoted(args))
+        .replace("${files}", _quoted(files))
     )
     return run(project, script)
 
 
+def _quoted(values: tuple[str, ...]) -> str:
+    return " ".join(shlex.quote(value) for value in values)
+
+
 def sensor_findings(
-    project: Path, files: tuple[str, ...] = ("src/repository.ts",)
+    project: Path,
+    files: tuple[str, ...] = ("src/repository.ts",),
+    args: tuple[str, ...] = (),
 ) -> list[dict]:
     """The eslint sensor's findings for ``files``, defaulting to the fixture's one."""
-    result = sensor_run(project, files)
+    result = sensor_run(project, files, args)
     assert result.stdout, result.stderr
     return json.loads(result.stdout)

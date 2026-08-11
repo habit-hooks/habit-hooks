@@ -244,7 +244,7 @@ replacement instead.
 |------------|---------|
 | `disabled` | Drop the sensor entirely. |
 | `files`    | Narrow the run's scope to these globs for this sensor alone (list form — no brace expansion). |
-| `args`     | Replace the sensor's default CLI args, expanded into its command via `${args}`. |
+| `args`     | Replace the sensor's default CLI args wholesale, and hand them to the tool the sensor runs. Only a sensor whose `command` spells `${args}` can take arguments at all; of the shipped ones that is `line-count`, `eslint` and `knip`. |
 
 ```toml
 # Turn off a sensor the plugin ships.

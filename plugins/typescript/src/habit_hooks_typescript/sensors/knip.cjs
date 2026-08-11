@@ -1,4 +1,5 @@
 const { spawnSync } = require("node:child_process");
+const { parseArgs } = require("node:util");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -171,11 +172,30 @@ function projectConfig() {
   return readJson(manifest)?.knip != null ? manifest : null;
 }
 
-// The config the run will actually use, and the args that make knip use it. The
-// project's own is left for knip's discovery to find — naming it would still be
-// us choosing — and ours is named only in its absence, and only if it is really
-// there (a sensor vendored on its own arrives without it).
-function configInForce() {
+// The config the project named through `[sensors.knip] args`, or null. Read with
+// knip's own parser and knip's own option spelling (`config`, short `c`), so
+// every form knip accepts — `--config x`, `--config=x`, `-c x`, `-cx` — is
+// recognised as the answer it is. `strict: false` lets the rest of the args
+// through unexamined: what they mean is knip's business, not ours. It also
+// answers `true` for a flag with nothing after it, which names no file and so
+// names no config: pass it on and let knip's own parser call it the mistake it
+// is, rather than resolving a boolean and crashing before knip can.
+function namedConfig(args) {
+  const options = { config: { type: "string", short: "c" } };
+  const named = parseArgs({ args, options, strict: false }).values.config;
+  return typeof named === "string" ? path.resolve(named) : null;
+}
+
+// The config the run will actually use, and the args that make knip use it. A
+// config the project named through the sensor's args is as much its own as one
+// knip's discovery would have found, and it is already on the command line — so
+// ours is not named beside it, which would only be us deciding between the two.
+// Otherwise the project's own is left for discovery to find, and ours is named
+// in its absence, and only if it is really there (a sensor vendored on its own
+// arrives without it).
+function configInForce(args) {
+  const named = namedConfig(args);
+  if (named !== null) return { file: named, args: [] };
   const own = projectConfig();
   if (own !== null) return { file: own, args: [] };
   if (!fs.existsSync(SHIPPED_CONFIG)) return { file: null, args: [] };
@@ -227,15 +247,16 @@ function report(result) {
 }
 
 function main() {
-  const config = configInForce();
-  const base = runKnip(config.args);
+  const args = process.argv.slice(2);
+  const config = configInForce(args);
+  const base = runKnip([...config.args, ...args]);
   if (knipCrashed(base)) {
     process.stderr.write(base.stderr || String(base.error));
     return 2;
   }
   let production = null;
   if (configMarksProduction(config.file)) {
-    const pass = runKnip([...config.args, "--production"]);
+    const pass = runKnip([...config.args, ...args, "--production"]);
     if (knipCrashed(pass)) {
       process.stderr.write(pass.stderr || String(pass.error));
       return 2;

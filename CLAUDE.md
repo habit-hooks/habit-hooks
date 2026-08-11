@@ -284,6 +284,17 @@ copy the tool's list and its search shape, never another sensor's:
 plus a `knip` key in `package.json`, in the project directory only, because
 knip's `findFile` never walks up.
 
+**A config named through `[sensors.<name>] args` is the project's own too**, and
+is the escape hatch for the one the tool's lookup cannot reach — so a sensor that
+wraps a tool has to spell `${args}` or the project is overridden by the fallback
+it wrote that config to avoid. eslint takes them in its **bare** run, which is
+what makes that run succeed so the fallback branch is never entered; `knip.cjs`
+forwards them and reads a `--config` among them with knip's own parser
+(`node:util.parseArgs`, `config`/short `c`), so the file they name is in force for
+the run *and* for the production gate. Ours is never named beside theirs: knip
+takes the last `--config` it is given, so passing both would be us deciding
+between two configs again.
+
 **jscpd is the shape to copy** (issue #125). `jscpd.toml` hands the sensor
 `--fallback-config`, never `--config`, and `config_arguments` names it only
 after `project_configures_jscpd` finds nothing. What counts as "a config of its
