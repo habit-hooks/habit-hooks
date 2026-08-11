@@ -65,6 +65,7 @@ map-block), and the smell key each maps to.
 |---------------------------------------------------|-----------------------------|
 | `eslint:max-lines-per-function`                   | `oversized-function`        |
 | `eslint:max-params`                               | `too-many-parameters`       |
+| `eslint:@typescript-eslint/max-params`            | `too-many-parameters`       |
 | `eslint:complexity`                               | `high-complexity`           |
 | `eslint:max-depth`                                | `deep-nesting`              |
 | `eslint:max-lines`                                | `oversized-file`            |
