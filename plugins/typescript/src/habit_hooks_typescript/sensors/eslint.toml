@@ -1,24 +1,28 @@
-# Eslint's own flat-config filenames, in its order (eslint 10
-# `lib/config/config-loader.js` FLAT_CONFIG_FILENAMES). The project's config is
-# authoritative, so ours is named only once the walk that eslint itself would
-# make — up from the project, to the filesystem root — has found none of these.
+# The project's config is authoritative, and only eslint can say whether the
+# project has one: its lookup runs from each linted FILE's directory (eslint 10
+# `lib/config/config-loader.js`), so a config below the directory habit-hooks was
+# invoked in is eslint's answer while being invisible to any walk from there. So
+# name no config, and reach for the shipped one on the single failure that means
+# "there was none" — eslint's `config-file-missing`, whose wording is the only
+# handle its CLI offers. Any other failure is the project's own and is passed
+# through: a run lent our config after a real breakage would report against a
+# config nobody asked for and call itself complete. Should that wording ever
+# change, a config-less project fails loudly here instead of being mis-linted
+# quietly, which is the direction to be wrong in.
 command = """
 files=$(printf '%s\\n' ${files} | grep -E '\\.(tsx?|jsx?|[cm]js)$' || true)
 if [ -z "$files" ]; then echo '[]'; exit 0; fi
 set -o pipefail
-flat_config_filenames="eslint.config.js eslint.config.mjs eslint.config.cjs"
-flat_config_filenames="$flat_config_filenames eslint.config.ts eslint.config.mts eslint.config.cts"
-shipped=(--config ${dir}/../eslint.config.mjs)
-searched=$(pwd -P)
-while [ -n "$searched" ]; do
-  for name in $flat_config_filenames; do
-    if [ -f "$searched/$name" ]; then shipped=(); break 2; fi
-  done
-  parent=$(dirname "$searched")
-  if [ "$parent" = "$searched" ]; then break; fi
-  searched=$parent
-done
-eslint -f json --no-warn-ignored "${shipped[@]}" $files | jq '[.[] | .filePath as $file | .messages[]
+complaint=$(mktemp)
+trap 'rm -f "$complaint"' EXIT
+report=$(eslint -f json --no-warn-ignored $files 2>"$complaint")
+status=$?
+if [ "$status" -gt 1 ] && grep -qF "couldn't find an eslint.config" "$complaint"; then
+  report=$(eslint -f json --no-warn-ignored --config ${dir}/../eslint.config.mjs $files 2>"$complaint")
+  status=$?
+fi
+if [ "$status" -gt 1 ] || [ -z "$report" ]; then cat "$complaint" >&2; exit 2; fi
+printf '%s' "$report" | jq '[.[] | .filePath as $file | .messages[]
 | select(.ruleId != null or .fatal) | {
   smell: (if .fatal then "parse-error" else ({
     "max-lines-per-function": "oversized-function",

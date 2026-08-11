@@ -1,9 +1,10 @@
 """Running the real eslint over a throwaway consumer project.
 
-Shared by the two suites that drive it: what the **shipped config** reports, and
-what the sensor's **smell map** makes of a rule ID. Both need the plugin's own
-``node_modules`` on PATH and a project laid out the way a consumer's is, and
-neither is a spec case — a spec case runs in a temp project with no tools in it.
+Shared by the three suites that drive it: what the **shipped config** reports,
+what the sensor's **smell map** makes of a rule ID, and **which config wins**.
+All three need the plugin's own ``node_modules`` on PATH and a project laid out
+the way a consumer's is, and none is a spec case — a spec case runs in a temp
+project with no tools in it.
 """
 
 from __future__ import annotations
@@ -72,20 +73,29 @@ def messages(project: Path, config: Path) -> list[dict]:
     return json.loads(result.stdout)[0]["messages"]
 
 
-def sensor_findings(project: Path) -> list[dict]:
-    """The eslint sensor's findings for the project's one file.
+def sensor_run(
+    project: Path, files: tuple[str, ...] = ("src/repository.ts",)
+) -> subprocess.CompletedProcess[str]:
+    """What the eslint sensor's command does over ``files``, as the runner does it.
 
-    The command's placeholders are filled the way the runner fills them
+    The placeholders are filled the way the runner fills them
     (``sensors/command_text.py``): ``${dir}`` is the sensor directory, ``${files}``
-    the scoped paths.
+    the scoped paths, each already shell-quoted.
     """
     command = tomllib.loads(SENSORS.joinpath("eslint.toml").read_text("utf-8"))
     script = (
         command["command"]
         .replace("${dir}", shlex.quote(str(SENSORS)))
         .replace("${args}", "")
-        .replace("${files}", shlex.quote("src/repository.ts"))
+        .replace("${files}", " ".join(shlex.quote(file) for file in files))
     )
-    result = run(project, script)
+    return run(project, script)
+
+
+def sensor_findings(
+    project: Path, files: tuple[str, ...] = ("src/repository.ts",)
+) -> list[dict]:
+    """The eslint sensor's findings for ``files``, defaulting to the fixture's one."""
+    result = sensor_run(project, files)
     assert result.stdout, result.stderr
     return json.loads(result.stdout)

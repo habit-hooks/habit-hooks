@@ -61,10 +61,13 @@ finding per smell, stamping `source: "eslint:<rule>"` on each issue.
 **None of the cases below writes an `eslint.config.*`**, and they report anyway:
 the plugin ships a flat config with the thresholds its smells are defined against
 (`max-params: 3`, `max-depth: 4`, `complexity: 10`, `max-lines-per-function: 12`)
-and the sensor falls back to it. Only after establishing the project has written
-none — eslint's own six flat-config filenames, looked for the way eslint looks
-for them, up from the project — does the sensor name the shipped file. A project
-that has written one gets exactly that, and the last case here is the proof.
+and the sensor falls back to it. It establishes that the project wrote none by
+asking eslint: it names no config, runs eslint, and reaches for the shipped file
+only when eslint reports it could not find one. Nothing else can give the same
+answer eslint would, because eslint looks a config up from each linted **file's**
+directory rather than from the directory the run started in. A project that has
+written one gets exactly that, wherever eslint finds it, and the last two cases
+here are the proof.
 
 A message eslint raises about a *file* rather than about a rule carries
 `ruleId: null` — an ignored file in the scope, an `eslint-disable` directive
@@ -335,6 +338,43 @@ export default [
 ```
 
 📄src/billing.ts
+```typescript
+export function charge(a, b, c, d) {
+  console.log("charging");
+  return a + b + c + d;
+}
+```
+
+```bash
+habit-sensors --all | jq -c '[.[] | {smell, source: .issues[0].details.source}]'
+```
+
+🖥️ ✅
+```json
+[{"smell":"no-console","source":"eslint:no-console"}]
+```
+
+### A flat config below the project is the project's own as well
+
+The monorepo case, and the reason the question has to be eslint's. Eslint looks a
+config up from each linted **file's** directory, so the config beside a package is
+what that package is linted with even though nothing at the repository root
+mentions it. Only running eslint gets that answer: a search made from the
+directory habit-hooks was invoked in finds nothing here, and the package would
+quietly be linted by the shipped config instead of its own.
+
+The config below enforces `no-console` and says nothing about parameter counts,
+so the four-parameter function stays silent — an answer the shipped config cannot
+produce, which is what makes it proof.
+
+📄packages/app/eslint.config.mjs
+```javascript
+export default [
+  { files: ["**/*.ts"], rules: { "no-console": "error" } },
+];
+```
+
+📄packages/app/src/billing.ts
 ```typescript
 export function charge(a, b, c, d) {
   console.log("charging");

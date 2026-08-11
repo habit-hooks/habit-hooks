@@ -242,14 +242,30 @@ unconditionally.
 **The question has to be the tool's own** (#113, #120), or a project is told its
 config was found where the tool would not have found it — and the sensor then
 either speaks over a real config or withholds the fallback from a project that
-has none. Both live typescript sensors ask it verbatim: `sensors/eslint.toml`
-walks up from the project over eslint 10's six `FLAT_CONFIG_FILENAMES`
-(`lib/config/config-loader.js`) because eslint's own lookup is a `findUp`, so a
-monorepo root's config counts as the project's; `sensors/knip.cjs`
-(`projectConfig`) checks knip's eight `KNIP_CONFIG_LOCATIONS` plus a `knip` key
-in `package.json`, in the project directory only, because knip's `findFile`
-never walks up. Copy the tool's list and its search shape, not the other
-sensor's.
+has none. Reimplementing the tool's search is how that goes wrong, because the
+shape is subtler than it looks: eslint looks a config up from each linted
+**file's** directory, not from the directory it was invoked in
+(`#locateConfigFileToUse`, eslint 10 `lib/config/config-loader.js`), so a
+monorepo's `packages/app/eslint.config.mjs` is eslint's answer for that package
+while being invisible to any walk from the project. A faithful copy of eslint's
+six `FLAT_CONFIG_FILENAMES` walked up from `pwd -P` therefore answered "none"
+and replaced a real config with ours.
+
+**Let the tool answer wherever it can.** `sensors/eslint.toml` names no config,
+runs eslint, and reaches for the shipped file only when eslint itself reports
+`config-file-missing` ("couldn't find an eslint.config") — an answer that cannot
+drift from eslint's, at the price of matching its prose. Match nothing broader
+than that one failure: eslint exits non-zero for findings *and* for breakage, so
+a fallback keyed on "it failed" would lend our config to a run that broke for the
+project's own reasons and then call itself complete. If the prose ever changes, a
+config-less project fails loudly rather than being mis-linted quietly, which is
+the direction to be wrong in.
+
+Ask the question yourself only where the tool offers no such signal, and then
+copy the tool's list and its search shape, never another sensor's:
+`sensors/knip.cjs` (`projectConfig`) checks knip's eight `KNIP_CONFIG_LOCATIONS`
+plus a `knip` key in `package.json`, in the project directory only, because
+knip's `findFile` never walks up.
 
 **jscpd is the shape to copy** (issue #125). `jscpd.toml` hands the sensor
 `--fallback-config`, never `--config`, and `config_arguments` names it only
