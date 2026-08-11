@@ -14,6 +14,13 @@ is why we symlink rather than set it), and `ts-morph`'s `require` resolves the
 same way. The cases share `finding.jq` to project each finding down to the
 asserted fields.
 
+The `knip` and `comment` sensors spawn helper scripts named `.cjs`, so the
+project's `package.json` cannot decide their module system — they run the same
+whether or not it declares `"type": "module"`. A helper of your own named `.js`
+does not: Node reads that key from the nearest `package.json` above the script,
+never from the file, and a CommonJS `.js` under an ESM manifest dies on its
+first `require`.
+
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["typescript"]

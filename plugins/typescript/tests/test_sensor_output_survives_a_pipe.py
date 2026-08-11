@@ -37,7 +37,7 @@ def test_comment_sensor_emits_complete_json_through_a_pipe(tmp_path: Path) -> No
     source = _source_with_many_comments(tmp_path)
 
     result = subprocess.run(
-        ["node", str(SENSORS / "comment.js"), str(source)],
+        ["node", str(SENSORS / "comment.cjs"), str(source)],
         capture_output=True,
         text=True,
         check=False,

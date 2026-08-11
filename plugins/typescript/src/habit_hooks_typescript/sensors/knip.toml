@@ -1,1 +1,1 @@
-command = "node ${dir}/knip.js"
+command = "node ${dir}/knip.cjs"

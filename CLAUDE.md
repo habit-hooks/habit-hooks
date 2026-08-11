@@ -297,7 +297,7 @@ name for it. Point the sensor at the real directory, or scope it out.
 
 ### knip runs a gated second pass in production mode (issue #59, rebuilt #99)
 
-`plugins/typescript/src/habit_hooks_typescript/sensors/knip.js` runs knip
+`plugins/typescript/src/habit_hooks_typescript/sensors/knip.cjs` runs knip
 twice when — and only when — the config marks production patterns with a
 trailing `!` on **both** `entry` and `project` (`configMarksProduction`,
 reading the JSON `knip.json`/`.knip.json`/`package.json#knip`; a
@@ -330,8 +330,26 @@ use so they never reach `.map` (the crash #99 fixed).
 
 `/** ... */` blocks are `SyntaxKind.JSDoc` (321) when attached to a
 declaration, NOT `MultiLineCommentTrivia`. To find them, query both — see
-`plugins/typescript/src/habit_hooks_typescript/sensors/comment.js`, which
+`plugins/typescript/src/habit_hooks_typescript/sensors/comment.cjs`, which
 collects the two kinds separately for exactly this reason.
+
+### A Node helper named `.js` lets the consumer pick its module system (issue #112)
+
+Node never reads a `.js` file to decide whether it is CommonJS or ESM: it
+walks up from the script to the nearest `package.json` and reads `"type"`
+there. A CommonJS helper named `.js` therefore dies on its first line —
+`ReferenceError: require is not defined in ES module scope` — in any
+project declaring `"type": "module"`, the default a new TypeScript
+project is scaffolded with. The helper only lands inside that scope on
+the installs that put the package under the project directory: the
+vendoring route the README advertises (`.habit-hooks/<plugin>/sensors/`)
+and a project-local `.venv/`. `uv tool install`/`uvx` put it outside and
+escape by luck of layout, so neither reproduces the bug. Hence
+`sensors/knip.cjs` and `sensors/comment.cjs` — the extension settles the
+question inside the file, where a consumer's manifest cannot reach it,
+and it survives vendoring, which a sibling `{"type": "commonjs"}`
+`package.json` would not (it would have to be vendored too). Ship any
+future Node helper as `.cjs`, or as real ESM.
 
 
 
