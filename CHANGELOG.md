@@ -96,6 +96,13 @@ now loud.
   outcome. Every hint now names the config line that enables the plugin, and a
   plugin already on the machine (installed or vendored) is told to enable it
   rather than to install what it has.
+- **A detector nobody installed is named, in the python and php plugins too.**
+  `deptry` and `php` are spawned from Python, where an absent tool is a
+  `FileNotFoundError` — so enabling either plugin on a machine that does not
+  already have the tool answered with a Python traceback instead of the one line
+  saying which command to install (#114, which had fixed only `jscpd`). Neither
+  plugin installs its detectors, so this was the ordinary first run, not an edge
+  case.
 
 ### Internal
 - CI now runs `habit-hooks` against its own source, lints the plugins tree, and

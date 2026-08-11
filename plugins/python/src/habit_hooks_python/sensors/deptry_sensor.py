@@ -15,11 +15,22 @@ from pathlib import Path
 
 
 def run_deptry(report: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["deptry", ".", "--json-output", str(report)],
-        capture_output=True,
-        text=True,
-    )
+    """What deptry said, or what a shell says about a deptry nobody installed.
+
+    ``pip install habit-hooks-python`` brings neither detector with it, so this
+    is the ordinary state of a machine that has just enabled the plugin — and an
+    absent tool raised a ``FileNotFoundError`` out of here, making twenty lines
+    of Python internals the sensor's diagnosis (#114). This wrapper is what looks
+    for deptry, so it answers the way the shell would have, and that phrase is
+    what the run recognises to name the missing tool.
+    """
+    command = ["deptry", ".", "--json-output", str(report)]
+    try:
+        return subprocess.run(command, capture_output=True, text=True)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(
+            command, 127, "", "deptry: command not found\n"
+        )
 
 
 def deptry_crashed(result: subprocess.CompletedProcess[str], report: Path) -> bool:

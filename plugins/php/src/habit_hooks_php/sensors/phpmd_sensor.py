@@ -25,6 +25,14 @@ SUCCESS_EXIT_CODES = (0, 2)
 
 
 def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
+    """What PHPMD said, or what a shell says about a PHP nobody installed.
+
+    The plugin ships the phar but not the interpreter, so ``php`` is the command
+    that goes missing — and an absent one raised a ``FileNotFoundError`` out of
+    here, making twenty lines of Python internals the sensor's diagnosis (#114).
+    This wrapper is what looks for php, so it answers the way the shell would
+    have, and that phrase is what the run recognises to name the missing tool.
+    """
     phar = str(Path(__file__).with_name("phpmd.phar"))
     command = [
         "php",
@@ -37,7 +45,10 @@ def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
         "json",
         RULESETS,
     ]
-    return subprocess.run(command, capture_output=True, text=True)
+    try:
+        return subprocess.run(command, capture_output=True, text=True)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(command, 127, "", "php: command not found\n")
 
 
 def violations(report: dict) -> list[dict]:
