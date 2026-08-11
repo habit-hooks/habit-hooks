@@ -289,9 +289,7 @@ config for the wrapped tool, and a case whose own config produces an answer the
 shipped one cannot. `plugins/typescript/docs/typescript-plugin.spec.md` used to
 copy the shipped config into every case dir, which is what let it assert the
 intent while the code did not implement it; now no case writes one unless it is
-the case demonstrating that a project's own wins. The generic plugin's jscpd
-sensor still passes `--config` unconditionally — that is #125, the same rule in
-the other direction, so do not copy `jscpd.toml` as the shape for this.
+the case demonstrating that a project's own wins.
 
 ### A sensor emits vocabulary smells only; `uncoached` answers for the rest (human-requested by Ivett, issue #111)
 
