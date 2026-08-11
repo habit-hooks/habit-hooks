@@ -52,6 +52,20 @@ in the plugin `config.toml` because `sensors = [...]` (the ordered list) and a
 wholesale via `.habit-hooks/config.toml` `[sensors.<name>] args = [...]`
 (replace-on-override — `SensorOverride.args`, threaded in `sensors._sensor_args`).
 
+**A command with no `${args}` refuses args rather than dropping them**
+(`command_text._refuse_unusable_arguments`, the only place that knows both the
+args and whether the command can take them): a `ConfigError`, unnamed so
+`cli.run_console` prefixes the binary, exit 2 — the treatment #102 gives a config
+key nothing consumes, and the reason this one stayed dead for seven of the eight
+shipped sensors while `docs/config.md` promised it worked. A **plugin's** own
+unusable `args` default is refused identically: there is no warning channel in
+this stage that would not also fail the run (every sensor notice does, at exit 1,
+with that sensor's findings dropped), so warning would cost a consumer more and
+tell them less, and softening it would mean threading provenance through
+`config` → `loader` → `Part` for a case no shipped plugin has. A run blocked by
+someone else's packaging clears it with `[sensors.<name>] args = []` — an
+override replaces wholesale, so the empty list is a value, not an absence.
+
 ### Finding paths are anchored at the sensor boundary, never per sensor (agent decision, issue #79)
 
 `Execution.run_sensor` pipes every parsed sensor's findings through

@@ -16,6 +16,7 @@ import shlex
 import sys
 from pathlib import Path
 
+from ..cli import ConfigError
 from .model import Part
 
 
@@ -31,12 +32,40 @@ def quoted(paths: list[str]) -> list[str]:
 
 def expanded(part: Part, quoted_files: list[str], config_path: Path | None) -> str:
     """``part``'s command over ``quoted_files``, with every other value quoted."""
+    _refuse_unusable_arguments(part)
     return (
         part.command.replace("${python}", shlex.quote(sys.executable))
         .replace("${dir}", shlex.quote(str(part.directory)))
         .replace("${args}", " ".join(shlex.quote(argument) for argument in part.args))
         .replace("${files}", " ".join(quoted_files))
         .replace("${config}", _config_flag(config_path))
+    )
+
+
+def _refuse_unusable_arguments(part: Part) -> None:
+    """Stop the run when ``part`` has args its command has nowhere to put.
+
+    This is the only place that knows both the args and whether the command can
+    take them, and args a command cannot expand are args the tool never sees —
+    the same silent nothing #102 refuses a config key nothing consumes for, and
+    exactly how ``[sensors.<name>] args`` stayed dead for seven of eight shipped
+    sensors while the docs promised it worked.
+
+    Whose mistake it is does not change the answer: a plugin shipping an
+    unusable ``args`` default in its own ``sensors/<name>.toml`` is refused the
+    same way a project setting one is. There is no warning channel here that
+    would not also fail the run (every sensor notice does, at exit 1, with that
+    sensor's findings dropped), so "warn" would cost the consumer more than a
+    named refusal and tell them less — and a project blocked by someone else's
+    packaging can clear it with ``[sensors.<name>] args = []``, since an override
+    replaces wholesale and an empty list is a value.
+    """
+    if not part.args or "${args}" in part.command:
+        return
+    raise ConfigError(
+        f"sensor {part.name!r} cannot take arguments — its command has no "
+        f"'${{args}}' to expand {part.args} into; remove the 'args', or override "
+        "the sensor with a command that spells '${args}'"
     )
 
 

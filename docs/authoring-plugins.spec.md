@@ -92,7 +92,7 @@ files = ["**/*.lua"]                                        # optional; override
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `command` | yes | Shell command to run; it must print a JSON array of findings. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${args}` to this sensor's `args`; `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). |
-| `args` | no | Default CLI args, expanded into `command` via `${args}`. They live here, not in the plugin `config.toml` (where `sensors` as a list and `[sensors.<name>]` as a table would collide). A project replaces them via `[sensors.<name>] args`. |
+| `args` | no | Default CLI args, expanded into `command` via `${args}`. They live here, not in the plugin `config.toml` (where `sensors` as a list and `[sensors.<name>]` as a table would collide). A project replaces them via `[sensors.<name>] args`. Set them only on a `command` that spells `${args}`: args a command cannot expand stop the run rather than being dropped (below). |
 | `files` | no | Narrows the run's scope to these globs for this sensor alone — a subset of what the scope already picked, never a second discovery pass. A project replaces them via `[sensors.<name>] files`. |
 
 Whatever the command prints is taken verbatim as the sensor's findings; a clean
@@ -157,6 +157,54 @@ grep -Hrn TODO src | jq -Rn '[
 A sensor emits an *array* of findings; here it is a single one. Anything `jq`
 cannot express becomes a script — `command = "${python} ${dir}/todo.py ${files}"` —
 as long as it prints the same array.
+
+### A sensor whose command has no `${args}` refuses arguments
+
+`${args}` is the only way arguments reach the tool, so a sensor that omits it
+takes none — and a project that sets `[sensors.<name>] args` for it is asking for
+something the sensor cannot do. The run stops and says so, rather than accepting
+the setting and dropping it: args that never reach the tool are a wrong answer
+delivered as a clean one.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["demo"]
+
+[sensors.todo]
+args = ["--ignore-case"]
+```
+
+📄.habit-hooks/demo/config.toml
+```toml
+files = ["**/*.lua"]
+sensors = ["todo"]
+```
+
+📄.habit-hooks/demo/sensors/todo.toml
+```toml
+command = "grep -Hrn TODO ${files} | jq -Rn '[]'"
+```
+
+📄src/util.lua
+```lua
+-- TODO: validate inputs
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ❌ 2
+
+🚨
+```text
+habit-sensors: sensor 'todo' cannot take arguments — its command has no '${args}' to expand ['--ignore-case'] into; remove the 'args', or override the sensor with a command that spells '${args}'
+```
+
+The same refusal covers a plugin that ships an unusable `args` default in its own
+`sensors/<name>.toml`: it is the same packaging mistake, and a consumer who needs
+the run to proceed clears it with `[sensors.<name>] args = []` — an override
+replaces wholesale, so an empty list is a value, not an absence.
 
 ## 3. The adapter technique
 
