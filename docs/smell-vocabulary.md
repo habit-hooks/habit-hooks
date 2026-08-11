@@ -69,6 +69,7 @@ map-block), and the smell key each maps to.
 | `eslint:max-depth`                                | `deep-nesting`              |
 | `eslint:max-lines`                                | `oversized-file`            |
 | `eslint:no-unused-vars`                           | `unused-variable`           |
+| `eslint:@typescript-eslint/no-unused-vars`        | `unused-variable`           |
 | `eslint:eqeqeq`                                   | `loose-equality`            |
 | `eslint:no-var`                                   | `var-declaration`           |
 | `eslint:prefer-const`                             | `non-const-binding`         |

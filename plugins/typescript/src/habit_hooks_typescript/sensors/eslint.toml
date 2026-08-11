@@ -11,6 +11,7 @@ eslint -f json --no-warn-ignored $files | jq '[.[] | .filePath as $file | .messa
     "max-depth": "deep-nesting",
     "max-lines": "oversized-file",
     "no-unused-vars": "unused-variable",
+    "@typescript-eslint/no-unused-vars": "unused-variable",
     "eqeqeq": "loose-equality",
     "no-var": "var-declaration",
     "prefer-const": "non-const-binding",

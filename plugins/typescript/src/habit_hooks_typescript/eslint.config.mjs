@@ -22,11 +22,15 @@ export default [
       complexity: ["error", 10],
       "max-depth": ["error", { max: 4 }],
       "max-lines": ["error", { max: 200, skipBlankLines: false, skipComments: false }],
-      "no-unused-vars": [
+      // Base off, TypeScript on — typescript-eslint's documented pairing. The
+      // base rule cannot see type positions, so it reads an interface's method
+      // parameter names as unused variables, and removing them is not valid
+      // TypeScript.
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/no-unused-vars": "off",
       eqeqeq: ["error", "always"],
       "no-var": "error",
       "prefer-const": "error",
