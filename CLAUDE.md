@@ -115,6 +115,39 @@ parameter. Parsing inside `body` changes nothing: argparse's usage error is a
 plain `SystemExit(2)`, not a `ToolError`, so it passes through the handler
 untouched.
 
+### A first-contact mistake answers in one line, never a traceback (agent decision, issue #114)
+
+Asking for help, mistyping a config and running a tool you have not installed are
+the three things a person does in their first ten minutes, and each used to
+answer with a Python stack trace. Three separate seams keep them honest:
+
+- **`habit-hooks` answers `--help`/`-h` itself**, as it already did `--version`.
+  The pipeline is `habit-sensors $ARGS | habit-mapper`, so anything a stage
+  prints on stdout lands on the pipe where `habit-mapper` expects findings JSON —
+  forwarded, the usage text came back as a `JSONDecodeError` and was never seen.
+  Its usage is `sensors.build_parser("habit-hooks")`: the stage's own parser
+  under another `prog`, so what the help lists cannot drift from what is
+  forwarded.
+- **Every TOML this tool opens goes through `config_guard.read_toml`** — the
+  project config, a plugin's, a sensor or transformer spec. It turns a
+  `TOMLDecodeError` into the same unnamed `ConfigError` an unknown key raises:
+  exit 2, naming the file and quoting tomllib, whose own text already carries the
+  line and column. Unprotected it exited **1** — the code reserved for an
+  enforced finding — so CI read a missing `]` as a smell in the code.
+- **A command nobody installed is recognised by the shell's own phrase**
+  (`part_output.COMMAND_NOT_FOUND`) and named, with what to do about it, in place
+  of the failed part's stderr. Every other failure still quotes the tool back,
+  because a tool that diagnosed itself is the one thing a reader can act on; a
+  command that was never found has no words of its own. It stays the ordinary
+  failed sensor — notice, failed run, `incomplete-run` at exit 1 — because a
+  missing tool reading as "nothing to report" is the false-clean class #88 exists
+  for. A plugin's Python helper that spawns its own tool must therefore answer
+  `<tool>: command not found` rather than let `FileNotFoundError` escape
+  (`plugins/generic/.../sensors/jscpd.py`): only the helper knows it was
+  spawning, since `FileNotFoundError` from an `open()` is the same text about a
+  file, and guessing from the traceback would mis-name a deleted source path as a
+  missing command.
+
 ### A run that did not complete never renders as clean — including an empty pipe (agent decision, issues #88, #103)
 
 `incomplete-run` is a reserved smell, and `catalogue.incomplete_run_finding`
