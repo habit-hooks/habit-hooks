@@ -28,7 +28,7 @@ SENSOR = (
     / "src"
     / "habit_hooks_typescript"
     / "sensors"
-    / "knip.js"
+    / "knip.cjs"
 )
 
 
