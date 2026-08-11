@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from habit_hooks import mapper
+from habit_hooks.catalogue import INCOMPLETE_RUN
 from plugin_fixture import write_plugin, write_project_config
 
 UNCOACHED_SMELL = "mystery-rule"
@@ -86,16 +87,27 @@ def test_ignore_drops_the_finding_entirely(
     assert UNCOACHED_SMELL not in out
 
 
-@pytest.mark.parametrize("policy", ["suggest", "ignore", "enforce"])
+_CATALOGUED_CASES = [
+    (policy, smell)
+    for policy in ("suggest", "ignore", "enforce")
+    for smell in (CATALOGUED_SMELL, INCOMPLETE_RUN)
+]
+
+
+@pytest.mark.parametrize("case", _CATALOGUED_CASES, ids=str)
 def test_a_catalogued_smell_is_out_of_the_policys_reach(
-    policy: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    case: tuple[str, str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """``oversized-file`` is `enforced` in the catalogue at every value: the key
-    answers for the smells nobody decided about, never for the ones we did."""
-    code = _run(tmp_path, f'uncoached = "{policy}"', CATALOGUED_SMELL)
+    """Both stay `enforced` at every value: the key answers for the smells nobody
+    decided about, never for the ones we did. `incomplete-run` is the one that
+    must not move — `ignore` turning a broken run into a clean one would undo #88
+    through a key that speaks about code smells."""
+    policy, smell = case
+
+    code = _run(tmp_path, f'uncoached = "{policy}"', smell)
 
     assert code == 1
-    assert CATALOGUED_SMELL in capsys.readouterr().out
+    assert smell in capsys.readouterr().out
 
 
 def _declaring(policy: str, severity: str) -> str:
