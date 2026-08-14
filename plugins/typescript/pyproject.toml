@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks-typescript"
-version = "1.2.0"
+version = "1.2.1"
 description = "The TypeScript Habit Hooks plugin"
 requires-python = ">=3.11"
 dependencies = []

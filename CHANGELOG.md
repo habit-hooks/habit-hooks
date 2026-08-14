@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.1
+
+### Fixed
+
+- **Upgrading with `pip` left the plugins behind.** `pip install -U
+  habit-hooks` upgrades a dependency only when the new core stops being
+  satisfied by the installed one, and the core accepted any 1.x plugin — so an
+  upgrade to 1.2.0 gave you the new core with 1.1.0 plugins, and none of that
+  release's fixes, nearly all of which are in the plugins. Each plugin is now
+  floored at the core's own minor, and a test keeps the floor moving with it.
+  `uv pip install --upgrade`, `uv tool upgrade` and `brew upgrade` were never
+  affected; if you upgraded with `pip` already, upgrading again is enough.
+
 ## 1.2.0
 
 Everything here is about the first ten minutes. Installing habit-hooks was the

@@ -1,23 +1,29 @@
 [project]
 name = "habit-hooks"
-version = "1.2.0"
+version = "1.2.1"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
 requires-python = ">=3.11"
+# Each plugin is floored at this release's own minor, and the floor is raised
+# with it — `tests/test_the_plugin_floor_tracks_the_release.py` is the gate.
+# `pip install -U habit-hooks` upgrades a dependency only when the new core
+# stops being satisfied by the installed one, so a floor that stays behind
+# leaves someone on the new core with last release's plugins — which is where
+# nearly every fix lives.
 dependencies = [
     "jinja2>=3",
     "pathspec>=0.12",
     "attrs>=23",
-    "habit-hooks-generic~=1.0",
+    "habit-hooks-generic~=1.2",
 ]
 
 [project.optional-dependencies]
-python = ["habit-hooks-python~=1.0"]
-typescript = ["habit-hooks-typescript~=1.0"]
-php = ["habit-hooks-php~=1.0"]
+python = ["habit-hooks-python~=1.2"]
+typescript = ["habit-hooks-typescript~=1.2"]
+php = ["habit-hooks-php~=1.2"]
 all = [
-    "habit-hooks-python~=1.0",
-    "habit-hooks-typescript~=1.0",
-    "habit-hooks-php~=1.0",
+    "habit-hooks-python~=1.2",
+    "habit-hooks-typescript~=1.2",
+    "habit-hooks-php~=1.2",
 ]
 
 [project.scripts]
