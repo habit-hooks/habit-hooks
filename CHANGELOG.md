@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0
 
 Everything here is about the first ten minutes. Installing habit-hooks was the
 most frequent question the project got, and working through one user's report
