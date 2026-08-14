@@ -252,19 +252,13 @@ habit-sensors --all | jq '.[] | {smell, language, key: .issues[0].key, file: .is
 }
 ```
 
-## A crashing deptry fails the run, never reports clean
+## A project with no pyproject.toml or requirements.txt runs clean
 
-deptry needs a `pyproject.toml` to analyse; without one it exits non-zero
-instead of emitting findings. The sensor must surface that as a failure — a
-crashed tool is never a clean run. The sensor exits with a code outside the
-findings range, so `habit-sensors` raises, names the sensor on stderr, and exits
-1 rather than printing an empty (false-clean) result. The failed run carries only
-the reserved `incomplete-run` marker on stdout
-([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
-
-The notice carries deptry's own diagnosis after that first line. That text is
-deptry's to word and names absolute paths, so only the line naming the sensor is
-asserted here.
+deptry needs a dependency declaration to check against — a `pyproject.toml`
+carrying `[project]`/`[tool.poetry.dependencies]`/`[tool.pdm]`, or one of its
+requirements filenames. A project with neither has nothing to check, and that
+is not the same as a crash: the sensor reports a clean, empty run instead of
+the `incomplete-run` the case below reports for a genuine one.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -272,6 +266,53 @@ plugins = ["python"]
 
 [sensors.ruff]
 disabled = true
+```
+
+📄app.py
+```python
+def fetch(url):
+    return url
+```
+
+```bash
+habit-sensors --all
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+## A crashing deptry fails the run, never reports clean
+
+A `[tool.deptry]` option deptry does not recognise is a genuine crash — unlike
+the case above, this is not deptry answering "nothing here to check" but the
+tool itself breaking. The sensor must surface that as a failure — a broken
+tool is never a clean run. The sensor exits with a code outside the findings
+range, so `habit-sensors` raises, names the sensor on stderr, and exits 1
+rather than printing an empty (false-clean) result. The failed run carries
+only the reserved `incomplete-run` marker on stdout
+([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
+
+The notice carries deptry's own diagnosis after that first line. That text is
+deptry's to word, so only the line naming the sensor is asserted here.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["python"]
+
+[sensors.ruff]
+disabled = true
+```
+
+📄pyproject.toml
+```toml
+[project]
+name = "demo"
+version = "0.0.0"
+
+[tool.deptry]
+not_a_real_option = true
 ```
 
 📄app.py

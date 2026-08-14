@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A Python project that declares no dependencies could never get a clean
+  run.** With no `pyproject.toml` and no `requirements.txt` there is nothing for
+  deptry to check, and it says so by aborting — which the sensor read as a
+  broken tool. Every run came back as an incomplete one, and no change to the
+  code could make it green. A project that declares no dependencies has no
+  unused ones, so the sensor now reports nothing and the run completes. Every
+  other way deptry can fail still fails loudly.
+
 ## 1.2.1
 
 ### Fixed

@@ -37,6 +37,20 @@ def deptry_crashed(result: subprocess.CompletedProcess[str], report: Path) -> bo
     return result.returncode not in (0, 1) or not report.is_file()
 
 
+def deptry_found_no_declaration(result: subprocess.CompletedProcess[str]) -> bool:
+    """Whether deptry crashed because it found no dependency declaration to check.
+
+    deptry raises ``DependencySpecificationNotFoundError`` when it finds no
+    dependency declaration to check. Asking the tool this way, instead of
+    reimplementing its PEP 621/poetry/pdm search, keeps the answer from
+    drifting off deptry's own. A project with none declared genuinely has
+    zero declared-but-unused dependencies — a clean result, not a swallowed
+    failure (#88). Matching on the exception's class name, only inside the
+    already-crashed branch, keeps every other crash failing loud.
+    """
+    return "DependencySpecificationNotFoundError" in result.stderr
+
+
 def unused_dependencies(report: Path) -> list[dict]:
     entries = json.loads(report.read_text())
     return [entry for entry in entries if entry["error"]["code"] == "DEP002"]
@@ -71,6 +85,9 @@ def main() -> int:
         report = Path(tmp) / "deptry-report.json"
         result = run_deptry(report)
         if deptry_crashed(result, report):
+            if deptry_found_no_declaration(result):
+                print(json.dumps([]))
+                return 0
             sys.stderr.write(result.stderr)
             return 2
         print(json.dumps(findings(unused_dependencies(report))))
