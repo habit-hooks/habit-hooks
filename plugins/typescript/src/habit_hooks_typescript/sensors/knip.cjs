@@ -59,6 +59,7 @@ const KNIP_CONFIG_LOCATIONS = [
 
 // knip merges a ``knip`` key in the manifest whether or not a config file is
 // found, so a project carrying only that has still stated its preferences.
+const KNIP = "knip";
 const MANIFEST = "package.json";
 
 // The config this plugin ships, beside the sensors directory it runs from.
@@ -73,7 +74,7 @@ function isTestFile(file) {
 }
 
 function runKnip(args) {
-  return spawnSync("knip", ["--reporter", "json", ...args], {
+  return spawnSync(KNIP, ["--reporter", "json", ...args], {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -81,6 +82,17 @@ function runKnip(args) {
 
 function knipCrashed(result) {
   return result.error != null || result.status === null || result.status > 1;
+}
+
+// A tool nobody installed arrives here as an ENOENT, the way it arrives in a
+// Python helper as a FileNotFoundError. `Error: spawnSync knip ENOENT` is not a
+// phrase the runner recognises, so the one failure with an obvious fix was the
+// only one never told how to fix it — answer the way a shell does instead (#114).
+function knipFailure(result) {
+  if (result.error != null && result.error.code === "ENOENT") {
+    return `${KNIP}: command not found\n`;
+  }
+  return result.stderr || String(result.error);
 }
 
 // knip 5's JSON emits per-file arrays for most issue types but object maps for
@@ -251,14 +263,14 @@ function main() {
   const config = configInForce(args);
   const base = runKnip([...config.args, ...args]);
   if (knipCrashed(base)) {
-    process.stderr.write(base.stderr || String(base.error));
+    process.stderr.write(knipFailure(base));
     return 2;
   }
   let production = null;
   if (configMarksProduction(config.file)) {
     const pass = runKnip([...config.args, ...args, "--production"]);
     if (knipCrashed(pass)) {
-      process.stderr.write(pass.stderr || String(pass.error));
+      process.stderr.write(knipFailure(pass));
       return 2;
     }
     production = report(pass);
