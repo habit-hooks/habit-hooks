@@ -206,6 +206,41 @@ answer with a Python stack trace. Three separate seams keep them honest:
   file, and guessing from the traceback would mis-name a deleted source path as a
   missing command.
 
+### `init` decides, reports, then acts — three modules, one direction (agent decision)
+
+`initialise.py` decides (languages, plugins, what is missing) and prints nothing;
+`init_report.py` turns a `Plan` into lines and does no I/O; `init_command.py` is
+the flow — write the config, print, prompt, run. Same split, same reason, as
+`rendering.py` against `mapper.py`: the decisions are the part worth testing
+exhaustively, and a module that both decides and prompts cannot be.
+
+**The install command it prints must match the environment habit-hooks is running
+in** (`plugin_install.py`, packaging vocabulary in `plugin_packages.py`), or
+`init` hands someone a command that cannot work — the support burden it exists to
+remove. The environment is read out of `sys.prefix`, never inferred from "has no
+pip", which catches a `uv venv` too:
+
+- `uv-receipt.toml` → a `uv tool` install → `uv tool install 'habit-hooks[…]'`
+- `relocatable = true` in `pyvenv.cfg` → a `uvx` cache entry uv owns, so nothing
+  installed into it is the project's → the same durable command
+- `extends-environment` in `pyvenv.cfg` → a `uv run --with` overlay → answer with
+  the durable environment it names, never the temporary directory, which is gone
+  when the run ends
+- `pip` importable → `<sys.executable> -m pip install`
+- otherwise (a `uv venv`) → `uv pip install --python <sys.executable>`
+
+Spelling it with the **running** interpreter is what stops a plugin landing in a
+different Python from the one habit-hooks runs from — a Homebrew install's
+versioned `libexec` venv is the case that taught this.
+
+`uv tool install` **rebuilds** its environment rather than adding to it, so one
+command must name every plugin that environment has to end up *holding* — not
+just the missing ones, and not just this project's, since one tool environment
+serves the whole machine. Emitting one line per missing plugin uninstalls what
+the previous line added, which the README told people to do for two releases. A
+plugin on hand only by being vendored under `.habit-hooks/<name>/` is never
+named: it is usually not on PyPI, and naming it fails the whole install.
+
 ### A run that did not complete never renders as clean — including an empty pipe (agent decision, issues #88, #103)
 
 `incomplete-run` is a reserved smell, and `catalogue.incomplete_run_finding`

@@ -53,6 +53,22 @@ smell, never by which tool reported it.
 
 ## Install
 
+Install habit-hooks, then let it set your project up:
+
+```sh
+uv tool install habit-hooks     # pip, pipx and brew work too
+cd your-project
+habit-hooks init
+```
+
+`habit-hooks init` detects the language your project is written in, writes `.habit-hooks/config.toml`
+enabling the plugins it needs, and lists everything still missing beside the command that installs it —
+offering to run them for you. Re-run it whenever you like: on a project that already has a config it changes
+nothing and only reports what is missing, so it also answers "why is this run not reporting anything?".
+
+<details>
+<summary><b>Doing it by hand</b> — what <code>init</code> is doing on your behalf</summary>
+
 Setting habit-hooks up takes four steps. A run that reports nothing is almost always a skipped one:
 
 1. **Install habit-hooks** — you get the core and the generic, language-agnostic plugin.
@@ -88,11 +104,15 @@ This gives you **core plus the generic (language-agnostic) plugin** and installs
 The three language plugins are **opt-in** via extras:
 
 ```sh
-uv tool install "habit-hooks[python]"       # adds the python plugin
-uv tool install "habit-hooks[typescript]"   # adds the typescript plugin
-uv tool install "habit-hooks[php]"          # adds the php plugin
-uv tool install "habit-hooks[all]"          # adds all three
+uv tool install "habit-hooks[typescript]"          # one language
+uv tool install "habit-hooks[python,typescript]"   # several — name them in one command
+uv tool install "habit-hooks[all]"                 # all three
 ```
+
+> ⚠️ Each `uv tool install` **rebuilds** the environment rather than adding to it, so a second one naming a
+> different extra silently replaces the first: run `[python]` and then `[typescript]` and you are left with
+> typescript alone, and your Python project quietly stops being checked. Name every language you want in a
+> single command. (`pip install "habit-hooks[python]"` has no such trap — it adds.)
 
 To pick language plugins per project without a global install, run from the extra with `uvx` (uv caches it):
 
@@ -139,9 +159,11 @@ does nothing for it.
 `habit-sensors` prepends `node_modules/.bin` and `.venv/bin` to `PATH`, so a project's locally-installed tools are
 found without being on the global `PATH`.
 
+</details>
+
 ## Quick start
 
-With the four install steps done, a Python project's config reads:
+`habit-hooks init` writes this for you; a Python project's config reads:
 
 ```toml
 # .habit-hooks/config.toml

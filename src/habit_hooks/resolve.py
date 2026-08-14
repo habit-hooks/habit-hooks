@@ -50,6 +50,29 @@ def installed_plugin_dirs() -> dict[str, Path]:
     return dirs
 
 
+@cache
+def installed_plugin_distributions() -> dict[str, str]:
+    """Map each installed plugin's name to the distribution that ships it.
+
+    Kept apart from :func:`installed_plugin_dirs` because it answers a different
+    question — where a plugin's files are against what to ask an index for — and
+    because every caller of that one wants the directory alone. Nothing obliges
+    a plugin to name its distribution after its entry point, so this is read off
+    the installation rather than spelled ``habit-hooks-<name>``: guessing is an
+    install command that fails on a name no index has heard of.
+
+    An entry point without a distribution is left out — typing's case rather
+    than a real one, and one nothing here can answer for. It degrades to that
+    same guess, silently and for that plugin alone, which is why the suite holds
+    this map to covering exactly the plugins ``installed_plugin_dirs`` does.
+    """
+    return {
+        entry_point.name: entry_point.dist.name
+        for entry_point in entry_points(group=PLUGIN_ENTRY_POINT_GROUP)
+        if entry_point.dist is not None
+    }
+
+
 @dataclass(frozen=True)
 class Resolver:
     """The override chain layout: where plugin files are looked up.

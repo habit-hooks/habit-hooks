@@ -9,6 +9,18 @@ bugs, not their setup.
 
 ### Added
 
+- **`habit-hooks init`.** It detects the language your project is written in, writes
+  `.habit-hooks/config.toml` enabling the plugins it needs, and lists what is still
+  missing — the plugins themselves, and the tools they reach for — beside the
+  command that installs each, offering to run them. The install command it prints matches how habit-hooks was
+  installed, so a plugin cannot land in some other Python than the one habit-hooks
+  runs from.
+
+  Run it again on a project that already has a config and it changes nothing, only
+  reporting what is missing — so the same command answers "why is this run not
+  reporting anything?". For a language habit-hooks has no plugin for, it prints the
+  prompt to hand to your coding agent to build one.
+
 - **A plugin declares the tools it needs and how to install them.** Each plugin's
   config now carries a `detectors` list — the tool's name, whether it is a command
   on `PATH` or a package read as a library, and the command that installs it. A
@@ -38,12 +50,19 @@ bugs, not their setup.
   ENOENT`. It was the one detector spawned from Node, and the only one still
   missing that answer.
 
+- **Naming two `uv tool install` extras one after another loses the first.** Each
+  one rebuilds the environment rather than adding to it, so following the README's
+  `[python]` line and then its `[typescript]` line left typescript alone — and a
+  Python project quietly stopped being checked. The README now names them in one
+  command and says why. `pip` has no such trap.
+
 ### Documentation
 
-- The install section is a numbered four-step sequence — install, add your
-  language's plugin, enable it, install the detectors — because skipping one is
-  the usual reason a first run reports nothing. Every detector is listed with the
-  command that installs it, php included.
+- Install leads with `habit-hooks init`; the four manual steps — install, add your
+  language's plugin, enable it, install the detectors — are still there for anyone
+  who wants them, because skipping one is the usual reason a first run reports
+  nothing. Every detector is listed with the command that installs it, php
+  included.
 
 ## 1.1.0
 

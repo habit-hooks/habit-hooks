@@ -5,7 +5,8 @@ right about three things before a word is printed: which languages the project
 is written in, which plugins that asks for, and whether the project is already
 configured — in which case a re-run reports and changes nothing.
 
-Which of those plugins' tools this machine has not got is
+What then stands in the way of running it has a file per kind: the plugins
+nobody has are ``test_uninstalled_plugins.py``, and the tools they reach for
 ``test_missing_tools.py``.
 """
 
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from git_repo import git
 from habit_hooks.initialise import plan
-from plugin_fixture import write_project_config
+from plugin_fixture import write_plugin, write_project_config
 
 
 def _holding(project_dir: Path, files: dict[str, str]) -> None:
@@ -49,6 +50,18 @@ def test_a_project_of_no_known_language_asks_for_a_plugin_of_its_own(
     """There is nothing here to install, so the offer is a plugin to *write* —
     and only the plan can tell that case from a language it recognised."""
     assert plan(init_project).needs_a_new_plugin
+
+
+def test_a_project_running_a_plugin_of_its_own_is_asked_for_no_other(
+    init_project: Path,
+) -> None:
+    """Habit-hooks recognises none of this project's languages and never will —
+    somebody wrote the plugin for it. Telling them to go and write one is the
+    advice their own config is the answer to."""
+    write_plugin(init_project, "cobol", {"config.toml": ""})
+    write_project_config(init_project, 'plugins = ["cobol", "generic"]')
+
+    assert not plan(init_project).needs_a_new_plugin
 
 
 def test_the_file_that_announces_a_language_plans_its_plugin(

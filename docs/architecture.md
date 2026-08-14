@@ -224,6 +224,7 @@ the config format that drives it is in [config.md](config.md).
 | [habit-mapper.spec.md](habit-mapper.spec.md) | routing findings to guides and the exit code |
 | [habit-snooze.spec.md](habit-snooze.spec.md) | the snooze transformer and its index commands |
 | [habit-hooks.spec.md](habit-hooks.spec.md) | the two stages composed |
+| [habit-hooks-init.spec.md](habit-hooks-init.spec.md) | setting a project up: the config it writes and what it reports |
 | [authoring-plugins.spec.md](authoring-plugins.spec.md) | building a plugin: sensor, transformer, guide |
 | [config.md](config.md) | the TOML config format |
 | [smell-vocabulary.md](smell-vocabulary.md) | the canonical smell catalogue and naming rules |
