@@ -630,3 +630,18 @@ for the same reason.
 `.github/workflows/release.yml` maps each of the five PyPI packages to a
 distinct GitHub environment because a pending trusted publisher is unique by
 `(owner, repo, workflow, environment)` — five packages can't share one.
+
+### The plugin floor is raised with the version, and the tap bump goes via a PR
+
+Two things about a release that are silent when forgotten (agent decision):
+
+- The core floors each plugin at its own minor (`habit-hooks-generic~=1.2`).
+  `pip install -U habit-hooks` upgrades a dependency only when the new core
+  stops being satisfied by the installed one, so a floor left behind hands
+  someone the new core with last release's plugins — where nearly every fix
+  lives. `tests/test_the_plugin_floor_tracks_the_release.py` gates both halves:
+  the floor tracks the version, and the plugins ship at it.
+- The `habit-hooks/homebrew-tap` bump belongs in a **pull request**, not a push
+  to its `main`. `brew test-bot` builds bottles either way, but `publish.yml`
+  (`brew pr-pull`) attaches them from a PR number — pushed straight to main,
+  1.2.1 shipped with no bottles and every `brew install` builds from source.
