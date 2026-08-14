@@ -1,0 +1,16 @@
+[project]
+name = "habit-hooks-java"
+version = "1.2.1"
+description = "The Java Habit Hooks plugin"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.entry-points."habit_hooks.plugins"]
+java = "habit_hooks_java"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/habit_hooks_java"]

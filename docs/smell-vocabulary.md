@@ -148,6 +148,33 @@ list alongside `php` to get it. PHPMD's `NPathComplexity` overlaps
 `CyclomaticComplexity`, so only the latter is mapped to avoid double-reporting the
 same function.
 
+## Java plugin translation
+
+The raw rule names PMD emits, and the smell key each maps to (the rest of the
+catalogue is shared — only the plugin's sensors differ).
+
+| Raw key (tool:rule)         | Smell key             |
+|-----------------------------|-----------------------|
+| `pmd:ExcessiveParameterList` | `too-many-parameters` |
+| `pmd:CyclomaticComplexity`   | `high-complexity`     |
+| `pmd:NcssCount`              | `oversized-function`  |
+| `pmd:UnusedLocalVariable`    | `unused-variable`     |
+| `pmd:UnnecessaryImport`      | `unused-import`       |
+| `pmd:EmptyCatchBlock`        | `swallowed-exception` |
+
+The Java plugin runs PMD (`pmd check --format json`) through a thin sensor that
+normalises PMD's exit-4-on-violations and maps its rule names to canonical smells.
+PMD 7 no longer ships `ExcessiveMethodLength`/`ExcessiveClassLength`, so
+`oversized-function` comes from `NcssCount`, which reports classes, methods and
+constructors off one rule — the sensor keeps only the method/constructor
+violations (PMD's own message distinguishes them) and drops the class-level ones.
+PMD never discovers a project ruleset, so the sensor reaches for one only after
+checking the conventional locations (`src/main/resources/pmd/ruleset.xml`,
+`pmd/ruleset.xml`, `ruleset.xml`, `pmd.xml`) or a `--rulesets` in its args, then
+falls back to the bundled `pmd-ruleset.xml` — a project's own ruleset wins
+([config.md](config.md)). PMD 7's `UnnecessaryImport` is the renamed
+`UnusedImports`.
+
 ## Uncoached smells
 
 A smell with no entry above still renders — through the generic `uncoached.md`

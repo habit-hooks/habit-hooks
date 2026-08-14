@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 members = [
     "habit-hooks",
     "habit-hooks-generic",
+    "habit-hooks-java",
     "habit-hooks-php",
     "habit-hooks-python",
     "habit-hooks-typescript",
@@ -84,9 +85,13 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "habit-hooks-java" },
     { name = "habit-hooks-php" },
     { name = "habit-hooks-python" },
     { name = "habit-hooks-typescript" },
+]
+java = [
+    { name = "habit-hooks-java" },
 ]
 php = [
     { name = "habit-hooks-php" },
@@ -102,6 +107,7 @@ typescript = [
 dev = [
     { name = "deptry" },
     { name = "habit-hooks-generic" },
+    { name = "habit-hooks-java" },
     { name = "habit-hooks-php" },
     { name = "habit-hooks-python" },
     { name = "habit-hooks-typescript" },
@@ -114,6 +120,8 @@ dev = [
 requires-dist = [
     { name = "attrs", specifier = ">=23" },
     { name = "habit-hooks-generic", editable = "plugins/generic" },
+    { name = "habit-hooks-java", marker = "extra == 'all'", editable = "plugins/java" },
+    { name = "habit-hooks-java", marker = "extra == 'java'", editable = "plugins/java" },
     { name = "habit-hooks-php", marker = "extra == 'all'", editable = "plugins/php" },
     { name = "habit-hooks-php", marker = "extra == 'php'", editable = "plugins/php" },
     { name = "habit-hooks-python", marker = "extra == 'all'", editable = "plugins/python" },
@@ -123,12 +131,13 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3" },
     { name = "pathspec", specifier = ">=0.12" },
 ]
-provides-extras = ["python", "typescript", "php", "all"]
+provides-extras = ["python", "typescript", "php", "java", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "deptry", specifier = ">=0.25.1" },
     { name = "habit-hooks-generic", editable = "plugins/generic" },
+    { name = "habit-hooks-java", editable = "plugins/java" },
     { name = "habit-hooks-php", editable = "plugins/php" },
     { name = "habit-hooks-python", editable = "plugins/python" },
     { name = "habit-hooks-typescript", editable = "plugins/typescript" },
@@ -141,6 +150,11 @@ dev = [
 name = "habit-hooks-generic"
 version = "1.2.1"
 source = { editable = "plugins/generic" }
+
+[[package]]
+name = "habit-hooks-java"
+version = "1.2.1"
+source = { editable = "plugins/java" }
 
 [[package]]
 name = "habit-hooks-php"

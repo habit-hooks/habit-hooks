@@ -83,7 +83,7 @@ pip install "habit-hooks[python,typescript]" # several at once
 ```
 
 The `generic` plugin ships as part of the core install; each extra (`python`,
-`typescript`, `php`) installs the matching
+`typescript`, `php`, `java`) installs the matching
 `habit-hooks-<name>` distribution; a third-party plugin is just a package you
 `pip install habit-hooks-<name>` directly. The core then finds every installed
 plugin through its entry point — nothing else is configured for discovery.

@@ -23,6 +23,7 @@ plugin. Language plugins are opt-in extras:
   habit-hooks[python]
   habit-hooks[typescript]
   habit-hooks[php]
+  habit-hooks[java]
   habit-hooks[all]
 
 Project: https://github.com/habit-hooks/habit-hooks

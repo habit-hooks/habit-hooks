@@ -30,6 +30,7 @@ LANGUAGE_SIGNALS = (
     LanguageSignal("python", ("pyproject.toml",), (".py",)),
     LanguageSignal("typescript", ("tsconfig.json",), (".ts", ".tsx")),
     LanguageSignal("php", ("composer.json",), (".php",)),
+    LanguageSignal("java", ("pom.xml", "build.gradle", "build.gradle.kts"), (".java",)),
 )
 
 
