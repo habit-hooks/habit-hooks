@@ -196,7 +196,7 @@ habit-hooks --all 2>/dev/null
 
 habit-sensors: sensor 'params' failed: echo 'params: boom' >&2; exit 7
 params: boom
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```
 
 ### A sensors stage that dies before writing is coached too, and exits 2
@@ -224,7 +224,7 @@ habit-hooks --all 2>/dev/null
 ⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
 
 habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```
 
 ### A failed sensor and a working one both report, and the run stays incomplete
@@ -265,5 +265,5 @@ Bundle related arguments into an object.
 
 habit-sensors: sensor 'broken' failed: echo 'boom' >&2; exit 1
 boom
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```

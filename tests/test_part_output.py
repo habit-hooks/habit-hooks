@@ -63,3 +63,59 @@ def test_a_sensor_that_broke_some_other_way_still_quotes_itself_back(
 
     assert notice.startswith("habit-sensors: sensor 'probe' failed:")
     assert "cannot reach registry" in notice
+
+
+def test_a_sensor_at_the_truncation_boundary_is_still_quoted_whole(
+    tmp_path: Path,
+) -> None:
+    """Truncating only pays for itself once the excerpt it produces — head, an
+    elision line, and tail — is actually shorter than the diagnosis it would
+    replace. At 21 lines the excerpt would also come to 21 lines, so nothing is
+    dropped, and nothing is lost for free."""
+    storm = 'for i in $(seq 1 21); do echo "line $i" >&2; done; exit 1'
+
+    notice = _sensor_notice(tmp_path, storm)
+    lines = notice.splitlines()
+
+    assert "line 1" in lines
+    assert "line 21" in lines
+    assert "omitted" not in notice
+
+
+def test_a_sensor_one_line_past_the_boundary_finally_elides(tmp_path: Path) -> None:
+    """One line more and the excerpt is finally shorter than the diagnosis it
+    replaces, so it elides — head, tail, and the middle it stands in for."""
+    storm = 'for i in $(seq 1 22); do echo "line $i" >&2; done; exit 1'
+
+    notice = _sensor_notice(tmp_path, storm)
+    lines = notice.splitlines()
+
+    assert "line 1" in lines
+    assert "line 11" not in lines
+    assert "line 22" in lines
+    assert "... 2 lines omitted ..." in lines
+
+
+def test_a_sensor_whose_last_line_carries_the_diagnosis_still_quotes_it(
+    tmp_path: Path,
+) -> None:
+    """A Python traceback names its exception on its *last* line, not its first.
+
+    A chatty tool that dies with a traceback — the shape every Python-helper
+    sensor's own crash takes, deptry included — buries its one useful line at
+    the bottom of output that easily runs past the quoted budget. Quoting only
+    the head, as this once did, guarantees that line is exactly the one
+    dropped; the tail has to survive too. The exception text lives only in the
+    helper script's stderr, not in the command that ran it, so this fails for
+    the right reason rather than by the command line echoing itself back.
+    """
+    (tmp_path / "crash.py").write_text(
+        "import sys\n"
+        "for i in range(1, 25):\n"
+        '    print(f"noise {i}", file=sys.stderr)\n'
+        'raise RuntimeError("boom: the real reason")\n'
+    )
+
+    notice = _sensor_notice(tmp_path, "${python} ${dir}/crash.py")
+
+    assert "boom: the real reason" in notice

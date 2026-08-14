@@ -305,7 +305,7 @@ habit-mapper
 ⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
 
 habit-sensors: sensor 'comment' failed: Cannot find module 'ts-morph'
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```
 
 ### Nothing on stdin is an incomplete run, and a tool error
@@ -330,7 +330,7 @@ habit-mapper < /dev/null
 ⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
 
 habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```
 
 ### A disabled `incomplete-run` still cannot report a clean scan
@@ -356,7 +356,7 @@ habit-mapper < /dev/null
 ⚠️ Habit Hooks: this run did not complete — a tool broke, so a clean result cannot be trusted.
 
 habit-mapper: nothing arrived on stdin — the sensors stage exited before it wrote any findings
-Fix the broken tool (its full diagnosis is on stderr) and re-run; do not treat this change as checked.
+Fix the broken tool and re-run; do not treat this change as checked.
 ```
 
 ## Routing every smell

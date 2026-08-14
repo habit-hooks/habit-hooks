@@ -479,7 +479,9 @@ habit-sensors --all | jq '[.[] | [.smell, .language]]'
 A part's own complaint is the actionable half of a notice, but habit-hooks writes
 into a coding agent's context: a tool that dies mid-warning-storm can produce
 megabytes, and transcribing it would crowd out the diagnosis it is there to
-carry. The opening lines are quoted and the remainder is counted.
+carry. Both ends are quoted and the middle is counted — a Python traceback
+names its exception on its last line, so quoting only the opening would drop
+the one line that says what broke.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -498,12 +500,14 @@ command = "seq 200 >&2; exit 1"
 ```
 
 ```bash
-habit-sensors --all 2>&1 >/dev/null | wc -l | tr -d ' '
+habit-sensors --all 2>&1 >/dev/null | sed -n '2p;12p;22p'
 ```
 
 🖥️ ❌ 1
 ```text
-22
+1
+... 180 lines omitted ...
+200
 ```
 
 ### A broken sensor fails the run; the rest still report

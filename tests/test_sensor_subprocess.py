@@ -96,11 +96,15 @@ def test_a_wedged_sensor_that_said_a_lot_is_still_a_notice(tmp_path: Path) -> No
     storm = 'for i in $(seq 1 25); do echo "warning $i" >&2; done; sleep 5'
 
     notice = _timed_out_notice(tmp_path, storm)
+    lines = notice.splitlines()
 
-    assert "warning 1" in notice
-    assert "warning 20" in notice
-    assert "warning 21" not in notice
-    assert "... and 5 more lines" in notice
+    assert "warning 1" in lines
+    assert "warning 10" in lines
+    assert "warning 11" not in lines
+    assert "warning 15" not in lines
+    assert "warning 16" in lines
+    assert "warning 25" in lines
+    assert "... 5 lines omitted ..." in notice
 
 
 def test_a_wedged_sensor_printing_undecodable_bytes_is_still_a_notice(

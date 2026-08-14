@@ -12,6 +12,14 @@
   unused ones, so the sensor now reports nothing and the run completes. Every
   other way deptry can fail still fails loudly.
 
+- **A broken tool was quoted back by the half of its output with nothing in
+  it.** Past twenty lines, only the first twenty were shown — but a Python
+  traceback names what went wrong on its *last* line, so every sensor that
+  wraps a tool in Python answered a crash with framework internals and never
+  the error itself. Both ends are quoted now and the middle is counted, so the
+  diagnosis survives whichever end it landed on. The incomplete-run message no
+  longer promises a fuller diagnosis on stderr either, which was never there.
+
 ## 1.2.1
 
 ### Fixed
