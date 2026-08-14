@@ -56,7 +56,10 @@ bugs, not their setup.
   report on `node_modules`. On a small TypeScript project that was 23,573 findings
   in other people's packages hiding the eight that were the project's own. The
   typescript plugin now excludes `node_modules` (nested copies in a monorepo
-  too), python excludes `site-packages` and `.venv`, and php excludes `vendor`.
+  too), python excludes `site-packages` and a virtualenv under either of the two
+  names one usually goes by, and php excludes `vendor`. An exclusion holds for
+  every active plugin, so a project running two languages cannot have one
+  plugin's globs hand back what another just excluded.
 
 - **Every `plugins` example listed `generic` first**, which is the wrong way round:
   the list is a lookup priority and `generic` is the fallback, so listing it first
