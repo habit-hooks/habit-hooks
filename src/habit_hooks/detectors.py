@@ -23,8 +23,11 @@ from .config_schema import named_keys, reject_unknown
 
 # How a detector is looked for: `command` is an executable on PATH,
 # `node-module` a package `node` resolves from the project (a package read as a
-# library rather than spawned is not answered by a binary of that name).
-DETECTOR_KINDS = frozenset({"command", "node-module"})
+# library rather than spawned is not answered by a binary of that name). Named
+# so whatever does the looking spells a kind the same way this file accepts it.
+COMMAND_KIND = "command"
+NODE_MODULE_KIND = "node-module"
+DETECTOR_KINDS = frozenset({COMMAND_KIND, NODE_MODULE_KIND})
 
 
 @frozen

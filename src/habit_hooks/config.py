@@ -150,6 +150,22 @@ def _plugin_detectors(plugins: list[str], configs: list[dict]) -> list[Detector]
     return list(declared.values())
 
 
+def project_config_path(project_dir: Path) -> Path:
+    """Where a project's own config lives when a run does not name one."""
+    return project_dir / ".habit-hooks" / "config.toml"
+
+
+def declared_detectors(plugins: list[str], project_dir: Path) -> list[Detector]:
+    """What ``plugins`` need installed, whether or not the project runs them yet.
+
+    ``load_config`` answers this for the plugins a project already names; setting
+    a project up asks it of the plugins it is about to switch on, and one answer
+    is what keeps a setup's idea of "you have everything" from parting company
+    with the run's.
+    """
+    return _plugin_detectors(plugins, _plugin_configs(plugins, project_dir))
+
+
 def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     """Merge the project's ``.habit-hooks/config.toml`` over the plugin defaults.
 
@@ -159,7 +175,7 @@ def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     under the project's, which win per extension. ``detectors`` has no project
     half at all — what a plugin needs installed is the plugin's to say.
     """
-    path = config_path or project_dir / ".habit-hooks" / "config.toml"
+    path = config_path or project_config_path(project_dir)
     config = _build_config(_read_toml(path))
     plugin_configs = _plugin_configs(config.plugins, project_dir)
     if config.files is None:

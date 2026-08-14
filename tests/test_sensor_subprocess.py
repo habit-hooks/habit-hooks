@@ -1,13 +1,15 @@
-"""Robustness of the sensor subprocess layer: a deadline and an own stdin — two
-of the ways an unusual-but-real run turned into a hang or a lost run (issue #96).
-How its argv is bounded is ``test_sensor_argv.py``; how a failure that has
-finished is described is ``test_part_output.py``."""
+"""The environment a sensor's command runs in: a deadline, an own stdin, and the
+project's own tools — three ways an unusual-but-real run turned into a hang, a
+lost run (issue #96), or a measurement by the wrong tool. How its argv is bounded
+is ``test_sensor_argv.py``; how a finished failure is described is
+``test_part_output.py``."""
 
 from __future__ import annotations
 
 import contextlib
 import os
 import shlex
+import stat
 import subprocess
 import sys
 import time
@@ -177,3 +179,18 @@ def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
         findings = execution.run_sensor(part)
 
     assert findings == [{"smell": "s", "read": 0, "issues": []}]
+
+
+def test_a_sensor_reaches_the_project_s_own_tools(tmp_path: Path) -> None:
+    """A project pins its tools under ``.venv/bin`` and ``node_modules/.bin``, and
+    the path a run looks along is ``project_paths.tool_search_path`` — the same
+    one a setup reports a tool missing from, so the two cannot come to disagree."""
+    bin_dir = tmp_path / ".venv" / "bin"
+    bin_dir.mkdir(parents=True)
+    tool = bin_dir / "habit-probe"
+    tool.write_text('#!/bin/sh\nprintf \'[{"smell": "s", "issues": []}]\'\n')
+    tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
+    part = Part(name="probe", command="habit-probe", directory=tmp_path)
+    execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
+
+    assert execution.run_sensor(part) == [{"smell": "s", "issues": []}]

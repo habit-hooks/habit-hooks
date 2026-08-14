@@ -77,13 +77,27 @@ def _hint(language: str, plugins: PluginStatus) -> str:
     )
 
 
+def used_languages(project_dir: Path, files: list[str]) -> list[str]:
+    """Every language the project shows a signal for, in the table's own order.
+
+    The one answer to "what is this project written in": the hint below asks it
+    of a run's scoped files, and setting a project up asks it of the project's
+    own files, so a language init plans a plugin for is a language a run would
+    have recommended one for.
+    """
+    return [
+        signal.language
+        for signal in LANGUAGE_SIGNALS
+        if _is_used(signal, project_dir, files)
+    ]
+
+
 def recommendations(
     project_dir: Path, files: list[str], plugins: PluginStatus
 ) -> list[str]:
     """Hint lines for used languages no active plugin covers, one per language."""
     return [
-        _hint(signal.language, plugins)
-        for signal in LANGUAGE_SIGNALS
-        if signal.language not in plugins.active_languages
-        and _is_used(signal, project_dir, files)
+        _hint(language, plugins)
+        for language in used_languages(project_dir, files)
+        if language not in plugins.active_languages
     ]

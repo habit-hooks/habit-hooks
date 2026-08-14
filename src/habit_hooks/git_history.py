@@ -1,4 +1,5 @@
-"""Ask git where a branch left its base ref, and which paths differ since.
+"""Ask git where a branch left its base ref, which paths differ since, and which
+files the project keeps at all.
 
 Two callers put the same question in the same words — a scoped run
 (``scope.py``) and a lapsing snooze (``changed_files.py``) — and they differ only
@@ -102,17 +103,38 @@ def untracked_paths(project_dir: Path) -> list[str]:
 
     ``git diff`` never names an untracked path, so the file just written — the one
     most likely to carry a smell — is the file a diff-built scope cannot see.
-    ``--exclude-standard`` keeps ignored files out: a build artifact is not work
-    in progress. ``-z`` stops a non-ASCII name being quoted (and then matching
-    nothing), and ``--literal-pathspecs`` keeps a path a plain path — the same
-    guards the batched diff needs. Run inside ``project_dir``, ``ls-files`` names
-    paths relative to it, matching ``--relative`` on the diffs it unites with.
+    """
+    return _listed_files(project_dir, "--others")
+
+
+def project_files(project_dir: Path) -> list[str]:
+    """Every file this project keeps: what git tracks, plus what it has just
+    written and does not ignore.
+
+    What a project ignores is not its own, and nothing else knows that as
+    cheaply: a ``node_modules`` full of ``.d.ts`` would otherwise answer for what
+    language a project is written in. Outside a repository — and where there is
+    no git to ask — the answer is empty, the silence every question here
+    degrades to.
+    """
+    return _listed_files(project_dir, "--cached", "--others")
+
+
+def _listed_files(project_dir: Path, *selectors: str) -> list[str]:
+    """What ``git ls-files`` names under ``selectors``, in the project's own terms.
+
+    ``--exclude-standard`` keeps ignored files out: a build artifact is neither
+    work in progress nor source. ``-z`` stops a non-ASCII name being quoted (and
+    then matching nothing), and ``--literal-pathspecs`` keeps a path a plain path
+    — the same guards the batched diff needs. Run inside ``project_dir``,
+    ``ls-files`` names paths relative to it, matching ``--relative`` on the diffs
+    they unite with.
     """
     named = _stdout(
         project_dir,
         "--literal-pathspecs",
         "ls-files",
-        "--others",
+        *selectors,
         "--exclude-standard",
         "-z",
     )

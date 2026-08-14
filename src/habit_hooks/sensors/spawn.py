@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..project_paths import tool_search_path
 from .model import Part
 from .part_output import part_spawn_failure, part_timeout
 
@@ -68,12 +69,7 @@ class Spawner:
             return _bounded_output(process, stdin, self.timeout)
 
     def _path_env(self) -> dict:
-        env = dict(os.environ)
-        node = self.project_dir / "node_modules" / ".bin"
-        venv = self.project_dir / ".venv" / "bin"
-        prefix = os.pathsep.join([str(node), str(venv)])
-        env["PATH"] = prefix + os.pathsep + env.get("PATH", "")
-        return env
+        return {**os.environ, "PATH": tool_search_path(self.project_dir)}
 
 
 def _bounded_output(
