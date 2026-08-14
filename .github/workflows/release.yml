@@ -57,3 +57,34 @@ jobs:
         with:
           packages-dir: upload/
           skip-existing: true
+
+  announce:
+    # Only once every package is on PyPI: a release note pointing at a version
+    # nobody can install is worse than none.
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: This tag's section of the changelog
+        # The notes are the ones written for a reader deciding whether to
+        # upgrade, not `--generate-notes`' list of commit subjects. No section
+        # for the tag fails the job rather than announcing an empty release —
+        # the packages are published by now, so a quiet release is the only
+        # failure left that nobody would notice.
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## $version" '
+            $0 == heading { inside = 1; next }
+            inside && /^## / { exit }
+            inside { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no '## $version' section" >&2
+            exit 1
+          fi
+      - name: Announce it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
