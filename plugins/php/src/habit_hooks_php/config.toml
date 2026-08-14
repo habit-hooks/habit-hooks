@@ -1,6 +1,10 @@
 # PHP plugin defaults.
 language = "php"
-files = ["**/*.php"]
+# A project naming no `files` of its own scans what its plugins declare, so this
+# is the first run for anyone `habit-hooks init` set up. `vendor/` is where
+# Composer puts every installed package: code the project did not write and
+# cannot change.
+files = ["**/*.php", "!**/vendor/**"]
 sensors = ["phpmd"]
 transformers = []
 

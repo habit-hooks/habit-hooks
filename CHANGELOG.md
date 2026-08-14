@@ -50,6 +50,14 @@ bugs, not their setup.
   ENOENT`. It was the one detector spawned from Node, and the only one still
   missing that answer.
 
+- **A plugin's declared `files` reached into your dependencies.** A project that
+  names no `files` of its own scans what its plugins declare, and `habit-hooks
+  init` writes exactly such a config — so a bare `**/*.ts` made the first run
+  report on `node_modules`. On a small TypeScript project that was 23,573 findings
+  in other people's packages hiding the eight that were the project's own. The
+  typescript plugin now excludes `node_modules` (nested copies in a monorepo
+  too), python excludes `site-packages` and `.venv`, and php excludes `vendor`.
+
 - **Every `plugins` example listed `generic` first**, which is the wrong way round:
   the list is a lookup priority and `generic` is the fallback, so listing it first
   makes a language plugin's own guides unreachable — the python plugin ships
