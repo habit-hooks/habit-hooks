@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+Everything here is about the first ten minutes. Installing habit-hooks was the
+most frequent question the project got, and working through one user's report
+found that three of the steps they had to figure out for themselves were our
+bugs, not their setup.
+
+### Added
+
+- **A plugin declares the tools it needs and how to install them.** Each plugin's
+  config now carries a `detectors` list — the tool's name, whether it is a command
+  on `PATH` or a package read as a library, and the command that installs it. A
+  third-party plugin gets this without the core learning its vocabulary.
+  Writing it down found two requirements nothing had ever stated: the typescript
+  plugin needs `node` itself, and the python plugin needs `jq`, which its ruff
+  sensor has always piped through.
+
 ### Fixed
 
 **The first ten minutes**
@@ -18,6 +33,10 @@
   neither the README nor the error said. The config now names itself and what to
   install instead of failing with a module-loader stack trace, and the README
   lists it.
+- A `knip` nobody installed is named the way `jscpd`, `deptry` and `php` already
+  were — "install it, or disable the sensor" — instead of `Error: spawnSync knip
+  ENOENT`. It was the one detector spawned from Node, and the only one still
+  missing that answer.
 
 ### Documentation
 
