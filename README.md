@@ -93,7 +93,8 @@ brew install habit-hooks/tap/habit-hooks
 ```
 
 This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
-`habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`.
+`habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`. Homebrew is the exception: it installs
+all four plugins, so skip to step 3.
 
 > ⚠️ **Important: this on its own checks nothing about your language.** What you have now is the generic
 > plugin, which measures file length and duplication. Python, TypeScript and PHP each need their own plugin —
@@ -121,8 +122,8 @@ uvx --from "habit-hooks[typescript]" habit-hooks
 ```
 
 Alternatively, vendor a plugin's files under `.habit-hooks/<plugin>/` in your project. That works with any
-install — including one that cannot add extras (e.g. Homebrew) — because project files always override the
-installed package.
+install, because project files always override the installed package — including a plugin habit-hooks has
+no package for.
 
 ### 3. Enable the plugins in your project
 
