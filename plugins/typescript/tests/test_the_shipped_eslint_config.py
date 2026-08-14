@@ -14,6 +14,7 @@ the one that runs at all is ``test_which_eslint_config_wins.py``.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from eslint_project import SHIPPED_CONFIG, UNUSED_LOCAL_LINE, messages, project
@@ -55,3 +56,30 @@ def test_the_config_loads_from_where_it_ships(tmp_path: Path) -> None:
     reported = messages(consumer, shipped)
 
     assert [message["line"] for message in reported] == [UNUSED_LOCAL_LINE], reported
+
+
+def test_a_project_without_typescript_eslint_is_told_to_install_it(
+    tmp_path: Path,
+) -> None:
+    """This config runs only for a project that wrote none of its own, which is
+    the same project least likely to have typescript-eslint installed. eslint
+    answers that with a module-loader stack trace naming a package the reader
+    never chose; the config names itself and what to install.
+
+    Loading the config directly is the whole question — the failure is in its
+    imports, before eslint has a config to lint with.
+    """
+    consumer = tmp_path / "demo"
+    consumer.mkdir()
+
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", f"import({SHIPPED_CONFIG.as_uri()!r})"],
+        cwd=consumer,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "npm install --save-dev @typescript-eslint/parser" in result.stderr
+    assert "Cannot find module" not in result.stderr, result.stderr

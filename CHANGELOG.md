@@ -13,6 +13,18 @@
   line, instead of being shown the module loader's.
 - `ts-morph` is listed among the typescript plugin's detectors in the README,
   which never mentioned it.
+- A TypeScript project with no eslint config of its own is linted with the config
+  habit-hooks ships — which needs typescript-eslint in the project, something
+  neither the README nor the error said. The config now names itself and what to
+  install instead of failing with a module-loader stack trace, and the README
+  lists it.
+
+### Documentation
+
+- The install section is a numbered four-step sequence — install, add your
+  language's plugin, enable it, install the detectors — because skipping one is
+  the usual reason a first run reports nothing. Every detector is listed with the
+  command that installs it, php included.
 
 ## 1.1.0
 

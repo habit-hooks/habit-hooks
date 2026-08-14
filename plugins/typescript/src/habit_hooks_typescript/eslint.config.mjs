@@ -7,8 +7,27 @@ import path from "node:path";
 // ERR_MODULE_NOT_FOUND. eslint itself comes from the project's own
 // node_modules, so its parser and plugin are resolved from the project too.
 const fromProject = createRequire(path.join(process.cwd(), "eslint.config.mjs"));
-const tseslint = fromProject("@typescript-eslint/eslint-plugin");
-const tsparser = fromProject("@typescript-eslint/parser");
+
+// This config runs only because the project has written none of its own, so the
+// project has no reason to have typescript-eslint either — and eslint's own
+// answer for that is a module-loader stack trace naming a package the reader
+// never asked for. Say which config is running and what it needs instead.
+const MISSING_TYPESCRIPT_ESLINT =
+  "habit-hooks is linting with its own eslint config, because this project has " +
+  "none. That config needs typescript-eslint in the project: npm install " +
+  "--save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugin";
+
+function required(name) {
+  try {
+    return fromProject(name);
+  } catch (error) {
+    if (error.code !== "MODULE_NOT_FOUND") throw error;
+    throw new Error(MISSING_TYPESCRIPT_ESLINT);
+  }
+}
+
+const tseslint = required("@typescript-eslint/eslint-plugin");
+const tsparser = required("@typescript-eslint/parser");
 
 export default [
   {

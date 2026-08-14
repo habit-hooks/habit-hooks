@@ -53,6 +53,17 @@ smell, never by which tool reported it.
 
 ## Install
 
+Setting habit-hooks up takes four steps. A run that reports nothing is almost always a skipped one:
+
+1. **Install habit-hooks** — you get the core and the generic, language-agnostic plugin.
+2. **Install the plugin for your language** — python, typescript and php ship as separate packages.
+3. **Enable the plugins** by naming them in `.habit-hooks/config.toml`. Installing one does not switch it on.
+4. **Install the detectors** the plugins you enabled use — `jscpd`, `ruff`, `eslint` and friends.
+
+Steps 3 and 4 are per project.
+
+### 1. Install habit-hooks
+
 habit-hooks is a Python package (requires Python 3.11+). Install it with `uv`, `pip`, or Homebrew:
 
 ```sh
@@ -67,6 +78,12 @@ brew install habit-hooks/tap/habit-hooks
 
 This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
 `habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`.
+
+> ⚠️ **Important: this on its own checks nothing about your language.** What you have now is the generic
+> plugin, which measures file length and duplication. Python, TypeScript and PHP each need their own plugin —
+> installed (step 2) *and* enabled (step 3).
+
+### 2. Install the plugin for your language
 
 The three language plugins are **opt-in** via extras:
 
@@ -87,25 +104,44 @@ Alternatively, vendor a plugin's files under `.habit-hooks/<plugin>/` in your pr
 install — including one that cannot add extras (e.g. Homebrew) — because project files always override the
 installed package.
 
+### 3. Enable the plugins in your project
+
 **Installing a plugin does not switch it on.** However it got onto the machine, a plugin runs only once your
-`.habit-hooks/config.toml` names it in `plugins` (see [Quick start](#quick-start) below) — so an install is
-always two steps.
+`.habit-hooks/config.toml` names it in `plugins`:
 
-The detectors themselves are **not** bundled — each plugin shells out to the real tool. Install the ones the
-plugins you enable need:
+```toml
+# .habit-hooks/config.toml
+plugins = ["generic", "typescript"]
+```
 
-- **generic** plugin: [`jscpd`](https://github.com/kucherenko/jscpd) (the line counter is built in)
-- **python** plugin: [`ruff`](https://docs.astral.sh/ruff/) and [`deptry`](https://github.com/fpgmaas/deptry)
-- **typescript** plugin: [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/),
-  [`ts-morph`](https://ts-morph.com/) (the comment sensor reads it as a library, so it belongs in the
-  project's `devDependencies`, not on `PATH`), and `jq`
+The list is ordered, and the order is a priority — see [Plugins](#plugins).
+
+### 4. Install the detectors
+
+The detectors are **not** bundled: a plugin spawns the real tool, or reads it as a library. Install the ones
+the plugins you enabled need.
+
+| Plugin | Detectors | Install |
+| ------ | --------- | ------- |
+| **generic** | [`jscpd`](https://github.com/kucherenko/jscpd) — the line counter is built in | `npm install --save-dev jscpd` |
+| **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry) | `pip install ruff deptry` |
+| **typescript** | [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), [`ts-morph`](https://ts-morph.com/), `jq` | `npm install --save-dev eslint knip ts-morph` (`jq` from your system package manager) |
+| **php** | `php` — [phpmd](https://phpmd.org/) ships bundled as a phar | nothing beyond a PHP runtime |
+
+`ts-morph` is read as a library rather than spawned, so it belongs in your `devDependencies` — being on `PATH`
+does nothing for it.
+
+> If your TypeScript project has **no eslint config of its own**, habit-hooks lints with the config it ships,
+> which needs `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` in your project too:
+> `npm install --save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugin`. A project with its own
+> `eslint.config.js` needs neither — yours always wins.
 
 `habit-sensors` prepends `node_modules/.bin` and `.venv/bin` to `PATH`, so a project's locally-installed tools are
 found without being on the global `PATH`.
 
 ## Quick start
 
-Create a `.habit-hooks/` directory in your project with a `config.toml` that lists the plugins to run:
+With the four install steps done, a Python project's config reads:
 
 ```toml
 # .habit-hooks/config.toml
@@ -113,7 +149,9 @@ plugins = ["generic", "python"]
 files = ["**/*.py"]
 ```
 
-Then run habit-hooks against the files changed on your branch:
+`files` is optional — name none and the enabled plugins' own patterns are used.
+
+Run habit-hooks against the files changed on your branch:
 
 ```sh
 habit-hooks
