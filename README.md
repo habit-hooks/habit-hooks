@@ -96,7 +96,9 @@ plugins you enable need:
 
 - **generic** plugin: [`jscpd`](https://github.com/kucherenko/jscpd) (the line counter is built in)
 - **python** plugin: [`ruff`](https://docs.astral.sh/ruff/) and [`deptry`](https://github.com/fpgmaas/deptry)
-- **typescript** plugin: [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), and `jq`
+- **typescript** plugin: [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/),
+  [`ts-morph`](https://ts-morph.com/) (the comment sensor reads it as a library, so it belongs in the
+  project's `devDependencies`, not on `PATH`), and `jq`
 
 `habit-sensors` prepends `node_modules/.bin` and `.venv/bin` to `PATH`, so a project's locally-installed tools are
 found without being on the global `PATH`.

@@ -1,4 +1,21 @@
-const { Project, SyntaxKind } = require("ts-morph");
+const { createRequire } = require("node:module");
+const path = require("node:path");
+
+const MISSING_TS_MORPH =
+  "ts-morph is not installed in this project — npm install --save-dev ts-morph";
+
+// Node resolves a bare `require` from THIS file upwards, and this file ships
+// wherever habit-hooks is installed — for a consumer, a Python site-packages
+// tree with no node_modules anywhere above it. ts-morph is the project's own
+// dependency, the same place eslint and knip come from, so it is resolved from
+// the project (as `eslint.config.mjs` resolves its parser and plugin).
+function tsMorphFromProject() {
+  return createRequire(path.join(process.cwd(), "comment.cjs"))("ts-morph");
+}
+
+function isAbsent(error) {
+  return error.code === "MODULE_NOT_FOUND";
+}
 
 const MAX_SINGLE_LINE_CHARS = 10;
 const MAX_BLOCK_CHARS = 15;
@@ -40,7 +57,7 @@ function issue(file, comment, kind) {
   };
 }
 
-function commentsInFile(source) {
+function commentsInFile(source, SyntaxKind) {
   const file = source.getFilePath();
   const singles = source
     .getDescendantsOfKind(SyntaxKind.SingleLineCommentTrivia)
@@ -57,10 +74,12 @@ function commentsInFile(source) {
   return [...singles, ...blocks, ...docs];
 }
 
-function findings(files) {
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
+function findings(tsMorph, files) {
+  const project = new tsMorph.Project({ skipAddingFilesFromTsConfig: true });
   project.addSourceFilesAtPaths(files);
-  const issues = project.getSourceFiles().flatMap(commentsInFile);
+  const issues = project
+    .getSourceFiles()
+    .flatMap((source) => commentsInFile(source, tsMorph.SyntaxKind));
   if (issues.length === 0) return [];
   return [{ smell: "non-essential-comment", details: {}, issues }];
 }
@@ -71,7 +90,19 @@ function main() {
     process.stdout.write("[]");
     return 0;
   }
-  process.stdout.write(JSON.stringify(findings(files)));
+  let tsMorph;
+  try {
+    tsMorph = tsMorphFromProject();
+  } catch (error) {
+    // The runner quotes a failed sensor's own stderr back, so a dependency
+    // nobody installed reads as one actionable line rather than a stack trace.
+    // Anything else — a ts-morph that is present and broken — keeps its own
+    // error, which says more than a diagnosis that would be wrong.
+    if (!isAbsent(error)) throw error;
+    process.stderr.write(`${MISSING_TS_MORPH}\n`);
+    return 1;
+  }
+  process.stdout.write(JSON.stringify(findings(tsMorph, files)));
   return 0;
 }
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+**The first ten minutes**
+
+- The typescript plugin's comment sensor now looks for `ts-morph` in your project
+  rather than beside itself, so it no longer dies with a Node stack trace on every
+  install that puts habit-hooks outside your repository — `pip`, `uv tool` and
+  Homebrew alike. A project that has not installed `ts-morph` is told to, in one
+  line, instead of being shown the module loader's.
+- `ts-morph` is listed among the typescript plugin's detectors in the README,
+  which never mentioned it.
+
 ## 1.1.0
 
 Nearly every fix here is the same bug in a different place: something failed, and

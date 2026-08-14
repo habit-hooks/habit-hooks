@@ -16,7 +16,8 @@ import subprocess
 from pathlib import Path
 
 PIPE_BUFFER_BYTES = 64 * 1024
-SENSORS = Path(__file__).parents[1] / "src" / "habit_hooks_typescript" / "sensors"
+PLUGIN = Path(__file__).parents[1]
+SENSORS = PLUGIN / "src" / "habit_hooks_typescript" / "sensors"
 
 # Each comment yields ~200 bytes of JSON, so this clears the buffer several times
 # over — a fixture that stays under it passes whether or not the bug is present.
@@ -38,6 +39,9 @@ def test_comment_sensor_emits_complete_json_through_a_pipe(tmp_path: Path) -> No
 
     result = subprocess.run(
         ["node", str(SENSORS / "comment.cjs"), str(source)],
+        # The helper resolves ts-morph from the directory it is run in, as it
+        # does in a consumer project, so the run needs one that has it.
+        cwd=PLUGIN,
         capture_output=True,
         text=True,
         check=False,
