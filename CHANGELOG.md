@@ -50,6 +50,14 @@ bugs, not their setup.
   ENOENT`. It was the one detector spawned from Node, and the only one still
   missing that answer.
 
+- **Every `plugins` example listed `generic` first**, which is the wrong way round:
+  the list is a lookup priority and `generic` is the fallback, so listing it first
+  makes a language plugin's own guides unreachable — the python plugin ships
+  `high-complexity` and `swallowed-exception` guides exactly because those want a
+  Python answer, and neither could ever fire. The prose always said "falling back
+  to `generic` last"; only the examples disagreed. `habit-hooks init` writes the
+  right order.
+
 - **Naming two `uv tool install` extras one after another loses the first.** Each
   one rebuilds the environment rather than adding to it, so following the README's
   `[python]` line and then its `[typescript]` line left typescript alone — and a

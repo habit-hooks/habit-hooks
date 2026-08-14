@@ -161,7 +161,7 @@ python = "habit_hooks_python"
 A project turns installed plugins on by listing them, in order, in its config:
 
 ```toml
-plugins = ["generic", "python"]
+plugins = ["python", "generic"]
 ```
 
 The `plugins` list **selects and orders** plugins among those installed; a name

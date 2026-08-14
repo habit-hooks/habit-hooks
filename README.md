@@ -131,7 +131,7 @@ installed package.
 
 ```toml
 # .habit-hooks/config.toml
-plugins = ["generic", "typescript"]
+plugins = ["typescript", "generic"]
 ```
 
 The list is ordered, and the order is a priority — see [Plugins](#plugins).
@@ -167,7 +167,7 @@ found without being on the global `PATH`.
 
 ```toml
 # .habit-hooks/config.toml
-plugins = ["generic", "python"]
+plugins = ["python", "generic"]
 files = ["**/*.py"]
 ```
 
@@ -224,13 +224,18 @@ Everything language- or tool-specific lives in a **plugin** — a self-contained
 A project turns plugins on by listing them, in order, in `.habit-hooks/config.toml`:
 
 ```toml
-plugins = ["generic", "python"]
+plugins = ["python", "generic"]
 ```
 
 That list is **ordered, and the order is a priority.** It is the order sensors run and concatenate, and the order
 the mapper looks up guides: to coach a finding the mapper walks the plugins in turn and takes the first one that
 has a guide for that smell and language, falling back to `generic` last. So an earlier plugin overrides a later
 one for the same smell.
+
+**Put your language's plugin before `generic`**, which is what `habit-hooks init` writes. The other way round,
+`generic`'s guide wins for every smell it covers — and the python plugin ships `high-complexity` and
+`swallowed-exception` guides precisely because those want a Python answer rather than a general one, so listing
+`generic` first makes them unreachable.
 
 A plugin is not a language — it *declares* the language it speaks in its `config.toml`, and the runner stamps that
 onto the plugin's findings. So several plugins can speak the same language using different tools, and the order
@@ -278,7 +283,7 @@ One file is read by both stages, each picking out the keys it cares about:
 ### Root keys
 
 ```toml
-plugins = ["generic", "python"]   # ordered = lookup priority; drop "generic" to disable it
+plugins = ["python", "generic"]   # ordered = lookup priority; generic is the fallback, so it goes last
 transformers = ["snooze"]         # applied to the whole run's findings, in order
 files = ["**/*.py"]               # discovery globs (pathspec / gitignore), in every scope mode
 ```
