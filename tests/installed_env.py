@@ -45,6 +45,13 @@ def require_tool(name: str) -> str:
     return tool
 
 
+def require_pmd() -> str:
+    pmd = shutil.which("pmd")
+    if pmd is None:
+        pytest.skip("pmd is not on PATH")
+    return pmd
+
+
 def _uv_run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [require_uv(), *args], check=True, capture_output=True, text=True

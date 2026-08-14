@@ -72,7 +72,7 @@ nothing and only reports what is missing, so it also answers "why is this run no
 Setting habit-hooks up takes four steps. A run that reports nothing is almost always a skipped one:
 
 1. **Install habit-hooks** — you get the core and the generic, language-agnostic plugin.
-2. **Install the plugin for your language** — python, typescript and php ship as separate packages.
+2. **Install the plugin for your language** — python, typescript, php and java ship as separate packages.
 3. **Enable the plugins** by naming them in `.habit-hooks/config.toml`. Installing one does not switch it on.
 4. **Install the detectors** the plugins you enabled use — `jscpd`, `ruff`, `eslint` and friends.
 
@@ -97,17 +97,17 @@ This gives you **core plus the generic (language-agnostic) plugin** and installs
 all four plugins, so skip to step 3.
 
 > ⚠️ **Important: this on its own checks nothing about your language.** What you have now is the generic
-> plugin, which measures file length and duplication. Python, TypeScript and PHP each need their own plugin —
-> installed (step 2) *and* enabled (step 3).
+> plugin, which measures file length and duplication. Python, TypeScript, PHP and Java each need their own
+> plugin — installed (step 2) *and* enabled (step 3).
 
 ### 2. Install the plugin for your language
 
-The three language plugins are **opt-in** via extras:
+The four language plugins are **opt-in** via extras:
 
 ```sh
 uv tool install "habit-hooks[typescript]"          # one language
 uv tool install "habit-hooks[python,typescript]"   # several — name them in one command
-uv tool install "habit-hooks[all]"                 # all three
+uv tool install "habit-hooks[all]"                 # all four
 ```
 
 > ⚠️ Each `uv tool install` **rebuilds** the environment rather than adding to it, so a second one naming a
@@ -242,7 +242,7 @@ A plugin is not a language — it *declares* the language it speaks in its `conf
 onto the plugin's findings. So several plugins can speak the same language using different tools, and the order
 decides which one's guide wins. `generic` is listed explicitly like any other plugin, so a project can drop it.
 
-The four plugins that ship:
+The five plugins that ship:
 
 | Plugin | Language | Sensors | Tools used |
 |--------|----------|---------|------------|
@@ -250,6 +250,7 @@ The four plugins that ship:
 | `python` | `python` | `ruff`, `deptry` | ruff, deptry |
 | `typescript` | `typescript` | `eslint`, `knip`, `comment` | eslint, knip, ts-morph |
 | `php` | `php` | `phpmd` | phpmd |
+| `java` | `java` | `pmd` | pmd |
 
 ## Overrides: tune without forking
 

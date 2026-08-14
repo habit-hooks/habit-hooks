@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="habit-hooks"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Habit-hooks structural smell rules. Reached for only when the
+  project names no PMD ruleset of its own; a project's own ruleset wins.</description>
+  <rule ref="category/java/design.xml/ExcessiveParameterList">
+    <properties><property name="minimum" value="4"/></properties>
+  </rule>
+  <rule ref="category/java/design.xml/CyclomaticComplexity">
+    <properties><property name="methodReportLevel" value="10"/></properties>
+  </rule>
+  <rule ref="category/java/design.xml/NcssCount">
+    <properties><property name="methodReportLevel" value="12"/></properties>
+  </rule>
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+  <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+  <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
+</ruleset>

@@ -20,10 +20,12 @@ dependencies = [
 python = ["habit-hooks-python~=1.2"]
 typescript = ["habit-hooks-typescript~=1.2"]
 php = ["habit-hooks-php~=1.2"]
+java = ["habit-hooks-java~=1.2"]
 all = [
     "habit-hooks-python~=1.2",
     "habit-hooks-typescript~=1.2",
     "habit-hooks-php~=1.2",
+    "habit-hooks-java~=1.2",
 ]
 
 [project.scripts]
@@ -47,6 +49,7 @@ habit-hooks-generic = { workspace = true }
 habit-hooks-python = { workspace = true }
 habit-hooks-typescript = { workspace = true }
 habit-hooks-php = { workspace = true }
+habit-hooks-java = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -58,6 +61,7 @@ dev = [
     "habit-hooks-python",
     "habit-hooks-typescript",
     "habit-hooks-php",
+    "habit-hooks-java",
 ]
 
 [tool.pytest.ini_options]
@@ -79,6 +83,7 @@ DEP002 = [
     "habit-hooks-python",
     "habit-hooks-typescript",
     "habit-hooks-php",
+    "habit-hooks-java",
 ]
 
 [tool.ruff.lint]

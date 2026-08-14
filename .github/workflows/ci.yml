@@ -37,6 +37,12 @@ jobs:
         run: |
           corepack enable pnpm
           pnpm install --frozen-lockfile
+      - name: Install pmd
+        # The java plugin's sensor and its spec cases need the real PMD on PATH.
+        run: |
+          curl -fsSLo /tmp/pmd.zip https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.26.0/pmd-dist-7.26.0-bin.zip
+          unzip -q /tmp/pmd.zip -d /tmp/pmd
+          echo "/tmp/pmd/pmd-bin-7.26.0/bin" >> "$GITHUB_PATH"
       - name: Test
         run: uv run pytest
       # Dogfooding: habit-hooks gates its own source. Without this the tool can
