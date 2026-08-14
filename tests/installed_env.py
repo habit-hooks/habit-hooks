@@ -7,7 +7,9 @@ plugins located by walking a sibling directory, package data that never made it
 into the wheel, a helper invoked as bare ``python``.
 
 The tests that assert what such a run must produce live in
-``test_installed_wheel_smoke.py``; this module only gets them an install.
+``test_installed_wheel_smoke.py`` (the core finding its plugins) and
+``test_installed_plugin_packaging.py`` (each plugin bringing what its sensors
+need); this module only gets them an install.
 """
 
 from __future__ import annotations
@@ -30,11 +32,17 @@ def require_uv() -> str:
     return uv
 
 
-def require_php() -> str:
-    php = shutil.which("php")
-    if php is None:
-        pytest.skip("php is not on PATH")
-    return php
+def require_tool(name: str) -> str:
+    """Skip a case that wraps a third-party tool this machine has not got.
+
+    A plugin's packaging can only be proved through the tool it wraps, and a
+    machine without it can say nothing either way — so the case steps aside
+    rather than reporting a packaging failure it did not observe.
+    """
+    tool = shutil.which(name)
+    if tool is None:
+        pytest.skip(f"{name} is not on PATH")
+    return tool
 
 
 def _uv_run(*args: str) -> subprocess.CompletedProcess[str]:
