@@ -30,11 +30,25 @@ def _load(project_dir: Path) -> Config:
 
 
 def test_plugin_files_merge_in_plugins_order_without_repeating(tmp_path: Path) -> None:
-    """Order is load-bearing: a later negation must be able to undo an earlier glob."""
+    """Order is load-bearing: pathspec reads the list in order."""
     project = _project(tmp_path, 'plugins = ["alpha", "beta"]')
     _plugin(project, "alpha", 'files = ["src/**", "shared/**"]')
     _plugin(project, "beta", 'files = ["shared/**", "lib/**"]')
     assert _load(project).files == ["src/**", "shared/**", "lib/**"]
+
+
+def test_one_plugins_exclusion_survives_another_plugins_globs(tmp_path: Path) -> None:
+    """A positive glob names a language; an exclusion names a directory nobody's
+    language lives in. pathspec is last-match-wins, so an exclusion left among the
+    positives binds only what precedes it — and the next plugin's `**/*.py` hands
+    back the dependency the plugin before it just excluded (`node_modules` ships
+    Python: node-gyp alone has 58 files). Every exclusion goes last, so which
+    plugin the project happened to list first cannot decide what is scanned."""
+    project = _project(tmp_path, 'plugins = ["alpha", "beta"]')
+    _plugin(project, "alpha", 'files = ["**/*.ts", "!**/node_modules/**"]')
+    _plugin(project, "beta", 'files = ["**/*.py"]')
+
+    assert _load(project).files == ["**/*.ts", "**/*.py", "!**/node_modules/**"]
 
 
 def test_the_projects_own_files_replace_the_plugins(tmp_path: Path) -> None:

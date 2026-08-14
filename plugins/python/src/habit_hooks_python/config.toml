@@ -4,7 +4,7 @@ language = "python"
 # is the first run for anyone `habit-hooks init` set up. An installed package is
 # never the project's source; `site-packages` is where one lands whatever the
 # environment is called, so it answers for a `venv/` as well as a `.venv/`.
-files = ["**/*.py", "!**/site-packages/**", "!**/.venv/**"]
+files = ["**/*.py", "!**/site-packages/**", "!**/.venv/**", "!**/venv/**"]
 sensors = ["ruff", "deptry"]
 transformers = []
 

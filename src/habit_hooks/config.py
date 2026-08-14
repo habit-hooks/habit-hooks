@@ -90,18 +90,30 @@ def _plugin_configs(plugins: list[str], project_dir: Path) -> list[dict]:
 
 
 def _plugin_files(configs: list[dict]) -> list[str]:
-    """Every active plugin's declared source globs, unioned in ``plugins`` order.
+    """Every active plugin's declared source globs, unioned in ``plugins`` order,
+    with every exclusion last.
 
     The union rather than the first hit: a project running ``python`` and
-    ``typescript`` considers both languages' files source. Order is kept because
-    pathspec reads the list in order, so a later pattern can negate an earlier
-    one. A plugin that declares no ``files`` (``generic``) is stating no opinion,
-    not "everything".
+    ``typescript`` considers both languages' files source. A plugin that declares
+    no ``files`` (``generic``) is stating no opinion, not "everything".
+
+    The two kinds are not alike, so they cannot share an order. A positive glob
+    is a **language** fact and keeps its plugin's place; an exclusion is a
+    **directory** fact — nobody's language lives in `node_modules` — and applies
+    to the whole union. pathspec is last-match-wins, so an exclusion left where
+    its plugin declared it binds only the globs before it: with typescript listed
+    first, python's `**/*.py` handed straight back the `node_modules` typescript
+    had just excluded, and node-gyp alone ships 58 Python files into it. Which
+    plugin a project happened to list first must not decide what is scanned.
     """
-    globs: list[str] = []
+    positive: list[str] = []
+    excluded: list[str] = []
     for config in configs:
-        globs.extend(glob for glob in config.get("files", []) if glob not in globs)
-    return globs
+        for glob in config.get("files", []):
+            kind = excluded if glob.startswith("!") else positive
+            if glob not in kind:
+                kind.append(glob)
+    return positive + excluded
 
 
 def _plugin_languages(plugins: list[str], configs: list[dict]) -> dict[str, str]:

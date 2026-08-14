@@ -144,11 +144,21 @@ order — so a project running `python` and `typescript` scans both languages
 without configuring anything:
 
 ```toml
-# habit_hooks_python/config.toml   ->  files = ["**/*.py"]
-# habit_hooks_typescript/config.toml -> files = ["**/*.ts", "**/*.tsx"]
+# habit_hooks_python/config.toml
+#   files = ["**/*.py", "!**/site-packages/**", "!**/.venv/**", "!**/venv/**"]
+# habit_hooks_typescript/config.toml
+#   files = ["**/*.ts", "**/*.tsx", "!**/node_modules/**"]
 
-plugins = ["python", "typescript"]   # scans **/*.py, **/*.ts, **/*.tsx
+plugins = ["python", "typescript"]   # scans both languages, neither's dependencies
 ```
+
+A plugin's exclusions apply to the whole union, not just to the globs its own
+plugin declared. They are collected after every positive glob for that reason:
+pathspec is last-match-wins, so an exclusion left in place would bind only what
+preceded it, and the next plugin's `**/*.py` would hand back the `node_modules`
+the one before it had just excluded — `node_modules` ships Python, and node-gyp
+alone puts 58 files there. Which plugin you list first decides guide priority, and
+must not also decide what is scanned.
 
 Two rules cover the rest:
 
@@ -228,7 +238,7 @@ root keys — it describes the plugin, not the whole run:
 ```toml
 # habit_hooks_python/config.toml
 language = "python"
-sensors = ["ruff", "deptry", "line-count"]
+sensors = ["ruff", "deptry"]
 transformers = []
 detectors = [
   { name = "ruff", kind = "command", install = "pip install ruff" },

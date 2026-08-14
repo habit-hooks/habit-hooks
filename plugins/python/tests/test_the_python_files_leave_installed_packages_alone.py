@@ -23,7 +23,11 @@ PROJECT_SOURCE = ("src/billing.py", "tests/test_billing.py", "conftest.py")
 DEPENDENCIES = (
     ".venv/lib/python3.12/site-packages/attrs/__init__.py",
     "venv/lib/python3.11/site-packages/jinja2/environment.py",
+    ".tox/py312/lib/python3.12/site-packages/pytest/__init__.py",
+    # Not under site-packages, so only the environment's own name excludes these
+    # — and it is spelled both ways about equally often.
     ".venv/bin/activate_this.py",
+    "venv/bin/activate_this.py",
 )
 
 
