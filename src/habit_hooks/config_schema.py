@@ -19,17 +19,25 @@ a missing ``]`` as a smell in the code rather than a typo in a config (#114).
 The rejection names no binary, because all three console scripts load a config
 through here and one hardcoded name sends the other two's users to the wrong
 tool; ``cli.run_console`` names it when it prints it.
+
+One key has a vocabulary of its own and holds it in
+:mod:`habit_hooks.detectors`: what a plugin's ``detectors`` may say, refusals
+included, moved out whole under this file's own 200-line gate.
 """
 
 from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from attrs import define, field, fields
 
 from .catalogue import UNCOACHED_POLICIES, UNCOACHED_SUGGEST
 from .cli import ConfigError
+
+if TYPE_CHECKING:  # `detectors` imports the key refusals below, so this way only.
+    from .detectors import Detector
 
 
 @define
@@ -73,13 +81,19 @@ class Config:
     # reads it to prefer, for a finding of a given language, a plugin that speaks
     # it over the languageless fallback. Populated by the loader, never from TOML.
     plugin_languages: dict[str, str] = field(factory=dict, metadata={"internal": True})
+    # Every active plugin's declared detectors. A plugin-only key: a project
+    # names the plugins it runs, and what each of those needs installed is the
+    # plugin's to declare. Populated by the loader, never from TOML.
+    plugin_detectors: list[Detector] = field(factory=list, metadata={"internal": True})
 
 
 # The keys a plugin ``config.toml`` may set: ``sensors``/``transformers``/
-# ``language`` read in ``sensors/loader.py``; ``files``/``runners``/``language``
-# read by the config loader. Unlike the project config these are not one attrs
-# type, so the allowed set is named here.
-PLUGIN_CONFIG_KEYS = frozenset({"sensors", "transformers", "language", "files", "runners"})
+# ``language`` read in ``sensors/loader.py``; ``files``/``runners``/``language``/
+# ``detectors`` read by the config loader. Unlike the project config these are
+# not one attrs type, so the allowed set is named here.
+PLUGIN_CONFIG_KEYS = frozenset(
+    {"sensors", "transformers", "language", "files", "runners", "detectors"}
+)
 
 
 def read_toml(path: Path) -> dict:
@@ -102,15 +116,19 @@ def settable(cls: type) -> set[str]:
     return {f.name for f in fields(cls) if f.metadata.get("internal") is not True}
 
 
+def named_keys(keys: list[str]) -> str:
+    """``keys`` quoted behind the right one of "key"/"keys", for a refusal."""
+    label = "key" if len(keys) == 1 else "keys"
+    return f"{label} {', '.join(repr(key) for key in keys)}"
+
+
 def reject_unknown(allowed: frozenset[str] | set[str], data: dict, where: str) -> None:
     """Fail clearly on any key in ``data`` that ``where`` does not consume."""
     unknown = sorted(key for key in data if key not in allowed)
     if not unknown:
         return
-    label = "key" if len(unknown) == 1 else "keys"
-    names = ", ".join(repr(key) for key in unknown)
     raise ConfigError(
-        f"unknown config {label} {names} in {where}; "
+        f"unknown config {named_keys(unknown)} in {where}; "
         f"known keys: {', '.join(sorted(allowed))}"
     )
 

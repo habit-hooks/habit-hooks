@@ -1,9 +1,10 @@
 """Find, merge and resolve the TOML config across the resolution chain.
 
 What a config *is* — the shape of each section, and the ``ConfigError`` that
-refuses anything else — is :mod:`habit_hooks.config_schema`; this module is the
-loading around it: the file it reads, the plugin defaults it merges, and the
-order they win in.
+refuses anything else — is :mod:`habit_hooks.config_schema` (and, for the
+``detectors`` key, :mod:`habit_hooks.detectors`); this module is the loading
+around it: the file it reads, the plugin defaults it merges, and the order they
+win in.
 
 Loading takes no argument for the running binary's name — a project's own
 transformer is a separate process, and importing ``load_config`` is the only way
@@ -26,6 +27,7 @@ from .config_schema import (
     reject_unknown_uncoached_value,
     settable,
 )
+from .detectors import Detector, reject_invalid_detectors
 from .resolve import Resolver
 
 
@@ -61,19 +63,28 @@ def _read_toml(path: Path) -> dict:
     return read_toml(path) if path.is_file() else {}
 
 
+def _plugin_config_label(plugin: str) -> str:
+    """How a refusal names the config it is about: the plugin's, not a path.
+
+    A plugin config is package data or a ``.habit-hooks/<plugin>/`` override, so
+    the plugin is what the reader knows it by.
+    """
+    return f"the {plugin!r} plugin config"
+
+
 def _plugin_configs(plugins: list[str], project_dir: Path) -> list[dict]:
     """Each active plugin's ``config.toml`` dict, in ``plugins`` order.
 
-    The one read of the plugin-node configs both defaulted root keys share:
-    ``files`` and ``[runners]`` are the keys a plugin supplies a default for, and
-    both merge across the override chain the resolver walks.
+    The one read of the plugin-node configs every plugin-supplied root key
+    shares: ``files``, ``[runners]`` and ``detectors`` all merge across the
+    override chain the resolver walks.
     """
     resolver = Resolver.discover(project_dir)
     configs = []
     for plugin in plugins:
         path = resolver.in_plugin(plugin, "config.toml")
         data = _read_toml(path) if path else {}
-        reject_unknown(PLUGIN_CONFIG_KEYS, data, f"the {plugin!r} plugin config")
+        reject_unknown(PLUGIN_CONFIG_KEYS, data, _plugin_config_label(plugin))
         configs.append(data)
     return configs
 
@@ -120,13 +131,33 @@ def _plugin_runners(configs: list[dict]) -> dict[str, str]:
     return runners
 
 
+def _plugin_detectors(plugins: list[str], configs: list[dict]) -> list[Detector]:
+    """Every active plugin's declared detectors, in ``plugins`` order.
+
+    Deduplicated by kind and name: two languages may need the same tool, and
+    being told to install it twice is being told nothing twice. The first plugin
+    to name it decides how it is installed, as it does for a runner. The kind is
+    part of the identity because it is the question being asked — a package
+    ``node`` can resolve is not answered by a binary of that name on ``PATH``.
+    """
+    declared: dict[tuple[str, str], Detector] = {}
+    for plugin, config in zip(plugins, configs):
+        entries = config.get("detectors", [])
+        reject_invalid_detectors(entries, _plugin_config_label(plugin))
+        for entry in entries:
+            detector = Detector(**entry)
+            declared.setdefault((detector.kind, detector.name), detector)
+    return list(declared.values())
+
+
 def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     """Merge the project's ``.habit-hooks/config.toml`` over the plugin defaults.
 
     ``files`` and ``[runners]`` are the root keys a plugin supplies a default for:
     a project that names no ``files`` inherits what its plugins call source (and
     naming its own replaces them wholesale), and plugin-shipped runners register
-    under the project's, which win per extension.
+    under the project's, which win per extension. ``detectors`` has no project
+    half at all — what a plugin needs installed is the plugin's to say.
     """
     path = config_path or project_dir / ".habit-hooks" / "config.toml"
     config = _build_config(_read_toml(path))
@@ -135,4 +166,5 @@ def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
         config.files = _plugin_files(plugin_configs) or None
     config.runners = {**_plugin_runners(plugin_configs), **config.runners}
     config.plugin_languages = _plugin_languages(config.plugins, plugin_configs)
+    config.plugin_detectors = _plugin_detectors(config.plugins, plugin_configs)
     return config

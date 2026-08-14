@@ -1,1 +1,6 @@
 sensors = ["line-count", "jscpd"]
+
+# The line counter is built in; jscpd is the only tool this plugin spawns.
+detectors = [
+  { name = "jscpd", kind = "command", install = "npm install --save-dev jscpd" },
+]

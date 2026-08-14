@@ -142,6 +142,15 @@ facts, so "what keys does `Config` accept?" was answered in two files and
 Under size pressure again, move a whole concern across this line rather than
 drawing a new one.
 
+`detectors.py` is that move, made once (agent decision): the `Detector` type, the
+kinds, and every refusal a `detectors` entry can earn, out of `config_schema.py`
+whole — type *and* refusals, so "what may a detector say?" keeps one answer in
+one file. It is the one config key with a vocabulary of its own, and it was a
+third of the file. The shared key refusals (`reject_unknown`, `named_keys`) stay
+in `config_schema.py` and are imported from `detectors.py`; that is why `Config`
+imports `Detector` back under `TYPE_CHECKING` — annotation only, and the runtime
+dependency stays one-way (`config` → `detectors` → `config_schema`).
+
 ### `load_config` names no binary; `run_console` does (human-requested by Ivett, issue #109)
 
 `config.load_config(project_dir, config_path=None)` takes no argument for the

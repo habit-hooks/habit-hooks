@@ -3,3 +3,10 @@ language = "python"
 files = ["**/*.py"]
 sensors = ["ruff", "deptry"]
 transformers = []
+
+# The ruff sensor pipes its JSON through jq, so a python-only project needs it.
+detectors = [
+  { name = "ruff", kind = "command", install = "pip install ruff" },
+  { name = "deptry", kind = "command", install = "pip install deptry" },
+  { name = "jq", kind = "command", install = "brew install jq" },
+]

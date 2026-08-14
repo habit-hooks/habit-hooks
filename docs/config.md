@@ -223,13 +223,23 @@ root keys — it describes the plugin, not the whole run:
 | `language`     | The language this plugin **declares**. A plugin is not a language: its name need not match, several plugins can declare the same language, and the runner stamps this onto the plugin's findings. `generic` declares none. |
 | `sensors`      | An ordered list of the sensor names the plugin runs. |
 | `transformers` | An ordered list of the plugin's own transformers, applied to its sensors' concatenated findings before the result joins the larger run. |
+| `detectors`    | The external tools this plugin's sensors reach for, each a `{ name, kind, install }` table: what to look for, how to look for it (`command` — on `PATH`; `node-module` — a package `node` resolves from the project, for one read as a library rather than spawned), and the command that installs it. A project never declares these: it names the plugins it runs, and what each of those needs installed is the plugin's to say. |
 
 ```toml
 # habit_hooks_python/config.toml
 language = "python"
 sensors = ["ruff", "deptry", "line-count"]
 transformers = []
+detectors = [
+  { name = "ruff", kind = "command", install = "pip install ruff" },
+]
 ```
+
+Every field of a detector is required, and required to say something: an entry
+that is not a table, one missing a field, or one whose `name` or `install` is
+empty is **rejected** (exit 2) quoting the detector it is about — a tool named
+with no way to install it leaves the reader to go and find it, which is the
+whole thing a detector exists to avoid.
 
 ## `[sensors.<name>]`
 

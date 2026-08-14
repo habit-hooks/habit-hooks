@@ -3,3 +3,8 @@ language = "php"
 files = ["**/*.php"]
 sensors = ["phpmd"]
 transformers = []
+
+# phpmd ships bundled as a phar, so a PHP runtime is the whole requirement.
+detectors = [
+  { name = "php", kind = "command", install = "brew install php" },
+]

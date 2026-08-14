@@ -1,8 +1,10 @@
-"""Unit tests for the TOML config loader.
+"""Unit tests for loading a project's own TOML config.
 
-These pin the loader's behaviour: defaults, nested construction, and merging the
-active plugins' own contributions. Refusing a config — an unknown key, an unknown
-value, a file that is not TOML at all — is ``test_config_schema.py``.
+These pin the loader's behaviour on the file a project writes: its defaults when
+there is none, and the nested construction when there is. What the active plugins
+contribute to it is ``test_plugin_defaults.py``; refusing a config — an unknown
+key, an unknown value, a file that is not TOML at all — is
+``test_config_schema.py``.
 """
 
 from __future__ import annotations
@@ -121,54 +123,6 @@ def test_populated_smell_override_loads(tmp_path: Path) -> None:
 def test_a_valid_config_still_loads_after_the_unknown_key_guard(tmp_path: Path) -> None:
     """The guard must not reject any key the loader actually consumes."""
     _load_populated(tmp_path)  # must not raise
-
-
-def _plugin_config(tmp_path: Path, plugin: str, body: str) -> None:
-    """A fixture plugin, shadowing any installed one of that name."""
-    path = tmp_path / ".habit-hooks" / plugin / "config.toml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body)
-
-
-def test_plugin_files_merge_in_plugins_order_without_repeating(tmp_path: Path) -> None:
-    """Order is load-bearing: a later negation must be able to undo an earlier glob."""
-    project = _write(tmp_path, 'plugins = ["alpha", "beta"]')
-    _plugin_config(project, "alpha", 'files = ["src/**", "shared/**"]')
-    _plugin_config(project, "beta", 'files = ["shared/**", "lib/**"]')
-    assert _load(project).files == ["src/**", "shared/**", "lib/**"]
-
-
-def test_the_projects_own_files_replace_the_plugins(tmp_path: Path) -> None:
-    project = _write(tmp_path, 'plugins = ["alpha"]\nfiles = ["only/**"]')
-    _plugin_config(project, "alpha", 'files = ["src/**"]')
-    assert _load(project).files == ["only/**"]
-
-
-def test_a_plugin_declaring_no_files_states_no_opinion(tmp_path: Path) -> None:
-    project = _write(tmp_path, 'plugins = ["alpha"]')
-    _plugin_config(project, "alpha", 'sensors = ["noop"]')
-    assert _load(project).files is None
-
-
-def test_plugin_runners_merge_under_the_project(tmp_path: Path) -> None:
-    """A plugin ships its own ``[runners]``; the project's win per extension."""
-    project = _write(tmp_path, 'plugins = ["alpha"]\n[runners]\npy = "python3"')
-    _plugin_config(project, "alpha", '[runners]\npy = "python2"\nlua = "lua"')
-    assert _load(project).runners == {"py": "python3", "lua": "lua"}
-
-
-def test_plugin_runners_apply_when_the_project_declares_none(tmp_path: Path) -> None:
-    project = _write(tmp_path, 'plugins = ["alpha"]')
-    _plugin_config(project, "alpha", '[runners]\npy = "python3"')
-    assert _load(project).runners == {"py": "python3"}
-
-
-def test_the_first_plugin_wins_a_runner_extension(tmp_path: Path) -> None:
-    """``plugins`` order is a priority, as it is for guide lookup."""
-    project = _write(tmp_path, 'plugins = ["alpha", "beta"]')
-    _plugin_config(project, "alpha", '[runners]\npy = "alpha-py"')
-    _plugin_config(project, "beta", '[runners]\npy = "beta-py"')
-    assert _load(project).runners == {"py": "alpha-py"}
 
 
 def test_direct_defaults_are_independent_instances() -> None:

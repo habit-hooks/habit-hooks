@@ -2,3 +2,19 @@ language = "typescript"
 files = ["**/*.ts", "**/*.tsx"]
 sensors = ["eslint", "knip", "comment"]
 transformers = []
+
+# node comes first because everything under it needs it: two of these sensors
+# spawn it, `npm install` is itself node, and a `node-module` detector cannot be
+# looked for without it. habit-sensors only puts the project's node_modules/.bin
+# on PATH, so node itself is the system's.
+#
+# ts-morph is read as a library rather than spawned, so being on PATH says
+# nothing about it. jq has no install command that travels, so this names the
+# one for a Mac and leaves the rest to their own package manager.
+detectors = [
+  { name = "node", kind = "command", install = "brew install node" },
+  { name = "eslint", kind = "command", install = "npm install --save-dev eslint" },
+  { name = "knip", kind = "command", install = "npm install --save-dev knip" },
+  { name = "ts-morph", kind = "node-module", install = "npm install --save-dev ts-morph" },
+  { name = "jq", kind = "command", install = "brew install jq" },
+]

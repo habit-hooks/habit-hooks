@@ -67,9 +67,22 @@ format is in [config.md](config.md).
 ```toml
 # src/habit_hooks_lua/config.toml
 language = "lua"
-files = ["**/*.lua"]            # what this plugin's sensors scan by default
+files = ["**/*.lua"]           # what this plugin's sensors scan by default
 sensors = ["todo"]             # the sensors this plugin enables, in order
+detectors = [                  # the external tools those sensors reach for
+  { name = "jq", kind = "command", install = "brew install jq" },
+]
 ```
+
+`detectors` is how the plugin says what a consumer has to have installed for it
+to work. Your sensors spawn tools you did not ship — the one below pipes `grep`
+through `jq` — and a missing one is a crashed sensor, which is a poor way to
+learn you needed it. Each entry names the tool, how to look for it (`command`
+for one on `PATH`, `node-module` for a package read as a library) and the
+command that installs it, so a consumer can be told what is missing *and*
+handed the fix. Declaring one costs you nothing else: it is a statement, not a
+dependency, and it does not make the tool appear. The field-by-field format,
+and what a malformed entry is refused with, are in [config.md](config.md).
 
 A consumer who installs the package and lists `lua` in `plugins` gets these
 defaults; to *tune* them per project they drop overriding files under
@@ -571,6 +584,9 @@ packages = ["src/habit_hooks_lua"]
 language = "lua"
 files = ["**/*.lua"]
 sensors = ["todo"]
+detectors = [
+  { name = "jq", kind = "command", install = "brew install jq" },
+]
 ```
 
 📄habit-hooks-lua/src/habit_hooks_lua/sensors/todo.toml
