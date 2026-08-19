@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks-generic"
-version = "1.2.1"
+version = "1.3.0"
 description = "The generic (language-agnostic) Habit Hooks plugin"
 requires-python = ">=3.11"
 dependencies = []

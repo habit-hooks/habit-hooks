@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks"
-version = "1.2.1"
+version = "1.3.0"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
 requires-python = ">=3.11"
 # Each plugin is floored at this release's own minor, and the floor is raised
@@ -13,19 +13,19 @@ dependencies = [
     "jinja2>=3",
     "pathspec>=0.12",
     "attrs>=23",
-    "habit-hooks-generic~=1.2",
+    "habit-hooks-generic~=1.3",
 ]
 
 [project.optional-dependencies]
-python = ["habit-hooks-python~=1.2"]
-typescript = ["habit-hooks-typescript~=1.2"]
-php = ["habit-hooks-php~=1.2"]
-java = ["habit-hooks-java~=1.2"]
+python = ["habit-hooks-python~=1.3"]
+typescript = ["habit-hooks-typescript~=1.3"]
+php = ["habit-hooks-php~=1.3"]
+java = ["habit-hooks-java~=1.3"]
 all = [
-    "habit-hooks-python~=1.2",
-    "habit-hooks-typescript~=1.2",
-    "habit-hooks-php~=1.2",
-    "habit-hooks-java~=1.2",
+    "habit-hooks-python~=1.3",
+    "habit-hooks-typescript~=1.3",
+    "habit-hooks-php~=1.3",
+    "habit-hooks-java~=1.3",
 ]
 
 [project.scripts]

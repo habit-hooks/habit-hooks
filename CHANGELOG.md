@@ -1,6 +1,44 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
+
+Java. `pom.xml` or `build.gradle` in your project and habit-hooks now coaches
+your Java the way it already coached your Python and TypeScript.
+
+### Added
+
+- **The `java` plugin.** `pip install "habit-hooks[java]"`, add `"java"` to
+  `plugins`, and a `pmd` sensor translates PMD 7's rule names into the same
+  smell vocabulary every other plugin speaks: `too-many-parameters`,
+  `high-complexity`, `oversized-function`, `unused-variable`, `unused-import`
+  and `swallowed-exception`. PMD exits 4 when it finds violations and 5 when it
+  cannot parse a file, so the sensor tells those apart — a crashed PMD fails
+  the run rather than reporting clean.
+
+  **Your own PMD ruleset wins.** PMD never looks one up by itself, so the
+  sensor does: a `--rulesets` you pass through `[sensors.pmd] args` first, then
+  the conventional places a Java project keeps one
+  (`src/main/resources/pmd/ruleset.xml`, `pmd/ruleset.xml`, `ruleset.xml`,
+  `pmd.xml`). The ruleset the plugin ships is only the answer to "this project
+  has none". Any other PMD flag — `--aux-classpath`, `--minimum-priority` —
+  goes through `args` to PMD untouched.
+
+  Generated code is left alone: Maven's `target/` and Gradle's `build/` are
+  excluded from what the plugin calls source. `habit-hooks init` recognises a
+  Java project and names `pmd` among the tools to install.
+
+  With thanks to [@pfichtner](https://github.com/pfichtner), who wrote it.
+
+### Changed
+
+- **The `too-many-parameters` guide names the concept, not the bag.** The
+  default fix for a long parameter list is an options object named after the
+  function that takes it — the report clears and the missing abstraction stays
+  unnamed. The guide now says to search wider than the file that fired, because
+  values that keep appearing side by side are usually one of the domain's own
+  nouns; to use that entity everywhere it fits, since a call passing three of
+  its fields is the same concept under the threshold; and that a `FooProps` is
+  the `{ ...everything }` bag under another name.
 
 ### Fixed
 
