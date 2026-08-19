@@ -19,9 +19,11 @@ from pathlib import Path
 
 from installed_env import require_tool, run_and_collect_findings
 from installed_projects import (
+    JAVA_SOURCE,
     PHP_SOURCE,
     PYTHON_SOURCE,
     TYPESCRIPT_SOURCE,
+    java_project,
     php_project,
     python_project,
     typescript_project,
@@ -53,6 +55,30 @@ def test_installed_php_plugin_locates_its_bundled_phar(
         issue = finding["issues"][0]
         assert Path(issue["key"]).name == PHP_SOURCE
         assert issue["details"]["source"].startswith("phpmd:")
+
+
+def test_installed_java_plugin_locates_its_bundled_ruleset(
+    installed_habit_sensors: Path, tmp_path: Path
+) -> None:
+    """The pmd sensor reaches for the ruleset it ships when the project names
+    none, so the bundled ``pmd-ruleset.xml`` must ride along as package data
+    with no source tree on disk to fall back on."""
+    require_tool("pmd")
+    project = java_project(tmp_path)
+
+    findings = run_and_collect_findings(installed_habit_sensors, project)
+
+    by_smell = {finding["smell"]: finding for finding in findings}
+    assert by_smell.keys() == {
+        "too-many-parameters",
+        "unused-import",
+        "unused-variable",
+    }
+    for finding in findings:
+        assert finding["language"] == "java"
+        issue = finding["issues"][0]
+        assert Path(issue["key"]).name == JAVA_SOURCE
+        assert issue["details"]["source"].startswith("pmd:")
 
 
 def test_installed_typescript_plugin_resolves_ts_morph_from_the_project(

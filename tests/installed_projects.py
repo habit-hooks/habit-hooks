@@ -29,6 +29,7 @@ ESM_MANIFEST = '{ "name": "demo", "version": "0.0.0", "type": "module" }\n'
 TYPESCRIPT_SOURCE = "src/helper.ts"
 PYTHON_SOURCE = "billing.py"
 PHP_SOURCE = "billing.php"
+JAVA_SOURCE = "Billing.java"
 
 
 def _project(tmp_path: Path, name: str, config: str) -> Path:
@@ -50,6 +51,22 @@ def oversized_project(tmp_path: Path, name: str) -> Path:
     )
     lines = "".join(f"x{n} = 0\n" for n in range(1, OVERSIZED_LINES + 1))
     (project / "big.py").write_text(lines)
+    return project
+
+
+def java_project(tmp_path: Path) -> Path:
+    """A project whose one file pmd has three things to say about."""
+    project = _project(tmp_path, "java-proj", 'plugins = ["java"]\n')
+    (project / JAVA_SOURCE).write_text(
+        "import java.io.File;\n"
+        "import java.io.IOException;\n"
+        "class Billing {\n"
+        "    double charge(double a, double b, double c, double d, double e) {\n"
+        "        int dead = 1;\n"
+        "        return a + b + c + d + e;\n"
+        "    }\n"
+        "}\n"
+    )
     return project
 
 

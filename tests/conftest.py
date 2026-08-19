@@ -38,6 +38,7 @@ from plugin_fixture import write_plugin
 SHIPPED_PACKAGES = (
     "habit-hooks",
     "habit-hooks-generic",
+    "habit-hooks-java",
     "habit-hooks-php",
     "habit-hooks-python",
     "habit-hooks-typescript",
