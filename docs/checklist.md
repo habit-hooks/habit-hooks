@@ -138,9 +138,8 @@ command.
 
 ## Phase 6 — README + housekeeping (last for docs)
 
-- [ ] Rewrite `README.md` — it still describes the deleted npm/TS design
-      (`npm install`, `init`, "wraps", `habit-hooks.config.js`, baseline). Replace
-      with the Python pipeline, `.habit-hooks/` overrides, and TOML config.
+- [x] Rewrite `README.md` — the Python pipeline, `.habit-hooks/` overrides and
+      TOML config, with the reference material linked out to `docs/`.
 
 ## Phase 7 — csharp plugin (build last)
 

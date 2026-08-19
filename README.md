@@ -1,61 +1,31 @@
-# habit-hooks
+# Habit Hooks
 
-> 👀 Looking for co-maintainers. See the contribution section below
+[![PyPI](https://img.shields.io/pypi/v/habit-hooks)](https://pypi.org/project/habit-hooks/) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://pypi.org/project/habit-hooks/) [![CI](https://github.com/habit-hooks/habit-hooks/actions/workflows/ci.yml/badge.svg)](https://github.com/habit-hooks/habit-hooks/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/habit-hooks/habit-hooks/blob/main/LICENSE.md)
 
-Stop reciting software engineering literature to your AI agent.
+**Turn best-practice coding advice into AI habits.**
 
-Turn best practice advice into AI habits, and make it write code like this:
+Stop reciting software engineering literature to your AI agent. Habit Hooks runs your linters, then replaces
+each raw rule violation with a short coaching guide the agent can act on — so it writes code like this:
 
-![write_code_like_this.png](write_code_like_this.png)
+![TypeScript written by an agent running Habit Hooks: small functions, named constants, no duplication](https://raw.githubusercontent.com/habit-hooks/habit-hooks/main/write_code_like_this.png)
 
-## What it is
+> 👀 Looking for co-maintainers — see [Contributing](#contributing).
 
-AI coding agents frequently ignore long rule documents. Asking them to hold on to an entire book's worth of
-coding advice is at best futile, at worst makes the agent's performance worse by polluting the context window.
+## Why
 
-Humans don't need to hold the same information in their head because humans can form habits through repetition.
-However, AI agents can't do this.
+- AI coding agents ignore long rule documents. A book's worth of coding advice in the context window makes
+  them worse, not better.
+- Humans don't need it in their head. Repetition turns advice into habit, triggered by an easy-to-spot cue.
+  Agents can't form habits.
+- A bare linter score is a target, and Goodhart's law applies: agents are very good at gaming a target when
+  the target is all they are given.
+- Habit Hooks supplies the missing loop from outside. The linter finding is the cue; the coaching guide is
+  the action.
 
-Human habits form when an easy-to-detect cue triggers a complex sequence of actions with the desired effect.
-This is the inspiration for habit hooks.
-
-Linters provide a deterministic metric, but Goodhart's law postulates that a metric ceases to be a good metric if
-it becomes a target. AI agents are very good at gaming these metrics when they are only provided the metric.
-
-Habit hooks runs your linters to create the trigger, but instead of providing only the metric, it gives actionable
-advice on how to fix the issue. This creates AI behaviour that looks like human habits, and has similar effects.
-
-The use of habit hooks:
-- Increases code quality
-- Improves AI performance ensuring that the AI always starts with good code quality
-- Reduces token usage, since good quality code also means the AI doesn't need to read as much context to complete the task.
-
-## How it works
-
-Habit hooks is two small command-line tools joined by a Unix pipe. Between them flows a JSON array of **findings**.
-
-```
-habit-sensors <scope flags> | habit-mapper
-```
-
-- **`habit-sensors`** finds the smells. It runs the configured detectors over the files in scope and emits a
-  findings array on stdout.
-- **`habit-mapper`** acts on them. It reads the findings on stdin, groups them by smell, renders each smell's
-  coaching guide, and sets the exit code from each smell's severity (`enforced` fails the run with exit 1,
-  `suggested` coaches but exits 0). An empty pipe is a stage that died before writing, so it coaches the
-  incomplete run and exits 2 rather than reporting a pass.
-
-`habit-hooks` is just the composition of the two — `habit-sensors $ARGS | habit-mapper` — so the same arguments
-scope the run and the same findings drive the coaching. Because the stages talk only through findings on a pipe,
-each can be run, tested, or replaced on its own.
-
-Each sensor translates a tool's raw rule IDs into a tool-independent **smell key** (`max-params`, `PLR0913`, … all
-become `too-many-parameters`), and everything downstream routes on that key alone. The mapper picks a guide by
-smell, never by which tool reported it.
+The effect: better code, better agent performance on the next task, and fewer tokens — good code needs less
+context to work in.
 
 ## Install
-
-Install habit-hooks, then let it set your project up:
 
 ```sh
 uv tool install habit-hooks     # pip, pipx and brew work too
@@ -63,15 +33,15 @@ cd your-project
 habit-hooks init
 ```
 
-`habit-hooks init` detects the language your project is written in, writes `.habit-hooks/config.toml`
-enabling the plugins it needs, and lists everything still missing beside the command that installs it —
-offering to run them for you. Re-run it whenever you like: on a project that already has a config it changes
-nothing and only reports what is missing, so it also answers "why is this run not reporting anything?".
+`habit-hooks init` detects your project's language, writes `.habit-hooks/config.toml` enabling the plugins it
+needs, and lists everything still missing beside the command that installs it — offering to run them for you.
+Re-run it any time: on a configured project it changes nothing and only reports what is missing, so it also
+answers "why is this run not reporting anything?".
 
 <details>
 <summary><b>Doing it by hand</b> — what <code>init</code> is doing on your behalf</summary>
 
-Setting habit-hooks up takes four steps. A run that reports nothing is almost always a skipped one:
+Setup is four steps. A run that reports nothing is almost always a skipped one:
 
 1. **Install habit-hooks** — you get the core and the generic, language-agnostic plugin.
 2. **Install the plugin for your language** — python, typescript, php and java ship as separate packages.
@@ -82,7 +52,7 @@ Steps 3 and 4 are per project.
 
 ### 1. Install habit-hooks
 
-habit-hooks is a Python package (requires Python 3.11+). Install it with `uv`, `pip`, or Homebrew:
+A Python package, requires Python 3.11+:
 
 ```sh
 uv tool install habit-hooks
@@ -94,13 +64,12 @@ pip install habit-hooks
 brew install habit-hooks/tap/habit-hooks
 ```
 
-This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
-`habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`. Homebrew is the exception: it installs
-all five plugins, so skip to step 3.
+You get **core plus the generic plugin**, and four commands on your `PATH`: `habit-hooks`, `habit-sensors`,
+`habit-mapper`, `habit-snooze`. Homebrew is the exception — it installs all five plugins, so skip to step 3.
 
-> ⚠️ **Important: this on its own checks nothing about your language.** What you have now is the generic
-> plugin, which measures file length and duplication. Python, TypeScript, PHP and Java each need their own
-> plugin — installed (step 2) *and* enabled (step 3).
+> ⚠️ **On its own this checks nothing about your language.** The generic plugin measures file length and
+> duplication. Python, TypeScript, PHP and Java each need their own plugin — installed (step 2) *and*
+> enabled (step 3).
 
 ### 2. Install the plugin for your language
 
@@ -113,24 +82,24 @@ uv tool install "habit-hooks[all]"                 # all four
 ```
 
 > ⚠️ Each `uv tool install` **rebuilds** the environment rather than adding to it, so a second one naming a
-> different extra silently replaces the first: run `[python]` and then `[typescript]` and you are left with
-> typescript alone, and your Python project quietly stops being checked. Name every language you want in a
-> single command. (`pip install "habit-hooks[python]"` has no such trap — it adds.)
+> different extra silently replaces the first: run `[python]` then `[typescript]` and you are left with
+> typescript alone, and your Python project quietly stops being checked. Name every language in one command.
+> (`pip install "habit-hooks[python]"` has no such trap — it adds.)
 
-To pick language plugins per project without a global install, run from the extra with `uvx` (uv caches it):
+To pick plugins per project without a global install, run from the extra with `uvx` (uv caches it):
 
 ```sh
 uvx --from "habit-hooks[typescript]" habit-hooks
 ```
 
 Alternatively, vendor a plugin's files under `.habit-hooks/<plugin>/` in your project. That works with any
-install, because project files always override the installed package — including a plugin habit-hooks has
-no package for.
+install, because project files always override the installed package — including a plugin habit-hooks has no
+package for.
 
 ### 3. Enable the plugins in your project
 
 **Installing a plugin does not switch it on.** However it got onto the machine, a plugin runs only once your
-`.habit-hooks/config.toml` names it in `plugins`:
+`.habit-hooks/config.toml` names it:
 
 ```toml
 # .habit-hooks/config.toml
@@ -141,8 +110,7 @@ The list is ordered, and the order is a priority — see [Plugins](#plugins).
 
 ### 4. Install the detectors
 
-The detectors are **not** bundled: a plugin spawns the real tool, or reads it as a library. Install the ones
-the plugins you enabled need.
+Detectors are **not** bundled: a plugin spawns the real tool, or reads it as a library.
 
 | Plugin | Detectors | Install |
 | ------ | --------- | ------- |
@@ -150,59 +118,60 @@ the plugins you enabled need.
 | **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry), `jq` | `pip install ruff deptry` (`jq` from your system package manager) |
 | **typescript** | `node`, [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), [`ts-morph`](https://ts-morph.com/), `jq` | `npm install --save-dev eslint knip ts-morph` (`node` and `jq` from your system package manager) |
 | **php** | `php` — [phpmd](https://phpmd.org/) ships bundled as a phar | nothing beyond a PHP runtime |
+| **java** | [`pmd`](https://pmd.github.io/) | `brew install pmd` |
 
 `ts-morph` is read as a library rather than spawned, so it belongs in your `devDependencies` — being on `PATH`
 does nothing for it.
 
 > If your TypeScript project has **no eslint config of its own**, habit-hooks lints with the config it ships,
-> which needs `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` in your project too:
+> which needs two more packages in your project:
 > `npm install --save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugin`. A project with its own
 > `eslint.config.js` needs neither — yours always wins.
 
-`habit-sensors` prepends `node_modules/.bin` and `.venv/bin` to `PATH`, so a project's locally-installed tools are
-found without being on the global `PATH`.
+`habit-sensors` prepends `node_modules/.bin` and `.venv/bin` to `PATH`, so a project's local tools are found
+without being installed globally.
 
 </details>
 
-## Quick start
+## Usage
 
-`habit-hooks init` writes this for you; a Python project's config reads:
+`habit-hooks init` writes the smallest config that runs — the plugins, and nothing else assumed:
 
 ```toml
 # .habit-hooks/config.toml
 plugins = ["python", "generic"]
-files = ["**/*.py"]
 ```
 
-`files` is optional — name none and the enabled plugins' own patterns are used.
+Naming no `files` is the recommended start: the run then scans what the active plugins declare, **including
+their exclusions** — the python plugin already keeps `.venv/` and `site-packages/` out. Adding your own
+`files` replaces those wholesale, exclusions and all.
 
-Run habit-hooks against the files changed on your branch:
+Then run it:
 
 ```sh
 habit-hooks
 ```
 
-Or scope the run explicitly:
+That scans **every** file in scope. Scope the run explicitly instead — the flags are mutually exclusive:
 
 ```sh
-habit-hooks --all            # every file
-habit-hooks --file src/billing.py   # one file, ignoring snoozes (see below)
-habit-hooks --branch main    # files changed vs a base ref
-habit-hooks --last 3         # files changed in the last 3 commits
-habit-hooks --since <ref>    # files changed since a commit
+habit-hooks --all                   # every file
+habit-hooks --file src/billing.py   # one file, ignoring snoozes
+habit-hooks --branch main           # files changed vs a base ref
+habit-hooks --last 3                # files changed in the last 3 commits
+habit-hooks --since <ref>           # files changed since a commit
 ```
 
-The scope flags are mutually exclusive. With no flag, the scope is derived from the `[scope]` config (see below).
+With no flag, the scope comes from `[scope]` in the config — which scans everything until you opt in. To make
+a plain `habit-hooks` measure only your branch **when you are not on `mainBranch`**, set
+`[scope] autoBranchOffMain = true`. On `mainBranch` itself it still scans everything.
 
-A git-derived run measures what your branch changed since it left the base ref — from the **merge base**, so files
-somebody else changed on the base afterwards are not yours to fix. Whatever picked the paths, files the work tree no
-longer has are dropped (a deleted file has no smells left) and the rest must match `files`. A base ref the checkout
-cannot resolve fails the run instead of quietly scanning nothing.
+A git-derived run measures what your branch changed since it left the base ref — from the **merge base**, so
+files somebody else changed on the base afterwards are not yours to fix. Whatever picked the paths, files the
+work tree no longer has are dropped, and the rest must match `files`. A base ref the checkout cannot resolve
+fails the run rather than quietly scanning nothing.
 
-### Version and exit codes
-
-`habit-hooks --version` prints `habit-hooks vX.Y.Z` (the same on `habit-sensors`, `habit-mapper` and `habit-snooze`) —
-worth quoting in a bug report, since the tool ships through four channels (PyPI, Homebrew, uvx, an npm shim).
+### Exit codes
 
 The exit code separates a finding from a broken tool, so a CI wrapper can act on the difference:
 
@@ -210,279 +179,32 @@ The exit code separates a finding from a broken tool, so a CI wrapper can act on
 | ---- | ------- |
 | `0`  | clean — no enforced finding |
 | `1`  | an enforced finding — this branch has a smell to fix |
-| `2`  | the tool itself failed — a bad config key, a base ref the checkout cannot resolve, a `--last` that is not a positive integer, a corrupt snooze index, or a plugin that is configured but not installed |
+| `2`  | the tool itself failed — a bad config key, an unresolvable base ref, a corrupt snooze index, or a plugin that is configured but not installed |
 
-## Plugins
-
-Everything language- or tool-specific lives in a **plugin** — a self-contained bundle of files:
-
-```
-<plugin>/
-  config.toml      # what this plugin contributes, and the language it speaks
-  sensors/         # how it finds smells
-  transformers/    # how it reshapes findings
-  guides/          # how it coaches each fix
-```
-
-A project turns plugins on by listing them, in order, in `.habit-hooks/config.toml`:
-
-```toml
-plugins = ["python", "generic"]
-```
-
-That list is **ordered, and the order is a priority.** It is the order sensors run and concatenate, and the order
-the mapper looks up guides: to coach a finding the mapper walks the plugins in turn and takes the first one that
-has a guide for that smell and language, falling back to `generic` last. So an earlier plugin overrides a later
-one for the same smell.
-
-**Put your language's plugin before `generic`**, which is what `habit-hooks init` writes. The other way round,
-`generic`'s guide wins for every smell it covers — and the python plugin ships `high-complexity` and
-`swallowed-exception` guides precisely because those want a Python answer rather than a general one, so listing
-`generic` first makes them unreachable.
-
-A plugin is not a language — it *declares* the language it speaks in its `config.toml`, and the runner stamps that
-onto the plugin's findings. So several plugins can speak the same language using different tools, and the order
-decides which one's guide wins. `generic` is listed explicitly like any other plugin, so a project can drop it.
-
-The five plugins that ship:
-
-| Plugin | Language | Sensors | Tools used |
-|--------|----------|---------|------------|
-| `generic` | (none) | `line-count`, `jscpd` | built-in line counter, jscpd |
-| `python` | `python` | `ruff`, `deptry` | ruff, deptry |
-| `typescript` | `typescript` | `eslint`, `knip`, `comment` | eslint, knip, ts-morph |
-| `php` | `php` | `phpmd` | phpmd |
-| `java` | `java` | `pmd` | pmd |
-
-## Overrides: tune without forking
-
-A project keeps its overrides in `.habit-hooks/`, mirroring the plugin layout but holding **only what differs**
-from the defaults. Defaults always resolve from the installed package, so updating habit-hooks never clobbers a
-project's tuning.
-
-Every file is resolved by walking the active plugins in order and, for each, trying the project's override before
-the package's default:
-
-```
-.habit-hooks/<plugin>/   →   <package>/plugins/<plugin>/
-```
-
-So to replace the generic `too-many-parameters` coaching guide, drop your own at
-`.habit-hooks/generic/guides/too-many-parameters.md`. To swap out a sensor, override its `.toml` under
-`.habit-hooks/<plugin>/sensors/`. Configuration merges the same way, with the project last and winning.
-
-## Configuration
-
-All configuration is TOML. The project's `.habit-hooks/config.toml` is merged over the plugin defaults — generic
-first, then each plugin's defaults, then the project, project last and winning. Every field is optional; an empty
-file means "use the plugin defaults".
-
-One file is read by both stages, each picking out the keys it cares about:
-
-| Stage | Reads |
-|-------|-------|
-| `habit-sensors` (the runner) | `plugins`, `transformers`, `files`, `[scope]`, `[sensors.*]` |
-| `habit-mapper` (the router)  | `[smells.*]`, `[runners]` |
-
-### Root keys
-
-```toml
-plugins = ["python", "generic"]   # ordered = lookup priority; generic is the fallback, so it goes last
-transformers = ["snooze"]         # applied to the whole run's findings, in order
-files = ["**/*.py"]               # discovery globs (pathspec / gitignore), in every scope mode
-```
-
-`files` says what this project counts as source, and applies to every scope mode. Discovery is **opt-in**: leave it
-out and the run scans what its plugins declare — the union of every active plugin's own `files`, in `plugins` order.
-A project that names no `files` and whose plugins declare none (only `generic`) scans **nothing at all**, rather than
-sweeping `node_modules`, `.venv` and `.git`; name what you want scanned. Naming `files` replaces those defaults
-wholesale.
-
-`files` uses pathspec (gitignore) matching, which has **no brace expansion** — write one pattern per
-extension, never a `{…}` alternation:
-
-```toml
-files = ["**/*.ts", "**/*.tsx"]   # correct
-# files = "**/*.{ts,tsx}"           wrong — matched literally, never expanded
-```
-
-### `[scope]`
-
-When a run is invoked with no explicit scope flag, the scope is derived from `[scope]`:
-
-```toml
-[scope]
-changedOnly = false        # restrict the default run to uncommitted (git-changed) files
-autoBranchOffMain = true   # when not on mainBranch, default to diffing against branchBase
-branchBase = "main"        # base ref for branch-relative scoping; must exist in the checkout
-mainBranch = "main"        # the branch on which autoBranchOffMain does not kick in
-```
-
-### `[sensors.<name>]`
-
-Override a sensor a plugin already ships. Each key replaces the sensor spec's
-default wholesale; to change anything the keys below do not cover, drop a whole
-`.habit-hooks/<plugin>/sensors/<name>.toml` replacement instead.
-
-```toml
-# Turn off a sensor the plugin ships.
-[sensors.knip]
-disabled = true
-
-# Narrow the generic line-count sensor to source files.
-[sensors.line-count]
-files = ["src/**/*.py"]
-```
-
-Fields: `disabled`, `files` (narrows the run's scope for this sensor alone), `args`
-(replaces the sensor's default CLI args, expanded via `${args}`).
-
-### `[smells.<name>]`
-
-Per-smell routing overrides, keyed by smell. A smell with no override uses the catalogue default.
-
-```toml
-# Demote a smell from blocking to advisory.
-[smells.duplicated-code]
-severity = "suggested"
-
-# Reuse a shared guide instead of redundant-type-annotation.md.
-[smells.redundant-type-annotation]
-guide = "style-nit.md"
-```
-
-Fields: `severity` (`enforced` / `suggested`), `disabled`, `guide`.
-
-### `[runners]`
-
-The mapper renders each smell's guide. A `.md` guide is rendered as a Jinja2 template and needs no runner. Any
-other extension needs one: `[runners]` maps a guide-file extension to the command that runs it, and the mapper
-invokes `<command> guides/<smell>.<ext>` with the finding on stdin, using its exit code for pass/fail. No
-non-`.md` guide runs unless its extension is opted in here.
-
-```toml
-[runners]
-py = "python"
-js = "node"
-```
-
-## Snoozing existing violations
-
-`habit-snooze` is a transformer: with no arguments it reads findings on stdin, drops the issues a project has
-chosen to ignore, and prints the rest. Insert it as a stage in the pipe:
-
-```sh
-habit-sensors --all | habit-snooze | habit-mapper
-```
-
-It drops any issue whose `key` (the filename by default) is in a checked-in index at `.habit-hooks/snooze.json`.
-When a finding loses its last issue, the finding goes with it. Maintain the index by piping findings into it:
-
-```sh
-habit-sensors --all | habit-snooze --snooze              # add the current run's keys to the index
-habit-sensors --all --no-snooze | habit-snooze --prune   # drop keys that no longer show up
-habit-snooze --list                                       # print the snoozed keys, one per line
-```
-
-`--prune` needs `--no-snooze`: a plain `habit-sensors` has already dropped every
-snoozed finding, so pruning against it would see none of them and empty the whole
-index. `--no-snooze` emits the run before the snooze transformer filters it, so
-`--prune` keeps every key still exempting a live finding and reaps only the
-obsolete ones. If it is ever fed an empty run it refuses to touch a populated
-index rather than wiping it.
-
-The index is portable by construction: every path a sensor reports is re-expressed relative to the project
-before a key is formed, so an index recorded on one machine matches on a teammate's checkout and in CI —
-even though `ruff` and `eslint` report absolute paths. A key that is not a path (a module or export name)
-is left alone. Two things fail the run rather than going quiet: a path the project cannot place at all, and
-a key that is one of its own files while covering others too, where one snooze would exempt them all.
-
-Snoozing is already folded into a plain `habit-hooks` run: `transformers` defaults to `["snooze"]`, and the
-transformer ships with the core, so a checked-in index takes effect with no wiring. Naming the key replaces
-that list wholesale, which is how you drop snoozing or order it against your own steps:
-
-```toml
-transformers = []              # no snoozing; every finding reports
-transformers = ["snooze", "…"] # snooze first, then your own transformer
-```
-
-`habit-hooks --file <path>` bypasses the index. That command answers "tell me everything about this one file,
-right now", and a snooze is a statement about the backlog, not about the file you asked after by name — so a
-partial answer to `--file` would be a silent one. Only snoozing is set aside; a project's own transformers
-still run, so `--file` never quietly drops a step it did not ask about. Every other scope — including `--all` —
-filters through the index as usual.
-
-### Make the index a ratchet
-
-A plain snooze lasts until someone takes the key back out of the index — so a snoozed file stays exempt even
-after it doubles in size. The core ships a second transformer for projects that want the index to be a
-**ratchet** instead:
-
-```toml
-transformers = ["snooze-until-changed"]
-```
-
-It reads the same index, but an exemption holds only while its file is unchanged since your branch left
-`[scope] branchBase`. Change that file — a commit on your branch, or an edit still in the working tree — and
-its issues come back, which is exactly when you are in a position to clear them. The comparison starts at the
-merge base, so work someone else lands on the base branch afterwards never lapses a snooze you did not touch.
-An issue is matched to its file through `details.file`, falling back to its `key`.
-
-A path git cannot place — untracked, or no repository at all — counts as unchanged, so snoozes hold rather
-than all re-arming at once. A **base ref that a real repository cannot resolve fails the run** instead, naming
-the ref: a shallow CI checkout with no local `main`, or a trunk called `master` with `branchBase` left at its
-default, would otherwise answer "unchanged" for every file and make every snooze permanent with no signal.
-
-## What it catches
-
-The smell vocabulary is tool-independent: sensors translate raw rule IDs into these keys, and the mapper routes
-from them to guidance. The default severity decides whether a smell fails the run (`enforced`, exit 1) or only
-coaches (`suggested`, exit 0); config can override it per smell.
-
-| Smell key | Default severity |
-|-----------|------------------|
-| `oversized-function` | enforced |
-| `too-many-parameters` | enforced |
-| `high-complexity` | enforced |
-| `deep-nesting` | enforced |
-| `oversized-file` | enforced |
-| `unused-variable` | enforced |
-| `unused-import` | enforced |
-| `loose-equality` | enforced |
-| `var-declaration` | enforced |
-| `non-const-binding` | enforced |
-| `duplicate-import` | enforced |
-| `redundant-type-annotation` | enforced |
-| `unused-class-member` | enforced |
-| `unused-file` | enforced |
-| `unused-export` | enforced |
-| `unused-dependency` | enforced |
-| `parse-error` | enforced |
-| `warning-comment` | suggested |
-| `explicit-any` | suggested |
-| `non-null-assertion` | suggested |
-| `non-essential-comment` | suggested |
-| `duplicated-code` | suggested |
-| `swallowed-exception` | suggested |
-
-A smell with no catalogue entry falls through to an **uncoached** bucket rather than being dropped, so unknown
-sensor output is always surfaced. By default it coaches without failing the run — the catalogue is the record of
-what is worth failing a build over, and this name is not in it. Set the root `uncoached` key to `ignore` or
-`enforce` to change that for the whole project, or `[smells.<name>] severity` for one smell. To coach it properly,
-drop a `guides/<smell>.md` file in the appropriate plugin override directory.
+`habit-hooks --version` prints `habit-hooks vX.Y.Z` (likewise on the other three commands) — worth quoting in a
+bug report, since the tool ships through four channels: PyPI, Homebrew, uvx and an npm shim.
 
 ## Sample output
 
-Run against a project where a change introduces a smell:
+When a change introduces a smell:
 
 ```text
-The following function definitions have more than 3 parameters:
+── too-many-parameters (1 issue) ──
 
-src/billing.py:2
-    bill(customer, items, discount, tax) has 4 parameters
+High parameter count is a sign of coupling.
+Parameters that travel together across several calls are a missing abstraction.
 
-Bundle related arguments into an object.
+**Find the missing abstraction:**
+1. Look at the call sites and nearby functions — is there an existing class a group of these
+   parameters belongs to? …
+
+**AVOID**: A `{ ...everything }` bag that merely renames the list hides the coupling instead of
+removing it. …
+
+src/billing.py:1
 ```
+
+(Guides are longer than this — the middle is trimmed here.)
 
 On a clean run:
 
@@ -492,7 +214,180 @@ On a clean run:
 Habit Hooks catches structural smells, not correctness or design. If no reviewer sub-agent has reviewed this change set, run one before declaring done.
 ```
 
-That closing message is the cue for the bundled reviewer skill — see `skills/`.
+That closing message is the cue for the reviewer skill in the repo — see [`skills/`](https://github.com/habit-hooks/habit-hooks/tree/main/skills).
+
+## How it works
+
+Two command-line tools joined by a Unix pipe, with a JSON array of **findings** flowing between them:
+
+```
+habit-sensors <scope flags> | habit-mapper
+```
+
+- **`habit-sensors`** finds the smells — runs the configured detectors over the files in scope and emits a
+  findings array on stdout.
+- **`habit-mapper`** acts on them — groups findings by smell, renders each smell's coaching guide, and sets
+  the exit code from each smell's severity. An empty pipe means a stage died before writing, so it coaches the
+  incomplete run and exits 2 rather than reporting a pass.
+
+`habit-hooks` is just the composition of the two, so the same arguments scope the run and the same findings
+drive the coaching. Because the stages talk only through findings on a pipe, each can be run, tested or
+replaced on its own.
+
+Each sensor translates a tool's raw rule IDs into a tool-independent **smell key** (`max-params`, `PLR0913`, …
+all become `too-many-parameters`), and everything downstream routes on that key alone. The mapper picks a
+guide by smell, never by which tool reported it.
+
+More: [`docs/architecture.md`](https://github.com/habit-hooks/habit-hooks/blob/main/docs/architecture.md).
+
+## What it catches
+
+`enforced` fails the run (exit 1); `suggested` coaches and exits 0. Config can override either per smell.
+
+**Enforced** — `oversized-function` · `too-many-parameters` · `high-complexity` · `deep-nesting` ·
+`oversized-file` · `unused-variable` · `unused-import` · `loose-equality` · `var-declaration` ·
+`non-const-binding` · `duplicate-import` · `redundant-type-annotation` · `unused-class-member` ·
+`unused-file` · `unused-export` · `unused-dependency` · `test-only-dead-code` · `parse-error`
+
+**Suggested** — `warning-comment` · `explicit-any` · `non-null-assertion` · `non-essential-comment` ·
+`duplicated-code` · `swallowed-exception`
+
+A smell with no catalogue entry is never dropped — it falls through to an **uncoached** bucket, so unknown
+sensor output is always surfaced. The root `uncoached` key decides what happens to it:
+
+- `suggest` (default) — coach, but do not fail the run. The catalogue is the record of what is worth failing
+  a build over, and this name is not in it.
+- `enforce` — fail the run.
+- `ignore` — drop it.
+
+`[smells.<name>] severity` overrides all three for one smell. To coach it properly, drop a
+`guides/<smell>.md` file in the appropriate plugin override directory.
+
+`incomplete-run` is reserved: when a sensor or transformer breaks, or a stage dies before writing anything,
+the run reports it under that key and exits non-zero rather than printing a clean result it cannot stand
+behind.
+
+Full list with descriptions: [`docs/smell-vocabulary.md`](https://github.com/habit-hooks/habit-hooks/blob/main/docs/smell-vocabulary.md).
+
+## Plugins
+
+Everything language- or tool-specific lives in a **plugin** — a self-contained bundle:
+
+```
+<plugin>/
+  config.toml      # what this plugin contributes, and the language it speaks
+  sensors/         # how it finds smells
+  transformers/    # how it reshapes findings
+  guides/          # how it coaches each fix
+```
+
+The five that ship:
+
+| Plugin | Language | Sensors | Tools used |
+|--------|----------|---------|------------|
+| `generic` | (none) | `line-count`, `jscpd` | built-in line counter, jscpd |
+| `python` | `python` | `ruff`, `deptry` | ruff, deptry |
+| `typescript` | `typescript` | `eslint`, `knip`, `comment` | eslint, knip, ts-morph |
+| `php` | `php` | `phpmd` | phpmd |
+| `java` | `java` | `pmd` | pmd |
+
+A project turns plugins on by listing them in `.habit-hooks/config.toml`. **That list is ordered, and the
+order is a priority:**
+
+- It is the order sensors run and concatenate.
+- It is the order the mapper looks up guides — first plugin whose declared language matches the finding, then
+  the languageless `generic`. A language plugin's guide wins over `generic`'s wherever `generic` sits in the
+  list, so the order only decides a tie between two plugins declaring the same language.
+
+A plugin is not a language: it *declares* the language it speaks in its `config.toml`, and the runner stamps
+that onto its findings. So several plugins can speak the same language using different tools, and the order
+decides whose guide wins. `generic` is listed explicitly like any other plugin, so a project can drop it —
+but it holds 16 of the shipped guides against `typescript`'s 8 and `python`'s 2, so dropping it leaves most
+smells uncoached.
+
+Writing your own: [`docs/authoring-plugins.spec.md`](https://github.com/habit-hooks/habit-hooks/blob/main/docs/authoring-plugins.spec.md).
+
+## Tune it without forking
+
+A project keeps its overrides in `.habit-hooks/`, mirroring the plugin layout and holding **only what
+differs**. Defaults always resolve from the installed plugin package, so upgrading habit-hooks never clobbers
+your tuning. Every file is resolved by walking the active plugins in order and trying the project's override
+before the package's default:
+
+```
+.habit-hooks/<plugin>/<file>   →   installed habit_hooks_<plugin> package data/<file>
+```
+
+To replace the generic `too-many-parameters` guide, drop your own at
+`.habit-hooks/generic/guides/too-many-parameters.md`. To swap a sensor, override its `.toml` under
+`.habit-hooks/<plugin>/sensors/`.
+
+## Configuration
+
+All configuration is TOML, in `.habit-hooks/config.toml`, merged over the plugin defaults — project last and
+winning. Every field is optional. The most common keys:
+
+```toml
+plugins = ["python", "generic"]   # ordered; generic is the languageless fallback
+files = ["**/*.py"]               # what this project counts as source, in every scope mode
+uncoached = "suggest"             # what to do with a smell the catalogue has no entry for
+
+[scope]                           # used when a run is invoked with no explicit scope flag
+autoBranchOffMain = true          # OPT-IN (default false): off mainBranch, diff against branchBase
+branchBase = "main"               # default; base ref for branch-relative scoping, must exist in the checkout
+mainBranch = "main"               # default; the branch on which autoBranchOffMain does not kick in
+changedOnly = false               # default; restrict the default run to uncommitted (git-changed) files
+
+[sensors.knip]                    # turn off a sensor a plugin ships
+disabled = true
+
+[smells.duplicated-code]          # demote a smell from blocking to advisory
+severity = "suggested"
+```
+
+Discovery is **opt-in**: leave `files` out and the run scans what its plugins declare. A project that names no
+`files` and whose plugins declare none — a generic-only project — scans **nothing at all**, rather than
+sweeping `node_modules`, `.venv` and `.git`. That project must name what it wants scanned.
+
+> ⚠️ `files` uses pathspec (gitignore) matching, which has **no brace expansion**. Write one pattern per
+> extension: `["**/*.ts", "**/*.tsx"]`, never `"**/*.{ts,tsx}"` — the alternation is matched literally.
+
+Full field reference, including `transformers`, `[runners]` and every `[sensors.*]` / `[smells.*]` key:
+[`docs/config.md`](https://github.com/habit-hooks/habit-hooks/blob/main/docs/config.md).
+
+## Snoozing existing violations
+
+Adopting Habit Hooks on an existing codebase would otherwise mean fixing everything at once. `habit-snooze` is
+a transformer: it drops the issues a project has chosen to ignore and prints the rest.
+
+```sh
+habit-sensors --all | habit-snooze --snooze              # add the current run's keys to the index
+habit-sensors --all --no-snooze | habit-snooze --prune   # drop keys that no longer show up
+habit-snooze --list                                      # print the snoozed keys
+```
+
+`--prune` needs `--no-snooze`: a plain `habit-sensors` has already dropped every snoozed finding, so pruning
+against it would see none of them and empty the whole index.
+
+The index is a checked-in `.habit-hooks/snooze.json`. Snoozing is already folded into a plain `habit-hooks`
+run — `transformers` defaults to `["snooze"]` — so a checked-in index takes effect with no wiring.
+
+The index is portable by construction: every path a sensor reports is re-expressed relative to the project
+before a key is formed, so an index recorded on your machine matches on a teammate's checkout and in CI, even
+though `ruff` and `eslint` report absolute paths.
+
+**Make it a ratchet.** A plain snooze holds until someone edits the index, so a snoozed file stays exempt even
+after it doubles in size. Swap in the second transformer:
+
+```toml
+transformers = ["snooze-until-changed"]
+```
+
+An exemption then holds only while its file is unchanged since your branch left `[scope] branchBase`. Touch
+the file and its issues come back — which is exactly when you are in a position to clear them.
+
+Details, including how `--file` bypasses the index:
+[`docs/habit-snooze.spec.md`](https://github.com/habit-hooks/habit-hooks/blob/main/docs/habit-snooze.spec.md).
 
 ## Agent integration
 
@@ -512,10 +407,13 @@ Any output from `habit-hooks` is a direct user prompt with the highest priority.
 
 ## Contributing
 
-PRs are welcome **AFTER** discussion! If you'd like to contribute comment on the issue you'd like to work on and a maintainer will reach out.
+PRs are welcome **after** discussion. Comment on the issue you'd like to work on and a maintainer will reach
+out.
 
-We are also looking for maintainers, who would be willing to join a weekly planning meeting. Being a maintainer lets you shape the future of this tool and work together with likeminded software crafters who care about quality. If you are interested, reach out to [Ivett Ördög](https://ivettordog.com) directly.
+**We are looking for co-maintainers.** It means joining a weekly planning meeting, shaping where this tool
+goes, and working with likeminded software crafters who care about quality. If that appeals, reach out to
+[Ivett Ördög](https://ivettordog.com) directly.
 
 ## License
 
-MIT — see [`LICENSE.md`](./LICENSE.md).
+MIT — see [`LICENSE.md`](https://github.com/habit-hooks/habit-hooks/blob/main/LICENSE.md).
