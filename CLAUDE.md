@@ -17,7 +17,7 @@ nor installed raises a clear error naming `pip install habit-hooks-<name>`
 (`Resolver.require_plugin`) — that is the bug-1 root-cause guard.
 
 The repo is a uv workspace (`[tool.uv.workspace] members = ["plugins/*"]`); the
-four in-repo plugins live under `plugins/<name>/src/habit_hooks_<name>/` and are
+five in-repo plugins live under `plugins/<name>/src/habit_hooks_<name>/` and are
 installed editable by `uv sync` for dev. Keeping them in-repo is only a dev
 convenience — they do not need to live here. `tests/test_installed_wheel_smoke.py`
 builds + installs the core + generic wheels into a throwaway venv and asserts a
@@ -627,9 +627,9 @@ for the same reason.
 
 ### Each released package needs its own publish environment
 
-`.github/workflows/release.yml` maps each of the five PyPI packages to a
+`.github/workflows/release.yml` maps each of the six PyPI packages to a
 distinct GitHub environment because a pending trusted publisher is unique by
-`(owner, repo, workflow, environment)` — five packages can't share one.
+`(owner, repo, workflow, environment)` — six packages can't share one.
 
 ### The plugin floor is raised with the version, and the tap bump goes via a PR
 
