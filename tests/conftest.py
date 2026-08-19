@@ -13,7 +13,7 @@ lives here. Four kinds so far:
   tools are the ones the case wrote rather than whatever this machine has;
 * the machine such a case runs on, stripped of the plugins ``uv sync`` installs
   for development, because a case about a plugin nobody has cannot be written on
-  a machine that has all five;
+  a machine that has them all;
 * the installation habit-hooks itself is running from, which decides the command
   ``init`` offers for a plugin nobody has — asked by two modules, and written
   out in full, down to the ``pyvenv.cfg``, since otherwise which command that is
@@ -78,7 +78,7 @@ def init_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def pluginless_machine(monkeypatch: pytest.MonkeyPatch) -> None:
     """A machine with no habit-hooks plugin installed, whatever this one has.
 
-    ``uv sync`` installs all five of them for development, so the case a plugin
+    ``uv sync`` installs every one of them for development, so the case a plugin
     nobody has is *about* cannot be reached here without saying so: the entry
     points are emptied, leaving whatever the case vendors under
     ``.habit-hooks/`` as the only plugins on hand — which is what a consumer who

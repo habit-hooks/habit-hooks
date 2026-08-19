@@ -17,12 +17,13 @@ nor installed raises a clear error naming `pip install habit-hooks-<name>`
 (`Resolver.require_plugin`) — that is the bug-1 root-cause guard.
 
 The repo is a uv workspace (`[tool.uv.workspace] members = ["plugins/*"]`); the
-five in-repo plugins live under `plugins/<name>/src/habit_hooks_<name>/` and are
+in-repo plugins live under `plugins/<name>/src/habit_hooks_<name>/` and are
 installed editable by `uv sync` for dev. Keeping them in-repo is only a dev
-convenience — they do not need to live here. `tests/test_installed_wheel_smoke.py`
-builds + installs the core + generic wheels into a throwaway venv and asserts a
-real finding comes out; it is the gate that catches "installed runs can't locate
-plugins". `${dir}` in a sensor command resolves to the plugin's package-data dir,
+convenience — they do not need to live here. `tests/conftest.py`'s
+`SHIPPED_PACKAGES` builds + installs every released wheel into a throwaway venv
+and `tests/test_installed_wheel_smoke.py` asserts a real finding comes out; it
+is the gate that catches "installed runs can't locate plugins", so a plugin
+missing from that tuple is a plugin whose packaging nothing checks. `${dir}` in a sensor command resolves to the plugin's package-data dir,
 so helper-script paths (`${dir}/line-count.py`, `${dir}/../.jscpd.json`) keep
 working once the layout is preserved under the import package.
 
@@ -627,15 +628,18 @@ for the same reason.
 
 ### Each released package needs its own publish environment
 
-`.github/workflows/release.yml` maps each of the six PyPI packages to a
-distinct GitHub environment because a pending trusted publisher is unique by
-`(owner, repo, workflow, environment)` — six packages can't share one.
+`.github/workflows/release.yml` maps every PyPI package to a distinct GitHub
+environment because a pending trusted publisher is unique by
+`(owner, repo, workflow, environment)` — two packages can't share one. A package
+new to PyPI also needs its pending publisher registered there before the tag, or
+its leg of the publish matrix fails while the rest succeed.
 
 ### The plugin floor is raised with the version, and the tap bump goes via a PR
 
 Two things about a release that are silent when forgotten (agent decision):
 
-- The core floors each plugin at its own minor (`habit-hooks-generic~=1.2`).
+- The core floors each plugin at the release's own minor, so every `~=` pin in
+  the core's `pyproject.toml` moves on a minor bump.
   `pip install -U habit-hooks` upgrades a dependency only when the new core
   stops being satisfied by the installed one, so a floor left behind hands
   someone the new core with last release's plugins — where nearly every fix

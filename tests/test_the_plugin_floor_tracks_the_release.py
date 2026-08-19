@@ -1,4 +1,4 @@
-"""The six packages are released together, and the core says so.
+"""Every released package ships at one version, and the core says so.
 
 ``pip install -U habit-hooks`` upgrades a dependency only when the newly
 installed core stops being satisfied by the one already there. A plugin floor
