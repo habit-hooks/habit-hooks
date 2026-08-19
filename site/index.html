@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habit Hooks — code-quality coaching for AI coding agents</title>
+<meta name="description" content="Habit Hooks runs your linters and replaces each raw rule violation with a short coaching guide your AI coding agent can act on. Python, TypeScript, PHP and Java.">
+<link rel="canonical" href="https://habit-hooks.com/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://habit-hooks.com/">
+<meta property="og:title" content="Habit Hooks">
+<meta property="og:description" content="Turn best-practice coding advice into AI habits.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect x='19' y='38' width='34' height='180' rx='17' fill='%23f42372'/><rect x='73' y='38' width='34' height='180' rx='17' fill='%23f42372'/><rect x='44.5' y='111' width='37' height='34' rx='6' fill='%23f42372'/><rect x='149' y='38' width='34' height='180' rx='17' fill='%232d3748'/><rect x='203' y='38' width='34' height='180' rx='17' fill='%232d3748'/><rect x='174.5' y='111' width='37' height='34' rx='6' fill='%232d3748'/></svg>">
+<style>
+  :root {
+    --pink: #f42372;
+    --ink: #2d3748;
+    --muted: #5b6676;
+    --bg: #EBECE9;
+    --card: #ffffff;
+    --line: #d7d9d4;
+    --code-bg: #f4f5f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --pink: #ff3d84;
+      --ink: #EBECE9;
+      --muted: #9aa4b2;
+      --bg: #272727;
+      --card: #303030;
+      --line: #3d3d3d;
+      --code-bg: #1f1f1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 0 24px; }
+  a { color: var(--pink); }
+
+  header { padding: 72px 0 56px; text-align: center; }
+  .mark { width: 96px; height: 96px; color: var(--ink); }
+  h1 { font-size: clamp(2.4rem, 7vw, 3.4rem); margin: 18px 0 6px; letter-spacing: -0.02em; }
+  .tagline { font-size: clamp(1.05rem, 2.6vw, 1.3rem); color: var(--muted); margin: 0 auto 28px; max-width: 30ch; }
+
+  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: 15px; margin: 0;
+  }
+  .install { max-width: 480px; margin: 0 auto 26px; text-align: left; }
+
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 11px 22px; border-radius: 999px;
+    text-decoration: none; font-weight: 600; font-size: 15px;
+    background: var(--pink); color: #fff; border: 1px solid var(--pink);
+  }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+
+  section { padding: 44px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 1.45rem; margin: 0 0 18px; letter-spacing: -0.01em; }
+  ul { padding-left: 1.15em; margin: 0; }
+  li { margin-bottom: 10px; }
+  li::marker { color: var(--pink); }
+
+  .pipe { text-align: center; font-size: 1.05rem; margin: 0 0 18px; }
+  .pipe code { background: var(--code-bg); padding: 5px 10px; border-radius: 6px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .chip {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+    background: var(--card); border: 1px solid var(--line);
+    padding: 4px 10px; border-radius: 6px; color: var(--muted);
+  }
+  .chip.on { border-color: var(--pink); color: var(--pink); }
+  .legend { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+
+  .langs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .lang {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; font-weight: 600; font-size: 15px;
+  }
+  .lang span { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+
+  footer { padding: 40px 0 64px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+  footer p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <svg class="mark" viewBox="0 0 256 256" aria-label="Habit Hooks" role="img">
+    <g fill="#f42372">
+      <rect x="19" y="38" width="34" height="180" rx="17"/>
+      <rect x="73" y="38" width="34" height="180" rx="17"/>
+      <rect x="44.5" y="111" width="37" height="34" rx="5.67"/>
+    </g>
+    <g fill="currentColor">
+      <rect x="149" y="38" width="34" height="180" rx="17"/>
+      <rect x="203" y="38" width="34" height="180" rx="17"/>
+      <rect x="174.5" y="111" width="37" height="34" rx="5.67"/>
+    </g>
+    <path d="M 128 111 Q 132.76 123.24 145 128 Q 132.76 132.76 128 145 Q 123.24 132.76 111 128 Q 123.24 123.24 128 111 Z" fill="#f42372"/>
+  </svg>
+
+  <h1>Habit Hooks</h1>
+  <p class="tagline">Turn best-practice coding advice into AI habits.</p>
+
+  <div class="install">
+<pre><code>uv tool install habit-hooks
+cd your-project
+habit-hooks init</code></pre>
+  </div>
+
+  <div class="cta">
+    <a class="btn" href="https://github.com/habit-hooks/habit-hooks">GitHub</a>
+    <a class="btn ghost" href="https://pypi.org/project/habit-hooks/">PyPI</a>
+    <a class="btn ghost" href="https://github.com/habit-hooks/habit-hooks#readme">Docs</a>
+  </div>
+</header>
+
+<section>
+  <h2>Why</h2>
+  <ul>
+    <li>AI coding agents ignore long rule documents. A book's worth of coding advice in the context window makes them worse, not better.</li>
+    <li>Humans don't need it in their head. Repetition turns advice into habit, triggered by an easy-to-spot cue. Agents can't form habits.</li>
+    <li>A bare linter score is a target, and Goodhart's law applies: agents are very good at gaming a target when the target is all they are given.</li>
+    <li>Habit Hooks supplies the missing loop from outside. The linter finding is the cue; the coaching guide is the action.</li>
+  </ul>
+  <p class="legend">The effect: better code, better agent performance on the next task, and fewer tokens — good code needs less context to work in.</p>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <p class="pipe"><code>habit-sensors &lt;scope flags&gt; | habit-mapper</code></p>
+  <ul>
+    <li><strong>habit-sensors</strong> runs your linters over the files in scope and emits findings.</li>
+    <li><strong>habit-mapper</strong> groups them by smell, renders that smell's coaching guide, and sets the exit code from its severity.</li>
+  </ul>
+  <p class="legend">Each sensor translates a tool's raw rule IDs into a tool-independent smell key — <code>max-params</code>, <code>PLR0913</code> and friends all become <code>too-many-parameters</code> — so the guide is chosen by smell, never by which tool reported it.</p>
+</section>
+
+<section>
+  <h2>Languages</h2>
+  <div class="langs">
+    <div class="lang">Python <span>ruff, deptry</span></div>
+    <div class="lang">TypeScript <span>eslint, knip, ts-morph</span></div>
+    <div class="lang">PHP <span>phpmd</span></div>
+    <div class="lang">Java <span>pmd</span></div>
+    <div class="lang">Any <span>line count, jscpd</span></div>
+  </div>
+  <p class="legend">Each is a separately installable plugin. A project's own config for a wrapped tool always wins — installing Habit Hooks never overrides preferences you already set.</p>
+</section>
+
+<section>
+  <h2>What it catches</h2>
+  <div class="chips">
+    <span class="chip on">oversized-function</span><span class="chip on">too-many-parameters</span>
+    <span class="chip on">high-complexity</span><span class="chip on">deep-nesting</span>
+    <span class="chip on">oversized-file</span><span class="chip on">unused-variable</span>
+    <span class="chip on">unused-import</span><span class="chip on">loose-equality</span>
+    <span class="chip on">var-declaration</span><span class="chip on">non-const-binding</span>
+    <span class="chip on">duplicate-import</span><span class="chip on">redundant-type-annotation</span>
+    <span class="chip on">unused-class-member</span><span class="chip on">unused-file</span>
+    <span class="chip on">unused-export</span><span class="chip on">unused-dependency</span>
+    <span class="chip on">test-only-dead-code</span><span class="chip on">parse-error</span>
+    <span class="chip">warning-comment</span><span class="chip">explicit-any</span>
+    <span class="chip">non-null-assertion</span><span class="chip">non-essential-comment</span>
+    <span class="chip">duplicated-code</span><span class="chip">swallowed-exception</span>
+  </div>
+  <p class="legend"><span style="color:var(--pink)">Pink</span> fails the run. Grey coaches and exits 0. Either can be overridden per smell.</p>
+</section>
+
+<section>
+  <h2>Starting on an existing codebase</h2>
+  <p style="margin-top:0">Snooze today's findings, so from then on only new smells surface:</p>
+<pre><code>habit-sensors --all | habit-snooze --snooze</code></pre>
+  <p class="legend">Commit the index it writes. Nothing is buried permanently — the ratchet variant brings a file's issues back the moment you touch it.</p>
+</section>
+
+<footer>
+  <p><strong>Looking for co-maintainers.</strong> We meet weekly to plan. If you care about code quality and want to shape where this goes, reach out to <a href="https://ivettordog.com">Ivett Ördög</a>.</p>
+  <p>MIT licensed. <a href="https://github.com/habit-hooks/habit-hooks">github.com/habit-hooks</a></p>
+</footer>
+
+</div>
+</body>
+</html>
