@@ -37,12 +37,15 @@ plugin changed. Read every diff; classify each as consumer-facing vs internal.
 - The new version is `max(all current package versions)` plus the appropriate
   semver bump. Decide the bump from what actually landed: **patch** for
   fixes/internal, **minor** only for genuinely new backward-compatible features.
-- Bump **only the packages that changed** to that shared version (they may jump
-  more than one patch to reach it — that's expected). Unchanged packages keep
-  their current version and are skipped at publish time.
-- Bump `version` in each changed package's `pyproject.toml`, then `uv lock` and
-  confirm the lock shows the new versions. Core pins plugins as `~=1.0`, so a
-  patch/minor bump needs no dependency-pin edits.
+- **Every package ships at that version**, changed or not. `pip install -U
+  habit-hooks` upgrades a plugin only when the new core stops being satisfied by
+  the installed one, so a plugin left behind hands someone the new core with last
+  release's plugins. `tests/test_the_plugin_floor_tracks_the_release.py` gates it.
+- Bump `version` in the core's `pyproject.toml` and in every
+  `plugins/*/pyproject.toml`, **and raise each `habit-hooks-<name>~=X.Y` floor in
+  the core's `dependencies` and `optional-dependencies` to the new minor.** Then
+  `uv lock` and confirm the lock shows the new versions. The same test gates both
+  halves, so a forgotten floor fails the suite rather than shipping quietly.
 
 ## 3. Validate the changelog
 
