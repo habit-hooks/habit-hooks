@@ -96,7 +96,7 @@ brew install habit-hooks/tap/habit-hooks
 
 This gives you **core plus the generic (language-agnostic) plugin** and installs four commands on your `PATH`:
 `habit-hooks`, `habit-sensors`, `habit-mapper`, and `habit-snooze`. Homebrew is the exception: it installs
-all four plugins, so skip to step 3.
+all five plugins, so skip to step 3.
 
 > ⚠️ **Important: this on its own checks nothing about your language.** What you have now is the generic
 > plugin, which measures file length and duplication. Python, TypeScript, PHP and Java each need their own
