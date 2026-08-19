@@ -21,7 +21,8 @@ SENSOR = (
     Path(__file__).resolve().parents[1] / "src/habit_hooks_java/sensors/pmd_sensor.py"
 )
 
-FIVE_PARAMETER_METHOD = """class Billing {
+FIVE_PARAMETER_METHOD_WITH_UNUSED_IMPORT = """import java.io.File;
+class Billing {
     double charge(double a, double b, double c, double d, double e) {
         return a + b + c + d + e;
     }
@@ -56,18 +57,25 @@ def _run(cwd: Path, arguments: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def test_a_pmd_flag_in_args_reaches_pmd(tmp_path: Path) -> None:
-    """ExcessiveParameterList reports at priority 3 (verified against PMD
-    7.26.0), so ``--minimum-priority 1`` silences it — proof the flag reached
-    PMD's own filtering rather than becoming a bogus ``-d`` file argument."""
-    (tmp_path / "Billing.java").write_text(FIVE_PARAMETER_METHOD)
+    """ExcessiveParameterList reports at priority 3 and UnnecessaryImport at
+    priority 4 (verified against PMD 7.26.0), so ``--minimum-priority 3``
+    keeps the first and drops the second — proof the flag reached PMD's own
+    filtering rather than becoming a bogus ``-d`` file argument. A threshold
+    that dropped every rule would pass as trivially as one that reached
+    nothing at all, so the assertion has to be a smell that survives, not an
+    empty result."""
+    (tmp_path / "Billing.java").write_text(FIVE_PARAMETER_METHOD_WITH_UNUSED_IMPORT)
 
     without_the_flag = _run(tmp_path, ["--", "Billing.java"])
-    with_the_flag = _run(tmp_path, ["--minimum-priority", "1", "--", "Billing.java"])
+    with_the_flag = _run(tmp_path, ["--minimum-priority", "3", "--", "Billing.java"])
 
     assert without_the_flag.returncode == 0, without_the_flag.stderr
-    assert json.loads(without_the_flag.stdout) != []
+    without_smells = {finding["smell"] for finding in json.loads(without_the_flag.stdout)}
+    assert without_smells == {"too-many-parameters", "unused-import"}
+
     assert with_the_flag.returncode == 0, with_the_flag.stderr
-    assert json.loads(with_the_flag.stdout) == []
+    with_smells = {finding["smell"] for finding in json.loads(with_the_flag.stdout)}
+    assert with_smells == {"too-many-parameters"}
 
 
 def test_a_ruleset_named_in_args_is_still_honoured(tmp_path: Path) -> None:

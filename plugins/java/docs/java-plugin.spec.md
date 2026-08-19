@@ -143,20 +143,22 @@ habit-sensors --all | jq '.[] | {smell, language, key: (.issues[0].key | sub(".*
 
 `args` is spliced into the sensor's command as `${args} -- ${files}`, so a real
 PMD flag — not just a ruleset — passes straight through to `pmd check`.
-`ExcessiveParameterList` reports at priority 3, so `--minimum-priority 1`
-silences it: proof the flag reached PMD's own filtering rather than becoming a
-bogus file argument the sensor could not find.
+`ExcessiveParameterList` reports at priority 3 and `UnnecessaryImport` at
+priority 4, so `--minimum-priority 3` keeps the parameter-list violation and
+drops the import one: proof the flag reached PMD's own filtering rather than
+becoming a bogus file argument the sensor could not find.
 
 📄.habit-hooks/config.toml
 ```toml
 plugins = ["java"]
 
 [sensors.pmd]
-args = ["--minimum-priority", "1"]
+args = ["--minimum-priority", "3"]
 ```
 
 📄Billing.java
 ```java
+import java.io.File;
 class Billing {
     double charge(double a, double b, double c, double d, double e) {
         return a + b + c + d + e;
@@ -165,12 +167,15 @@ class Billing {
 ```
 
 ```bash
-habit-sensors --all | jq .
+habit-sensors --all | jq '.[] | {smell, source: .issues[0].details.source}'
 ```
 
 🖥️ ✅
 ```json
-[]
+{
+  "smell": "too-many-parameters",
+  "source": "pmd:ExcessiveParameterList"
+}
 ```
 
 ## A crashing pmd fails the run, never reports clean
