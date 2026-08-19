@@ -15,13 +15,25 @@ missing ends by pointing back at ``habit-hooks init`` rather than at a run.
 from __future__ import annotations
 
 from .initialise import Plan
+from .recommend import LANGUAGE_SIGNALS
 
 AUTHORING_GUIDE = (
     "https://github.com/habit-hooks/habit-hooks"
     "/blob/main/docs/authoring-plugins.spec.md"
 )
 
-SHIPPED_LANGUAGES = "python, typescript and php"
+
+def _and_joined(items: tuple[str, ...]) -> str:
+    """``items`` as a reader would say them: commas, then "and" before the last."""
+    if len(items) < 2:
+        return "".join(items)
+    return f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+# Derived from LANGUAGE_SIGNALS rather than spelled out here, so a language
+# plugin added there is a language plugin named here without a second edit —
+# nothing else tied the two together, which is exactly how java went missing.
+SHIPPED_LANGUAGES = _and_joined(tuple(signal.language for signal in LANGUAGE_SIGNALS))
 
 # Left as a placeholder rather than guessed: nothing was recognised, so any
 # language named here would be this tool inventing one for the reader to correct.

@@ -142,7 +142,10 @@ def test_an_unrecognised_project_is_offered_a_plugin_to_write() -> None:
     reported = _reported(languages=(), plugins=("generic",))
 
     assert "Detected: no language habit-hooks has a plugin for." in reported
-    assert "habit-hooks ships plugins for python, typescript and php." in reported
+    assert (
+        "habit-hooks ships plugins for python, typescript, php and java."
+        in reported
+    )
 
 
 def test_the_prompt_sends_the_agent_to_the_authoring_manual() -> None:
