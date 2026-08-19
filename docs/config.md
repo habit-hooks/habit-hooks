@@ -206,17 +206,20 @@ When a run is invoked with no explicit scope flag (`--all`, `--branch`, …), th
 scope is derived from `[scope]`. The scope flags themselves live in
 [habit-sensors.spec.md](habit-sensors.spec.md).
 
-| Field               | Meaning |
-|---------------------|---------|
-| `changedOnly`       | Restrict the default run to uncommitted work: staged and unstaged edits, plus untracked (non-ignored) new files. |
-| `autoBranchOffMain` | When not on `mainBranch`, default to diffing against `branchBase`. |
-| `branchBase`        | Base ref for branch-relative scoping (used by `--branch` and `autoBranchOffMain`). It must exist in the checkout: a ref a real repository cannot resolve **fails the run**, rather than scoping it to nothing and reporting clean. Scoping starts at the merge base of this ref and `HEAD`, so work landed on the base after you branched is never scanned as yours. |
-| `mainBranch`        | The branch name on which `autoBranchOffMain` does *not* kick in. |
+| Field               | Default  | Meaning |
+|---------------------|----------|---------|
+| `changedOnly`       | `false`  | Restrict the default run to uncommitted work: staged and unstaged edits, plus untracked (non-ignored) new files. |
+| `autoBranchOffMain` | `false`  | When not on `mainBranch`, default to diffing against `branchBase`. Left at its default, a run with no scope flag scans **every** file the `files` globs match. |
+| `branchBase`        | `"main"` | Base ref for branch-relative scoping (used by `--branch` and `autoBranchOffMain`). It must exist in the checkout: a ref a real repository cannot resolve **fails the run**, rather than scoping it to nothing and reporting clean. Scoping starts at the merge base of this ref and `HEAD`, so work landed on the base after you branched is never scanned as yours. |
+| `mainBranch`        | `"main"` | The branch name on which `autoBranchOffMain` does *not* kick in. |
+
+The block below is an example, not the defaults — `autoBranchOffMain` is the one
+value in it that differs from what you get by writing no `[scope]` at all:
 
 ```toml
 [scope]
 changedOnly = false
-autoBranchOffMain = true
+autoBranchOffMain = true   # not the default
 branchBase = "main"
 mainBranch = "main"
 ```
@@ -354,7 +357,7 @@ uncoached = "suggest"                             # a smell the catalogue never 
 
 [scope]
 changedOnly = false
-autoBranchOffMain = true
+autoBranchOffMain = true                          # NOT the default: false scans every matching file
 branchBase = "main"
 mainBranch = "main"
 

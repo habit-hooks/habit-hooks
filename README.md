@@ -152,7 +152,20 @@ Then run it:
 habit-hooks
 ```
 
-That scans **every** file in scope. Scope the run explicitly instead — the flags are mutually exclusive:
+That scans **every** file in scope — on an existing codebase, that is the whole backlog on your first run.
+
+**Starting on an existing codebase? Snooze the backlog first.** One command records today's findings as
+accepted, so from then on only *new* smells surface:
+
+```sh
+habit-sensors --all | habit-snooze --snooze
+```
+
+Commit the `.habit-hooks/snooze.json` it writes. Nothing is buried permanently — see
+[Snoozing existing violations](#snoozing-existing-violations), which also covers the ratchet that brings a
+file's issues back the moment you touch it.
+
+Scope the run explicitly instead — the flags are mutually exclusive:
 
 ```sh
 habit-hooks --all                   # every file
