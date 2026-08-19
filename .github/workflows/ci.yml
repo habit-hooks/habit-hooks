@@ -39,8 +39,13 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Install pmd
         # The java plugin's sensor and its spec cases need the real PMD on PATH.
+        # PMD publishes no checksum beside the zip (only a GPG signature), and a
+        # checksum fetched from the same origin as the artifact proves nothing
+        # anyway — so the digest is pinned here, next to the version it belongs
+        # to. Bumping PMD means replacing both lines together.
         run: |
           curl -fsSLo /tmp/pmd.zip https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.26.0/pmd-dist-7.26.0-bin.zip
+          echo "9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9  /tmp/pmd.zip" | sha256sum -c -
           unzip -q /tmp/pmd.zip -d /tmp/pmd
           echo "/tmp/pmd/pmd-bin-7.26.0/bin" >> "$GITHUB_PATH"
       - name: Test
