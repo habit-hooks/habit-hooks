@@ -4,7 +4,14 @@ language = "java"
 # is the first run for anyone `habit-hooks init` set up. `target/` is where
 # Maven puts generated sources and `build/` is where Gradle puts its own — code
 # the project did not write and cannot change.
-files = ["**/*.java", "!**/target/**", "!**/build/**"]
+#
+# The exclusions name `*.java` rather than the whole directory because a
+# plugin's exclusions bind the union of every active plugin's globs, not just
+# its own (docs/config.md). `node_modules`, `vendor` and `site-packages` are
+# names no language keeps source under, so excluding those wholesale is free;
+# `build` is not in that class, and a bare `!**/build/**` here stopped a
+# python+java project scanning its own `scripts/build/*.py`.
+files = ["**/*.java", "!**/target/**/*.java", "!**/build/**/*.java"]
 sensors = ["pmd"]
 transformers = []
 
