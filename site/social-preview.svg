@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640"
+     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif"
+     role="img" aria-label="Habit Hooks — code-quality coaching for AI coding agents">
+  <rect width="1280" height="640" fill="#272727"/>
+  <g transform="translate(120 205) scale(0.898)">
+    <path fill="#f42372" d="M106.13,127.91c.42-.17.84-.34,1.24-.52,10.66-4.66,17.31-15.47,17.31-27.1v-52.33c0-11.23-9.2-20.29-20.38-19.35-9.63.81-17.19,8.88-17.19,18.72v61.79c0,.06-.05.1-.1.1h-21.9c-.06,0-.1-.05-.1-.1v-61.15c0-11.23-9.2-20.29-20.38-19.35-9.63.81-17.19,8.88-17.19,18.72v160.72c0,11.23,9.2,20.29,20.38,19.35,9.63-.81,17.19-8.88,17.19-18.72v-61.79c0-.06.05-.1.1-.1h21.9c.06,0,.1.05.1.1v61.15c0,11.23,9.2,20.29,20.38,19.35,9.63-.81,17.19-8.88,17.19-18.72v-52.97c0-11.63-6.65-22.44-17.31-27.1-.41-.18-.82-.35-1.24-.52-.08-.03-.08-.15,0-.18Z"/>
+    <path fill="#EBECE9" d="M208.09,28.61c-9.43.82-17.1,9.69-17.1,19.15v61.45s-22.1,0-22.1,0v-61.45c0-9.46-7.67-18.33-17.1-19.15-11.14-.97-20.48,7.78-20.48,18.71v52.88c0,12.13,7.25,23.21,18.52,27.69.09.04.18.07.27.11-.09.04-.18.07-.27.11-11.27,4.48-18.52,15.56-18.52,27.69v52.44c0,9.46,7.67,18.33,17.1,19.15,11.14.97,20.48-7.78,20.48-18.71v-61.89h22.1v61.45c0,9.46,7.67,18.33,17.1,19.15,11.14.97,20.48-7.78,20.48-18.71V47.32c0-10.93-9.34-19.69-20.48-18.71Z"/>
+  </g>
+  <text x="396" y="288" font-size="76" font-weight="700" fill="#EBECE9" letter-spacing="-2">Habit Hooks</text>
+  <text x="398" y="338" font-size="31" fill="#9aa4b2">Code-quality coaching for AI coding agents</text>
+  <rect x="396" y="372" width="450" height="58" rx="10" fill="#1f1f1f" stroke="#3d3d3d"/>
+  <text x="420" y="410" font-size="25" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#f42372">uv tool install habit-hooks</text>
+</svg>

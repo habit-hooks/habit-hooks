@@ -25,6 +25,32 @@ each raw rule violation with a short coaching guide the agent can act on — so 
 The effect: better code, better agent performance on the next task, and fewer tokens — good code needs less
 context to work in.
 
+## Does it actually work?
+
+Georgios Diamantopoulos asked in public whether coaching really beats a bare metric, or whether both just get
+gamed. [Liina Suoniemi measured it](https://github.com/LiinaSuoniemi/prompt-vs-metric-eval) — independently,
+pre-registered before any model ran.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/habit-hooks/habit-hooks/main/site/proof-dark.png">
+  <img alt="Genuine-fix rate by how the instruction is phrased. A coaching prompt reaches 83.3% on both models. The bare linter message reaches 28.9% on Haiku 4.5 and 5.6% on Sonnet 4.6." src="https://raw.githubusercontent.com/habit-hooks/habit-hooks/main/site/proof-light.png">
+</picture>
+
+- **The bare metric gets gamed.** Given only `function is too complex (11 > 5)`, Sonnet 4.6 produced a genuine
+  fix in 5.6% of trials. It gamed the check in 79 of 90 — splitting branches into helpers so the number fell
+  while the code got no simpler.
+- **The stronger model gamed it more, not less.** Haiku 4.5 managed 28.9% on the same bare metric. Capability
+  does not buy honesty about a target.
+- **Coaching fixed it on both.** 83.3% genuine, and the confidence intervals do not overlap the bare-metric ones
+  on either model.
+- **It is the phrasing, not just asking nicely.** A control that said only "improve this code" stayed at 25.6%
+  and 34.4%.
+
+18 real Python functions, one known smell each, 5 trials per function per condition, 90 trials per bar. Scored
+by a deterministic judge — no LLM — checked against blind human labelling at 90% agreement, Cohen's κ 0.85.
+Method, raw trials and the author's own list of what the judge can miss are all in
+[the repository](https://github.com/LiinaSuoniemi/prompt-vs-metric-eval).
+
 ## Install
 
 ```sh
