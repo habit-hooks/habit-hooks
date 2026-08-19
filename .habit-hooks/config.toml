@@ -12,12 +12,21 @@ plugins = ["python", "generic"]
 # (a sensor spec is not valid ruff config and crashes). Naming only the other
 # plugins keeps that subtree out with no exclusion line; they lint cleanly
 # against the repo-root pyproject.
+#
+# Every other plugin's python is named. This list is an allowlist, so a plugin
+# left out of it is a plugin habit-hooks never looks at — java and php sat
+# outside it from the day each shipped, which is the false-clean this tool
+# exists to stop us from serving ourselves.
 files = [
   "src/**/*.py",
   "tests/**/*.py",
   "conftest.py",
   "plugins/generic/src/**/*.py",
   "plugins/generic/tests/**/*.py",
+  "plugins/java/src/**/*.py",
+  "plugins/java/tests/**/*.py",
+  "plugins/php/src/**/*.py",
+  "plugins/php/tests/**/*.py",
   "plugins/typescript/src/**/*.py",
   "plugins/typescript/tests/**/*.py",
 ]
