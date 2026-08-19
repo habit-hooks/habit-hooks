@@ -62,6 +62,11 @@ RULESET_LOCATIONS = (
 
 SUCCESS_EXIT_CODES = (0, 4)
 RULESET_OPTIONS = ("--rulesets", "-R")
+# The attached spellings picocli also takes, longest prefix first so `-R=x` is
+# not read as a bare `-R` with `=x` on it. A spelling missed here does not fall
+# back: the project's `-R` stays in the tail, ours goes in beside it, and PMD
+# unions the two rulesets rather than using theirs.
+ATTACHED_RULESET_PREFIXES = ("--rulesets=", "-R=", "-R")
 
 
 def run_pmd(arguments: list[str]) -> subprocess.CompletedProcess[str]:
@@ -87,10 +92,9 @@ def split_argv(argv: list[str]) -> tuple[list[str], list[str]]:
     """``argv``, split on the last literal ``--``: PMD's own flags before it,
     the files to analyse after.
 
-    The sensor's own command spells ``${args} -- ${files}``, so this ``--`` is
-    always the separator the command spliced in — but a project's own
-    ``--rulesets`` value could itself carry one, so the *last* occurrence is
-    the one that is ours.
+    The template spells ``${args} -- ${files}``, so the separator sits after
+    everything ``args`` can contribute and before every file: the *last* ``--``
+    is always ours, whatever a project wrote into its args.
     """
     if "--" not in argv:
         return argv, []
@@ -108,8 +112,9 @@ def ruleset_of(argv: list[str], project: Path) -> tuple[Path, list[str]]:
     for i, token in enumerate(argv):
         if token in RULESET_OPTIONS and i + 1 < len(argv):
             return Path(argv[i + 1]), [*argv[:i], *argv[i + 2 :]]
-        if token.startswith("--rulesets="):
-            return Path(token.split("=", 1)[1]), [*argv[:i], *argv[i + 1 :]]
+        for prefix in ATTACHED_RULESET_PREFIXES:
+            if token.startswith(prefix) and len(token) > len(prefix):
+                return Path(token[len(prefix) :]), [*argv[:i], *argv[i + 1 :]]
     for name in RULESET_LOCATIONS:
         if (project / name).is_file():
             return project / name, argv
