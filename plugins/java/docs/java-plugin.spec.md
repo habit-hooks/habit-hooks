@@ -139,6 +139,40 @@ habit-sensors --all | jq '.[] | {smell, language, key: (.issues[0].key | sub(".*
 }
 ```
 
+## `[sensors.pmd] args` reaches PMD directly
+
+`args` is spliced into the sensor's command as `${args} -- ${files}`, so a real
+PMD flag — not just a ruleset — passes straight through to `pmd check`.
+`ExcessiveParameterList` reports at priority 3, so `--minimum-priority 1`
+silences it: proof the flag reached PMD's own filtering rather than becoming a
+bogus file argument the sensor could not find.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["java"]
+
+[sensors.pmd]
+args = ["--minimum-priority", "1"]
+```
+
+📄Billing.java
+```java
+class Billing {
+    double charge(double a, double b, double c, double d, double e) {
+        return a + b + c + d + e;
+    }
+}
+```
+
+```bash
+habit-sensors --all | jq .
+```
+
+🖥️ ✅
+```json
+[]
+```
+
 ## A crashing pmd fails the run, never reports clean
 
 PMD exits non-zero on a file it cannot parse. The sensor surfaces that as a
@@ -172,5 +206,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'pmd' failed: ${python} ${dir}/pmd_sensor.py ${args} ${files}
+habit-sensors: sensor 'pmd' failed: ${python} ${dir}/pmd_sensor.py ${args} -- ${files}
 ```

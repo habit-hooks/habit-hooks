@@ -17,6 +17,12 @@ PMD 7's picocli reads a positional path that directly follows the ruleset value
 as another ``-R`` value (``-R ruleset.xml file.java`` analyses nothing), so the
 wrapper uses the short forms ``-R`` and per-file ``-d``, which do not. Verified
 against PMD 7.26.0.
+
+The sensor's own command spells ``${args} -- ${files}``, so ``sys.argv[1:]``
+carries both halves of ``[sensors.pmd] args`` on one side of a literal ``--``
+and the scoped files on the other — that is what lets a project pass any PMD
+flag (``--aux-classpath``, ``--minimum-priority``, ...) through untouched
+instead of every argv token becoming a bogus ``-d`` file argument.
 """
 
 from __future__ import annotations
@@ -75,6 +81,21 @@ def run_pmd(arguments: list[str]) -> subprocess.CompletedProcess[str]:
         )
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "pmd: command not found\n")
+
+
+def split_argv(argv: list[str]) -> tuple[list[str], list[str]]:
+    """``argv``, split on the last literal ``--``: PMD's own flags before it,
+    the files to analyse after.
+
+    The sensor's own command spells ``${args} -- ${files}``, so this ``--`` is
+    always the separator the command spliced in — but a project's own
+    ``--rulesets`` value could itself carry one, so the *last* occurrence is
+    the one that is ours.
+    """
+    if "--" not in argv:
+        return argv, []
+    index = len(argv) - 1 - argv[::-1].index("--")
+    return argv[:index], argv[index + 1 :]
 
 
 def ruleset_of(argv: list[str], project: Path) -> tuple[Path, list[str]]:
@@ -143,9 +164,10 @@ def main() -> int:
     if not argv:
         print("[]")
         return 0
-    ruleset, arguments = ruleset_of(argv, Path.cwd())
-    file_args = [token for argument in arguments for token in ("-d", argument)]
-    result = run_pmd(["-R", str(ruleset), *file_args])
+    pmd_args, files = split_argv(argv)
+    ruleset, remaining_args = ruleset_of(pmd_args, Path.cwd())
+    file_args = [token for file in files for token in ("-d", file)]
+    result = run_pmd(["-R", str(ruleset), *remaining_args, *file_args])
     if result.returncode not in SUCCESS_EXIT_CODES:
         sys.stderr.write(processing_errors(result.stdout) or result.stderr or result.stdout)
         return 2

@@ -264,7 +264,7 @@ replacement instead.
 |------------|---------|
 | `disabled` | Drop the sensor entirely. |
 | `files`    | Narrow the run's scope to these globs for this sensor alone (list form — no brace expansion). |
-| `args`     | Replace the sensor's default CLI args wholesale, and hand them to the tool the sensor runs. Only a sensor whose `command` spells `${args}` can take arguments at all; of the shipped ones that is `line-count`, `eslint` and `knip`. Setting `args` on any other sensor **stops the run** (exit 2) naming the sensor, rather than accepting it and dropping it. `args = []` is a value, not an absence: it is how a project clears a default it cannot use. |
+| `args`     | Replace the sensor's default CLI args wholesale, and hand them to the tool the sensor runs. Only a sensor whose `command` spells `${args}` can take arguments at all; of the shipped ones that is `line-count`, `eslint`, `knip` and `pmd`. Setting `args` on any other sensor **stops the run** (exit 2) naming the sensor, rather than accepting it and dropping it. `args = []` is a value, not an absence: it is how a project clears a default it cannot use. |
 
 ```toml
 # Turn off a sensor the plugin ships.
