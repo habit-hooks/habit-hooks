@@ -2,6 +2,35 @@
 name = "habit-hooks"
 version = "1.3.0"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE.md"]
+keywords = [
+    "code-quality",
+    "code-smells",
+    "static-analysis",
+    "linter",
+    "ci",
+    "code-review",
+    "technical-debt",
+    "refactoring",
+    "ai-coding-agents",
+    "coding-agents",
+    "developer-tools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+]
 requires-python = ">=3.11"
 # Each plugin is floored at this release's own minor, and the floor is raised
 # with it — `tests/test_the_plugin_floor_tracks_the_release.py` is the gate.
@@ -27,6 +56,12 @@ all = [
     "habit-hooks-php~=1.3",
     "habit-hooks-java~=1.3",
 ]
+
+[project.urls]
+Homepage = "https://habit-hooks.com"
+Repository = "https://github.com/habit-hooks/habit-hooks"
+Issues = "https://github.com/habit-hooks/habit-hooks/issues"
+Changelog = "https://github.com/habit-hooks/habit-hooks/blob/main/CHANGELOG.md"
 
 [project.scripts]
 habit-mapper = "habit_hooks.mapper:main"

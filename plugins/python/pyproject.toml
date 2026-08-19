@@ -2,11 +2,46 @@
 name = "habit-hooks-python"
 version = "1.3.0"
 description = "The Python Habit Hooks plugin"
+readme = "README.md"
+license = "MIT"
+keywords = [
+    "code-quality",
+    "code-smells",
+    "static-analysis",
+    "linter",
+    "ci",
+    "code-review",
+    "technical-debt",
+    "refactoring",
+    "ai-coding-agents",
+    "coding-agents",
+    "developer-tools",
+    "python",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+]
 requires-python = ">=3.11"
 dependencies = []
 
 [project.entry-points."habit_hooks.plugins"]
 python = "habit_hooks_python"
+
+[project.urls]
+Homepage = "https://habit-hooks.com"
+Repository = "https://github.com/habit-hooks/habit-hooks"
+Issues = "https://github.com/habit-hooks/habit-hooks/issues"
+Changelog = "https://github.com/habit-hooks/habit-hooks/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
