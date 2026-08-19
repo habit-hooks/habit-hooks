@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.3.1
+
+Discoverability and documentation. No behaviour changes.
+
+### Changed
+
+- **Every package now has a PyPI page.** All six shipped with an empty one: no
+  README, no keywords, no classifiers, no project links, no license. Each plugin
+  gains a README of its own, and the core's README is now its long description.
+
+- **The README says what the tool actually does.** It had been wrong about six
+  things, five of them for several releases:
+  - A plain `habit-hooks` run scans every file, not your branch's changes.
+    `[scope] autoBranchOffMain` defaults to `false`, and `init` writes no
+    `[scope]` block.
+  - `init` writes `plugins` and nothing else. The config the README showed added
+    `files = ["**/*.py"]`, which replaces the python plugin's exclusions
+    wholesale — so `--all` then walked the reader's `.venv`.
+  - A language plugin's guide wins over `generic`'s wherever `generic` sits in
+    `plugins`, so ordering it last was never load-bearing.
+  - The override chain resolves to installed package data, not to a sibling
+    `plugins/` directory.
+  - The sample output was invented. It is now a real run.
+  - `test-only-dead-code` was missing from the enforced list.
+
+- **Onboarding says how to start on a codebase that already has smells.**
+  `habit-sensors --all | habit-snooze --snooze` now appears where the first run
+  happens, rather than two hundred lines below it.
+
+- **`docs/config.md`'s `[scope]` table gains a Default column.** Both its
+  examples set `autoBranchOffMain = true` while the default is `false`, and
+  neither said so.
+
 ## 1.3.0
 
 Java. `pom.xml` or `build.gradle` in your project and habit-hooks now coaches
