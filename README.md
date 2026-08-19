@@ -27,8 +27,8 @@ context to work in.
 
 ## Does it actually work?
 
-Georgios Diamantopoulos asked in public whether coaching really beats a bare metric, or whether both just get
-gamed. [Liina Suoniemi measured it](https://github.com/LiinaSuoniemi/prompt-vs-metric-eval) — independently,
+Does coaching actually beat a bare metric, or do both just get gamed?
+[Liina Suoniemi measured it](https://github.com/LiinaSuoniemi/prompt-vs-metric-eval) — independently, and
 pre-registered before any model ran.
 
 <picture>
