@@ -1,4 +1,14 @@
+# Java plugin defaults.
 language = "java"
-files = ["**/*.java"]
+# A project naming no `files` of its own scans what its plugins declare, so this
+# is the first run for anyone `habit-hooks init` set up. `target/` is where
+# Maven puts generated sources and `build/` is where Gradle puts its own — code
+# the project did not write and cannot change.
+files = ["**/*.java", "!**/target/**", "!**/build/**"]
 sensors = ["pmd"]
 transformers = []
+
+# The pmd sensor spawns the pmd binary directly.
+detectors = [
+  { name = "pmd", kind = "command", install = "brew install pmd" },
+]
