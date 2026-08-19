@@ -71,3 +71,21 @@ do not tag or push yourself:
 ```
 git tag vX.Y.Z && git push origin main --tags
 ```
+
+## 5. Bump the Homebrew tap
+
+Only after the PyPI publish — the formula pins each artifact's URL and
+sha256 from PyPI, so the values don't exist until the release is live.
+The `habit-hooks/homebrew-tap` repo's `Formula/habit-hooks.rb` carries the core's sdist URL +
+sha256, one `resource` block per plugin with its own URL + sha256, and a
+`test do` block asserting the exact list of plugin entry points.
+
+- Move every resource block to the new version's URL + sha256. **A plugin
+  new in this release needs its own resource block added**, not just the
+  existing ones bumped — a missing one ships a `brew install` without that
+  plugin.
+- Add the new plugin to the `test do` block's asserted entry-point list.
+- Open it as a **pull request** against the tap — never push to its `main`.
+  `brew test-bot` builds bottles either way, but `publish.yml` (`brew
+  pr-pull`) attaches them from a PR number; pushed straight to main, 1.2.1
+  shipped with no bottles.
