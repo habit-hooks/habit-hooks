@@ -35,11 +35,13 @@ RULE_SMELLS = {
     "EmptyCatchBlock": "swallowed-exception",
 }
 
-# NcssCount reports classes, methods and constructors off one rule, and the
-# catalogue has a smell only for oversized methods, so class-level violations
-# are dropped. The distinction lives in PMD's own message template, which is
-# the only structural signal the JSON report carries for it.
-METHOD_NCSS_PREFIXES = ("The method", "The constructor")
+# NcssCount and CyclomaticComplexity each report classes, methods and
+# constructors off one rule, and the catalogue has a smell only for oversized
+# and over-complex methods, so class-level violations are dropped. The
+# distinction lives in PMD's own message template, which is the only structural
+# signal the JSON report carries for it.
+METHOD_LEVEL_RULES = ("NcssCount", "CyclomaticComplexity")
+METHOD_LEVEL_PREFIXES = ("The method", "The constructor")
 
 # The ruleset names Maven and Gradle PMD setups conventionally point at, in
 # the order a project directory is checked. PMD itself offers no discovery
@@ -104,8 +106,8 @@ def violations(report: dict) -> list[dict]:
 def smell_of(entry: dict) -> str | None:
     violation = entry["violation"]
     rule = violation["rule"]
-    if rule == "NcssCount" and not violation["description"].startswith(
-        METHOD_NCSS_PREFIXES
+    if rule in METHOD_LEVEL_RULES and not violation["description"].startswith(
+        METHOD_LEVEL_PREFIXES
     ):
         return None
     return RULE_SMELLS.get(rule)

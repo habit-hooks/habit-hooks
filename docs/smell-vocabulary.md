@@ -165,9 +165,12 @@ catalogue is shared — only the plugin's sensors differ).
 The Java plugin runs PMD (`pmd check --format json`) through a thin sensor that
 normalises PMD's exit-4-on-violations and maps its rule names to canonical smells.
 PMD 7 no longer ships `ExcessiveMethodLength`/`ExcessiveClassLength`, so
-`oversized-function` comes from `NcssCount`, which reports classes, methods and
-constructors off one rule — the sensor keeps only the method/constructor
-violations (PMD's own message distinguishes them) and drops the class-level ones.
+`oversized-function` comes from `NcssCount`. Both `NcssCount` and
+`CyclomaticComplexity` report classes, methods and constructors off one rule
+each — the sensor keeps only the method/constructor violations (PMD's own
+message distinguishes them) and drops the class-level ones, so a class of many
+simple methods tripping PMD's default `classReportLevel` is never coached as
+one over-complex function.
 PMD never discovers a project ruleset, so the sensor reaches for one only after
 checking the conventional locations (`src/main/resources/pmd/ruleset.xml`,
 `pmd/ruleset.xml`, `ruleset.xml`, `pmd.xml`) or a `--rulesets` in its args, then
