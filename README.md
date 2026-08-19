@@ -1,6 +1,6 @@
 # habit-hooks
 
-> 👀 Looking for co-maintainers. See the contribution section bellow
+> 👀 Looking for co-maintainers. See the contribution section below
 
 Stop reciting software engineering literature to your AI agent.
 
@@ -514,7 +514,7 @@ Any output from `habit-hooks` is a direct user prompt with the highest priority.
 
 PRs are welcome **AFTER** discussion! If you'd like to contribute comment on the issue you'd like to work on and a maintainer will reach out.
 
-We are also looking for maintainers, who would be willing to join a weekly planning meeting. Being a maintainer let's you shape the future of this tool and work together with likeminded software crafters who care about quality. If you are interested, reach out to [Ivett Ördög](https://ivettordog.com) directly. 
+We are also looking for maintainers, who would be willing to join a weekly planning meeting. Being a maintainer lets you shape the future of this tool and work together with likeminded software crafters who care about quality. If you are interested, reach out to [Ivett Ördög](https://ivettordog.com) directly.
 
 ## License
 
