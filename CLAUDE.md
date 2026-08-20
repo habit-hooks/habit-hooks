@@ -27,6 +27,35 @@ missing from that tuple is a plugin whose packaging nothing checks. `${dir}` in 
 so helper-script paths (`${dir}/line-count.py`, `${dir}/../.jscpd.json`) keep
 working once the layout is preserved under the import package.
 
+### A plugin helper imports its neighbours as top-level modules (agent decision, issue #132)
+
+A sensor helper is spawned as a loose script (`${python} ${dir}/pmd_sensor.py`),
+so its own directory is `sys.path[0]` and a module beside it is a plain
+top-level import — `from pmd_ruleset import ruleset_of`, never
+`from .pmd_ruleset import`, which has no package context to resolve against.
+That works wherever `${dir}` points, so one spelling serves the installed
+package and a vendored `.habit-hooks/<plugin>/sensors/` copy alike. Vendoring
+never blocked a helper from having a neighbour: the *override chain* is
+per-file (each file resolved independently, so one guide can be replaced
+without copying a plugin), but a sensor already needs its `.toml`, its helper
+and its data (`pmd-ruleset.xml`) side by side in whichever directory wins.
+
+A unit test therefore loads a helper the way a run loads it —
+`plugins/java/tests/conftest.py` puts the sensors directory on `sys.path`, as
+the interpreter does for a script. Reaching the same code as
+`habit_hooks_java.sensors.pmd_sensor` is a load path no run ever takes and the
+only one under which that import fails, so testing through it would force the
+production code into a spelling production cannot use.
+`plugins/java/tests/test_a_vendored_sensor_finds_its_neighbour.py` is the gate,
+and it runs the copy under `python -S`: this checkout has the plugin installed,
+so without that a package-absolute import would pass on site-packages and prove
+nothing about the files the case copied.
+
+`sensors/spawn.py` pins `PYTHONSAFEPATH` empty for the same reason it pins
+`PYTHONIOENCODING`: that variable's whole effect is to drop the script's own
+directory from `sys.path`, so a consumer who hardens their environment with it
+would get a `ModuleNotFoundError` traceback in place of coaching.
+
 ### Installing a plugin does not enable it, so every hint names the config line (agent decision)
 
 `plugins` in `.habit-hooks/config.toml` is the only thing that makes a plugin

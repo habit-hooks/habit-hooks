@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from habit_hooks_java.sensors.pmd_sensor import ruleset_of
+from pmd_ruleset import ruleset_of
 
 BUNDLED = "pmd-ruleset.xml"
 THEIRS = "mine.xml"

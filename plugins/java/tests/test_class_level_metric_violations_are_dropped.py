@@ -14,7 +14,7 @@ over-complex function anywhere in the file.
 
 from __future__ import annotations
 
-from habit_hooks_java.sensors.pmd_sensor import findings, smell_of
+from pmd_sensor import findings, smell_of
 
 
 def _entry(rule: str, description: str, beginline: int = 1) -> dict:

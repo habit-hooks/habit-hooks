@@ -1,5 +1,6 @@
 """The environment a sensor's command runs in, apart from its deadline: an own
-stdin, and the project's own tools.
+stdin, the project's own tools, and the interpreter settings a helper habit-hooks
+ships depends on.
 
 A sensor must never inherit the parent's stdin — a ``pre-push`` hook carries
 refs on stdin, and a tool that reads input would consume them or block on a
@@ -59,6 +60,31 @@ def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
         findings = execution.run_sensor(part)
 
     assert findings == [{"smell": "s", "read": 0, "issues": []}]
+
+
+def test_a_helper_reaches_its_neighbour_under_a_hardened_environment(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A shipped Python helper imports the modules beside it by name, and
+    ``PYTHONSAFEPATH`` in the consumer's environment must not take that away.
+
+    That variable's whole effect is to drop the script's own directory from
+    ``sys.path`` — the one thing a loose helper's ``import <neighbour>`` rests
+    on. Inherited, it turned the java sensor into a ``ModuleNotFoundError``
+    traceback where the coaching should be.
+    """
+    (tmp_path / "neighbour.py").write_text('SMELL = "s"\n', encoding="utf-8")
+    (tmp_path / "helper.py").write_text(
+        "import json\n"
+        "from neighbour import SMELL\n"
+        'print(json.dumps([{"smell": SMELL, "issues": []}]))\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PYTHONSAFEPATH", "1")
+    part = Part(name="probe", command="${python} ${dir}/helper.py", directory=tmp_path)
+    execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
+
+    assert execution.run_sensor(part) == [{"smell": "s", "issues": []}]
 
 
 def test_a_sensor_reaches_the_project_s_own_tools(tmp_path: Path) -> None:

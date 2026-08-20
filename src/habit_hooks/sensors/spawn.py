@@ -88,6 +88,10 @@ class Spawner:
             # this, which is why errors="replace" above remains the fallback
             # for everything else this run spawns.
             "PYTHONIOENCODING": "utf-8",
+            # Such a helper also imports the modules beside it by name, which
+            # needs the script's own directory on sys.path — exactly what
+            # PYTHONSAFEPATH (`python -P`) removes. Empty is off; "0" is on.
+            "PYTHONSAFEPATH": "",
         }
 
 
