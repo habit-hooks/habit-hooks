@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from habit_hooks.project_paths import project_relative, tool_search_path
+from habit_hooks import host_platform
+from habit_hooks.project_paths import project_relative, tool_search_path, venv_bin_dir
 
 
 def test_an_absolute_path_inside_the_project_is_re_expressed(tmp_path: Path) -> None:
@@ -72,3 +73,31 @@ def test_the_project_s_own_tool_bins_come_first_on_its_search_path(
         str(tmp_path / ".venv" / "bin"),
         "/usr/bin",
     ]
+
+
+def test_a_venv_keeps_its_executables_under_bin(tmp_path: Path) -> None:
+    """CPython's own layout, everywhere except Windows."""
+    assert venv_bin_dir(tmp_path / ".venv") == tmp_path / ".venv" / "bin"
+
+
+def test_a_windows_venv_keeps_its_executables_under_scripts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+
+    assert venv_bin_dir(tmp_path / ".venv") == tmp_path / ".venv" / "Scripts"
+
+
+def test_the_search_path_reaches_a_windows_venv_s_scripts_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Asked through ``tool_search_path`` rather than directly — proof the two
+    do not drift apart, since a run and a missing-tools report both go through
+    ``tool_search_path``, never ``venv_bin_dir`` alone."""
+    monkeypatch.setenv("PATH", "/usr/bin")
+    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+
+    entries = tool_search_path(tmp_path).split(os.pathsep)
+
+    assert str(tmp_path / ".venv" / "Scripts") in entries
+    assert str(tmp_path / ".venv" / "bin") not in entries

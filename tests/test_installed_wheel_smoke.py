@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from habit_hooks.project_paths import venv_bin_dir
 from installed_env import (
     build_wheels,
     install_by_name,
@@ -40,7 +41,7 @@ def default_install(tmp_path_factory) -> tuple[Path, Path]:
     build_wheels(wheelhouse, ("habit-hooks", "habit-hooks-generic"))
     venv = root / "venv"
     python = install_by_name(venv, wheelhouse, "habit-hooks")
-    return python, venv / "bin" / "habit-sensors"
+    return python, venv_bin_dir(venv) / "habit-sensors"
 
 
 def _assert_only_the_oversized_file(findings: list[dict]) -> None:

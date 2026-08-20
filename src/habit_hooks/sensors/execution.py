@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..argv_budget import ARGUMENT_BUDGET, within_argument_limits
+from ..argv_budget import argument_budget, within_argument_limits
 from ..scope import Scope, matching
 from .command_text import expanded, quoted
 from .finding_paths import aliasing_notices, anchored
@@ -144,7 +144,7 @@ class Execution:
         """
         files = self._quoted_files(sensor)
         split = "${files}" in sensor.command and files
-        budget = ARGUMENT_BUDGET - len(self._expand_files(sensor, []))
+        budget = argument_budget() - len(self._expand_files(sensor, []))
         chunks = within_argument_limits(files, budget) if split else [files]
         return [self._expand_files(sensor, chunk) for chunk in chunks]
 

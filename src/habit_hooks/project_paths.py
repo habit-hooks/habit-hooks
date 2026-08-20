@@ -16,6 +16,8 @@ from __future__ import annotations
 import os
 from pathlib import Path, PurePath
 
+from . import host_platform
+
 
 def project_relative(raw: str, project_dir: Path) -> str | None:
     """``raw`` as a forward-slash path under ``project_dir``, or ``None`` outside it.
@@ -35,6 +37,17 @@ def project_relative(raw: str, project_dir: Path) -> str | None:
     )
 
 
+def venv_bin_dir(venv_dir: Path) -> Path:
+    """Where a venv keeps its executables.
+
+    CPython's venv module puts ``python`` and every installed console script
+    under ``bin`` everywhere except Windows, where it uses ``Scripts`` instead
+    — the one fact both ``tool_search_path`` below and an installed-run test
+    harness need, so both ask here rather than each spelling it separately.
+    """
+    return venv_dir / ("Scripts" if host_platform.is_windows() else "bin")
+
+
 def tool_search_path(project_dir: Path) -> str:
     """Where this project's tools are, ahead of everything else on ``PATH``.
 
@@ -43,7 +56,7 @@ def tool_search_path(project_dir: Path) -> str:
     a hook, run under different shells, still measure alike.
     """
     node = project_dir / "node_modules" / ".bin"
-    venv = project_dir / ".venv" / "bin"
+    venv = venv_bin_dir(project_dir / ".venv")
     return os.pathsep.join([str(node), str(venv), os.environ.get("PATH", "")])
 
 

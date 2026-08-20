@@ -21,6 +21,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from habit_hooks.project_paths import venv_bin_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -71,8 +72,8 @@ def install_wheels(venv: Path, wheels_dir: Path) -> Path:
     """Install every built wheel explicitly; returns the installed habit-sensors."""
     _uv_run("venv", str(venv))
     wheels = [str(path) for path in sorted(wheels_dir.glob("*.whl"))]
-    _uv_run("pip", "install", "--python", str(venv / "bin" / "python"), *wheels)
-    return venv / "bin" / "habit-sensors"
+    _uv_run("pip", "install", "--python", str(venv_bin_dir(venv) / "python"), *wheels)
+    return venv_bin_dir(venv) / "habit-sensors"
 
 
 def install_by_name(venv: Path, wheels_dir: Path, name: str) -> Path:
@@ -80,10 +81,10 @@ def install_by_name(venv: Path, wheels_dir: Path, name: str) -> Path:
     dependencies resolve the way a real ``pip install habit-hooks`` would."""
     _uv_run("venv", str(venv))
     _uv_run(
-        "pip", "install", "--python", str(venv / "bin" / "python"),
+        "pip", "install", "--python", str(venv_bin_dir(venv) / "python"),
         "--find-links", str(wheels_dir), name,
     )
-    return venv / "bin" / "python"
+    return venv_bin_dir(venv) / "python"
 
 
 def installed_packages(python: Path) -> str:
