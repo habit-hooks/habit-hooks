@@ -136,7 +136,8 @@ def test_a_plugin_directory_containing_a_space_still_runs(tmp_path: Path) -> Non
     directory = tmp_path / "my plugin"
     directory.mkdir()
     (directory / "findings.json").write_text(
-        '[{"smell": "oversized-file", "issues": [{"key": "src/a.py"}]}]'
+        '[{"smell": "oversized-file", "issues": [{"key": "src/a.py"}]}]',
+        encoding="utf-8",
     )
     part = Part(
         name="probe", command="cat ${dir}/findings.json", directory=directory, args=[]

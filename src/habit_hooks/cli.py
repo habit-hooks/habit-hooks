@@ -15,6 +15,7 @@ Two contracts live here so the four entry points state them the same way:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 from collections.abc import Callable
 from importlib.metadata import version
@@ -34,6 +35,30 @@ class ConfigError(ToolError):
     name as it prints the failure; being a ``ToolError`` it still exits 2, named
     or not.
     """
+
+
+def ensure_utf8_streams() -> None:
+    """Make stdin, stdout and stderr UTF-8, whatever codepage the console is in.
+
+    habit-mapper prints guide text with box-drawing characters
+    (``── smell (n issues) ──``); on a non-UTF-8 console (cp1252 is Windows'
+    default) writing one raises ``UnicodeEncodeError`` — the write-side twin of
+    the read-side decode bug #133 was filed for, and the reason a console that
+    got past the decode could still die on the very first line it prints.
+    ``habit-mapper``/``habit-snooze`` read the findings pipe off ``sys.stdin``,
+    which decodes in the same locale unless reconfigured the same way — the
+    identical bug on the one stream #133's fix skipped. ``reconfigure`` exists
+    on every stream CPython hands a console script by default; called more
+    than once, as it is by both ``run_console`` and ``habit_hooks.hooks.main``,
+    it is a no-op the second time. Stdin alone is wrapped in
+    ``contextlib.suppress``: a real console always gives one that supports it,
+    but a test's own stand-in (pytest's captured stdin, a bare ``io.StringIO``)
+    need not, and neither is this project's to fix.
+    """
+    with contextlib.suppress(AttributeError):
+        sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 
 def version_line() -> str:
@@ -70,6 +95,7 @@ def run_console(
     knows, which is why an unnamed failure is named here rather than threaded
     through everything a console script calls.
     """
+    ensure_utf8_streams()
     try:
         return body(argv if argv is not None else sys.argv[1:])
     except ToolError as error:

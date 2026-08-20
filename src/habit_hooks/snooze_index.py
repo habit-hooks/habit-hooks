@@ -34,7 +34,7 @@ def _parse_index(path: Path) -> list[str]:
     bare list on the next ``--snooze`` — each a silent way to mean nothing.
     """
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SnoozeError(f"{path}: not valid JSON ({exc})") from exc
     if not (isinstance(data, list) and all(isinstance(key, str) for key in data)):
@@ -66,5 +66,5 @@ def _replace_atomically(path: Path, content: str) -> None:
     one. The pid keeps the two writers' temp files apart.
     """
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(content)
+    tmp.write_text(content, encoding="utf-8")
     os.replace(tmp, path)

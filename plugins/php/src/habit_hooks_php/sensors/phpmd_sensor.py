@@ -46,7 +46,12 @@ def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
         RULESETS,
     ]
     try:
-        return subprocess.run(command, capture_output=True, text=True)
+        return subprocess.run(
+            command,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+        )
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "php: command not found\n")
 

@@ -27,11 +27,11 @@ def _config(project_dir: Path) -> Path:
 def test_a_fresh_project_gets_a_config_naming_the_plugins_it_needs(
     init_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (init_project / "pyproject.toml").write_text("[project]\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
     monkeypatch.chdir(init_project)
 
     assert run([]) == 0
-    assert _config(init_project).read_text() == 'plugins = ["python", "generic"]\n'
+    assert _config(init_project).read_text(encoding="utf-8") == 'plugins = ["python", "generic"]\n'
 
 
 def test_a_configured_project_is_left_exactly_as_it_was(
@@ -43,7 +43,7 @@ def test_a_configured_project_is_left_exactly_as_it_was(
     monkeypatch.chdir(init_project)
 
     assert run([]) == 0
-    assert _config(init_project).read_text() == '# mine\nplugins = ["generic"]\n'
+    assert _config(init_project).read_text(encoding="utf-8") == '# mine\nplugins = ["generic"]\n'
 
 
 def test_the_pipeline_runs_init_rather_than_piping_it_into_the_mapper(

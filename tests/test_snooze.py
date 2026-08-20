@@ -76,7 +76,7 @@ def test_file_run_keeps_a_projects_non_snooze_transformer(tmp_path: Path) -> Non
     so `--file` does not silently drop a step it never asked about (#55)."""
     config_dir = tmp_path / ".habit-hooks"
     config_dir.mkdir()
-    (config_dir / "config.toml").write_text('transformers = ["snooze", "squash"]\n')
+    (config_dir / "config.toml").write_text('transformers = ["snooze", "squash"]\n', encoding="utf-8")
     config = sensors._configure(sensors.parse_args(["--file", "src/x.ts"]), tmp_path)
     assert config.transformers == ["squash"]
 

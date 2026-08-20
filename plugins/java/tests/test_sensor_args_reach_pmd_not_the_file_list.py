@@ -52,7 +52,8 @@ def _run(cwd: Path, arguments: list[str]) -> subprocess.CompletedProcess[str]:
         [sys.executable, str(SENSOR), *arguments],
         cwd=cwd,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -64,7 +65,7 @@ def test_a_pmd_flag_in_args_reaches_pmd(tmp_path: Path) -> None:
     that dropped every rule would pass as trivially as one that reached
     nothing at all, so the assertion has to be a smell that survives, not an
     empty result."""
-    (tmp_path / "Billing.java").write_text(FIVE_PARAMETER_METHOD_WITH_UNUSED_IMPORT)
+    (tmp_path / "Billing.java").write_text(FIVE_PARAMETER_METHOD_WITH_UNUSED_IMPORT, encoding="utf-8")
 
     without_the_flag = _run(tmp_path, ["--", "Billing.java"])
     with_the_flag = _run(tmp_path, ["--minimum-priority", "3", "--", "Billing.java"])
@@ -79,9 +80,9 @@ def test_a_pmd_flag_in_args_reaches_pmd(tmp_path: Path) -> None:
 
 
 def test_a_ruleset_named_in_args_is_still_honoured(tmp_path: Path) -> None:
-    (tmp_path / "Project.java").write_text(TWO_PARAMETER_METHOD)
+    (tmp_path / "Project.java").write_text(TWO_PARAMETER_METHOD, encoding="utf-8")
     ruleset = tmp_path / "strict.xml"
-    ruleset.write_text(TWO_IS_TOO_MANY_RULESET)
+    ruleset.write_text(TWO_IS_TOO_MANY_RULESET, encoding="utf-8")
 
     result = _run(tmp_path, ["--rulesets", str(ruleset), "--", "Project.java"])
 

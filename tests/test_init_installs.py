@@ -48,7 +48,7 @@ def _answering(answer: str, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _ran(project_dir: Path) -> list[str]:
     log = project_dir / RAN
-    return log.read_text().split() if log.is_file() else []
+    return log.read_text(encoding="utf-8").split() if log.is_file() else []
 
 
 def test_a_setup_with_nothing_missing_asks_nothing(

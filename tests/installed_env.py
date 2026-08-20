@@ -47,7 +47,11 @@ def require_tool(name: str) -> str:
 
 def _uv_run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [require_uv(), *args], check=True, capture_output=True, text=True
+        [require_uv(), *args],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",  # sensors.spawn's policy
     )
 
 
@@ -58,7 +62,8 @@ def build_wheels(out_dir: Path, packages: tuple[str, ...]) -> None:
             cwd=REPO_ROOT,
             check=True,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
         )
 
 
@@ -97,7 +102,8 @@ def run_and_collect_findings(
         [str(habit_sensors), "--all"],
         cwd=project,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",  # sensors.spawn's policy
         env=env,
     )
     assert "is not installed" not in result.stderr, result.stderr

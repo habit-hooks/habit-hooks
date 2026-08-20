@@ -18,7 +18,7 @@ def git(project_dir: Path, *args: str) -> None:
 def repository_with_committed_file(project_dir: Path) -> Path:
     """A one-commit repository on ``main``; returns its committed file."""
     committed = project_dir / "src.py"
-    committed.write_text("VALUES = [1]\n")
+    committed.write_text("VALUES = [1]\n", encoding="utf-8")
     git(project_dir, "init", "-q", "-b", "main", ".")
     git(project_dir, "config", "user.email", "spec@example.com")
     git(project_dir, "config", "user.name", "Spec Runner")
@@ -30,6 +30,6 @@ def repository_with_committed_file(project_dir: Path) -> Path:
 
 def commit_file(file: Path, body: str) -> None:
     """Write ``body`` to ``file`` and commit it, in the repository it sits in."""
-    file.write_text(body)
+    file.write_text(body, encoding="utf-8")
     git(file.parent, "add", file.name)
     git(file.parent, "commit", "-q", "-m", f"change {file.name}")

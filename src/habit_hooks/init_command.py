@@ -51,7 +51,7 @@ def _write_config(project_dir: Path, plugins: tuple[str, ...]) -> None:
     named = ", ".join(f'"{plugin}"' for plugin in plugins)
     path = project_config_path(project_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"plugins = [{named}]\n")
+    path.write_text(f"plugins = [{named}]\n", encoding="utf-8")
 
 
 def _say(line: str) -> None:

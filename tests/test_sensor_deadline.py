@@ -1,41 +1,26 @@
-"""The environment a sensor's command runs in: a deadline, an own stdin, and the
-project's own tools — three ways an unusual-but-real run turned into a hang, a
-lost run (issue #96), or a measurement by the wrong tool. How its argv is bounded
-is ``test_sensor_argv.py``; how a finished failure is described is
-``test_part_output.py``."""
+"""A sensor that never returns must not hang the hook forever, and killing it
+must not leave the tool it wrapped running behind it.
+
+This is the deadline half of running a sensor's command: the timeout itself,
+what a killed sensor's notice says, and that the whole process group — not
+just the shell — dies with it (issue #96). The other half — an own stdin, and
+reaching the project's own tools — is ``test_sensor_environment.py``. How a
+command's argv is bounded is ``test_sensor_argv.py``; how a finished failure is
+described is ``test_part_output.py``.
+"""
 
 from __future__ import annotations
 
-import contextlib
-import os
 import shlex
-import stat
 import subprocess
 import sys
 import time
 import uuid
-from collections.abc import Iterator
 from pathlib import Path
 
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
 from habit_hooks.sensors.model import Part
-
-
-@contextlib.contextmanager
-def _parent_stdin(data: bytes) -> Iterator[None]:
-    """Put ``data`` on fd 0 for the block, so a child inheriting it would read it."""
-    read_fd, write_fd = os.pipe()
-    os.write(write_fd, data)
-    os.close(write_fd)
-    saved = os.dup(0)
-    os.dup2(read_fd, 0)
-    try:
-        yield
-    finally:
-        os.dup2(saved, 0)
-        for fd in (saved, read_fd):
-            os.close(fd)
 
 
 def _timed_out_notice(tmp_path: Path, command: str) -> str:
@@ -133,7 +118,12 @@ def _surviving_pids(marker: str) -> list[str]:
     """
     deadline = time.monotonic() + 5
     while True:
-        found = subprocess.run(["pgrep", "-f", marker], capture_output=True, text=True)
+        found = subprocess.run(
+            ["pgrep", "-f", marker],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         pids = found.stdout.split()
         if not pids or time.monotonic() > deadline:
             return pids
@@ -160,41 +150,3 @@ def test_a_timed_out_sensor_takes_its_whole_pipeline_with_it(tmp_path: Path) -> 
 
     assert run.failed
     assert _surviving_pids(marker) == []
-
-
-def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
-    """A sensor must never inherit the parent's stdin.
-
-    A ``pre-push`` hook carries refs on stdin and a tool that reads input would
-    consume them or block on the prompt. Handing the child an empty, closed
-    stdin makes its first read return EOF, whatever the parent's stdin holds.
-    """
-    (tmp_path / "readall.py").write_text(
-        "import sys, json\n"
-        "data = sys.stdin.read()\n"
-        'print(json.dumps([{"smell": "s", "read": len(data), "issues": []}]))\n'
-    )
-    part = Part(
-        name="probe", command="${python} ${dir}/readall.py", directory=tmp_path
-    )
-    execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
-
-    with _parent_stdin(b"refs/heads/main 0000 refs/heads/main 1111\n"):
-        findings = execution.run_sensor(part)
-
-    assert findings == [{"smell": "s", "read": 0, "issues": []}]
-
-
-def test_a_sensor_reaches_the_project_s_own_tools(tmp_path: Path) -> None:
-    """A project pins its tools under ``.venv/bin`` and ``node_modules/.bin``, and
-    the path a run looks along is ``project_paths.tool_search_path`` — the same
-    one a setup reports a tool missing from, so the two cannot come to disagree."""
-    bin_dir = tmp_path / ".venv" / "bin"
-    bin_dir.mkdir(parents=True)
-    tool = bin_dir / "habit-probe"
-    tool.write_text('#!/bin/sh\nprintf \'[{"smell": "s", "issues": []}]\'\n')
-    tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
-    part = Part(name="probe", command="habit-probe", directory=tmp_path)
-    execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
-
-    assert execution.run_sensor(part) == [{"smell": "s", "issues": []}]

@@ -181,7 +181,12 @@ def _run(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str] | No
     """
     try:
         return subprocess.run(
-            ["git", *args], cwd=project_dir, capture_output=True, text=True, input=""
+            ["git", *args],
+            cwd=project_dir,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+            input="",
         )
     except OSError:
         return None

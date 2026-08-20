@@ -17,7 +17,7 @@ from scope_probe import source_file
 
 def test_a_named_file_outside_files_is_not_scanned(tmp_path: Path) -> None:
     """``--file`` obeys the same ``[files]`` setting every other mode does."""
-    (tmp_path / "pnpm-lock.yaml").write_text("lock\n")
+    (tmp_path / "pnpm-lock.yaml").write_text("lock\n", encoding="utf-8")
     scoped = _scope(["--file", "pnpm-lock.yaml"], tmp_path, Config(files=["src/**"]))
     assert scoped.files == []
     assert scoped.notices == [

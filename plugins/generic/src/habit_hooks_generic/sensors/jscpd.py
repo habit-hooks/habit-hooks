@@ -40,7 +40,7 @@ def manifest_of(project: Path) -> dict:
     if not manifest.is_file():
         return {}
     try:
-        content = json.loads(manifest.read_text())
+        content = json.loads(manifest.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return {}
     return content if isinstance(content, dict) else {}
@@ -60,7 +60,7 @@ def project_configures_jscpd(project: Path) -> bool:
 
 
 def scan_paths(config: str) -> list[str]:
-    return json.loads(Path(config).read_text())["path"]
+    return json.loads(Path(config).read_text(encoding="utf-8"))["path"]
 
 
 def config_arguments(fallback: str, project: Path) -> list[str]:
@@ -90,7 +90,12 @@ def run_jscpd(arguments: list[str], output: Path) -> subprocess.CompletedProcess
     """
     command = ["jscpd", "--reporters", "json", "--output", str(output)]
     try:
-        return subprocess.run([*command, *arguments], capture_output=True, text=True)
+        return subprocess.run(
+            [*command, *arguments],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+        )
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "jscpd: command not found\n")
 
@@ -118,7 +123,7 @@ def clone_finding(clone: dict) -> dict:
 def findings(report: Path) -> list[dict]:
     if not report.is_file():
         return []
-    clones = json.loads(report.read_text())["duplicates"]
+    clones = json.loads(report.read_text(encoding="utf-8"))["duplicates"]
     return [clone_finding(clone) for clone in clones]
 
 

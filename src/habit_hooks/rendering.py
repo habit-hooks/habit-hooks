@@ -98,13 +98,13 @@ def plugins_for_language(language: str | None, config: Config) -> list[str]:
 def include_environment(plugins: list[str], resolver: Resolver) -> Environment:
     def load(name: str) -> str | None:
         partial = resolver.first(plugins, [name])
-        return None if partial is None else partial.read_text()
+        return None if partial is None else partial.read_text(encoding="utf-8")
 
     return Environment(loader=FunctionLoader(load))
 
 
 def render_markdown(guide: Path, finding: dict, environment: Environment) -> Rendered:
-    template = environment.from_string(guide.read_text())
+    template = environment.from_string(guide.read_text(encoding="utf-8"))
     return Rendered(text=template.render(**finding), blocks=True)
 
 
@@ -113,7 +113,8 @@ def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
         [runner, str(guide)],
         input=json.dumps(finding),
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",  # sensors.spawn's policy
     )
     return Rendered(
         text=result.stdout,
@@ -162,7 +163,7 @@ def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendere
 
 def render_clean(config: Config, resolver: Resolver) -> Rendered:
     guide = resolver.guide(CLEAN_GUIDE, config.plugins)
-    return Rendered(text=guide.read_text(), blocks=False)
+    return Rendered(text=guide.read_text(encoding="utf-8"), blocks=False)
 
 
 def banner(finding: dict) -> str:

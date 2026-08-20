@@ -59,7 +59,7 @@ def test_a_project_naming_none_gets_the_bundled_ruleset(tmp_path: Path) -> None:
 def test_a_conventional_ruleset_beats_the_bundled_one(tmp_path: Path) -> None:
     theirs = tmp_path / "pmd" / "ruleset.xml"
     theirs.parent.mkdir()
-    theirs.write_text("<ruleset/>")
+    theirs.write_text("<ruleset/>", encoding="utf-8")
 
     assert ruleset_of([], tmp_path) == (theirs, [])
 

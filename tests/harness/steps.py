@@ -25,9 +25,15 @@ class Context:
 
     def run(self, script: str) -> None:
         self.check_default_exit()  # the previous command must have succeeded
-        self.last = subprocess.run(["bash", "-c", "set -o pipefail; " + script],
-                                   cwd=self.workdir, env=self.env,
-                                   input=self.stdin, capture_output=True, text=True)
+        self.last = subprocess.run(
+            ["bash", "-c", "set -o pipefail; " + script],
+            cwd=self.workdir,
+            env=self.env,
+            input=self.stdin,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+        )
         self.stdin = None
         self.exit_checked = False
 
@@ -56,7 +62,7 @@ class WriteFile:
     def apply(self, c: Context) -> None:
         dest = c.workdir / self.path
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(self.block + "\n")
+        dest.write_text(self.block + "\n", encoding="utf-8")
 
 
 @dataclass

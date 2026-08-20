@@ -57,7 +57,8 @@ def run(project: Path, script: str) -> subprocess.CompletedProcess[str]:
         cwd=project,
         env={**os.environ, "PATH": path},
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 
@@ -85,7 +86,7 @@ def sensor_run(
     the scoped paths and ``${args}`` the project's ``[sensors.eslint] args``, each
     already shell-quoted.
     """
-    command = tomllib.loads(SENSORS.joinpath("eslint.toml").read_text("utf-8"))
+    command = tomllib.loads(SENSORS.joinpath("eslint.toml").read_text(encoding="utf-8"))
     script = (
         command["command"]
         .replace("${dir}", shlex.quote(str(SENSORS)))

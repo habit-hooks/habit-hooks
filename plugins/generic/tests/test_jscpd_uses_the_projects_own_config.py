@@ -84,7 +84,7 @@ def test_a_package_json_jscpd_cannot_parse_falls_back_to_ours(tmp_path: Path) ->
     """jscpd warns and carries on rather than dying, and so must the sensor."""
     requires_jscpd()
     project = _project(tmp_path)
-    (project / "package.json").write_text("{ not json")
+    (project / "package.json").write_text("{ not json", encoding="utf-8")
 
     result = run_sensor(project, ["--fallback-config", str(_bundled_config(tmp_path))])
 

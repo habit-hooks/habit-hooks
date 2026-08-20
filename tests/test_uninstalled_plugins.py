@@ -28,7 +28,7 @@ def test_a_planned_plugin_nobody_has_is_what_stands_in_the_way(
 ) -> None:
     """Planning a plugin says nothing about being able to run it, and until this
     the difference only showed up on the first run, as a failure."""
-    (init_project / "pyproject.toml").write_text("[project]\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
 
     planned = plan(init_project)
 

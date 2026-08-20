@@ -26,7 +26,12 @@ def run_deptry(report: Path) -> subprocess.CompletedProcess[str]:
     """
     command = ["deptry", ".", "--json-output", str(report)]
     try:
-        return subprocess.run(command, capture_output=True, text=True)
+        return subprocess.run(
+            command,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+        )
     except FileNotFoundError:
         return subprocess.CompletedProcess(
             command, 127, "", "deptry: command not found\n"
@@ -52,7 +57,7 @@ def deptry_found_no_declaration(result: subprocess.CompletedProcess[str]) -> boo
 
 
 def unused_dependencies(report: Path) -> list[dict]:
-    entries = json.loads(report.read_text())
+    entries = json.loads(report.read_text(encoding="utf-8"))
     return [entry for entry in entries if entry["error"]["code"] == "DEP002"]
 
 

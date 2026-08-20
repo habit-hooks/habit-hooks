@@ -35,7 +35,7 @@ JAVA_SOURCE = "Billing.java"
 def _project(tmp_path: Path, name: str, config: str) -> Path:
     project = tmp_path / name
     (project / ".habit-hooks").mkdir(parents=True)
-    (project / ".habit-hooks" / "config.toml").write_text(config)
+    (project / ".habit-hooks" / "config.toml").write_text(config, encoding="utf-8")
     return project
 
 
@@ -50,7 +50,7 @@ def oversized_project(tmp_path: Path, name: str) -> Path:
         "disabled = true\n",
     )
     lines = "".join(f"x{n} = 0\n" for n in range(1, OVERSIZED_LINES + 1))
-    (project / "big.py").write_text(lines)
+    (project / "big.py").write_text(lines, encoding="utf-8")
     return project
 
 
@@ -65,7 +65,8 @@ def java_project(tmp_path: Path) -> Path:
         "        int dead = 1;\n"
         "        return a + b + c + d + e;\n"
         "    }\n"
-        "}\n"
+        "}\n",
+        encoding="utf-8",
     )
     return project
 
@@ -78,7 +79,8 @@ def php_project(tmp_path: Path) -> Path:
         "function charge($a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k) {\n"
         "    $unused = 1;\n"
         "    return $a + $b + $c + $d + $e + $f + $g + $h + $i + $j + $k;\n"
-        "}\n"
+        "}\n",
+        encoding="utf-8",
     )
     return project
 
@@ -101,12 +103,13 @@ def typescript_project(tmp_path: Path) -> Path:
         "disabled = true\n",
     )
     (project / "src").mkdir()
-    (project / "package.json").write_text(ESM_MANIFEST)
+    (project / "package.json").write_text(ESM_MANIFEST, encoding="utf-8")
     (project / "node_modules").symlink_to(TYPESCRIPT_PLUGIN / "node_modules")
     (project / TYPESCRIPT_SOURCE).write_text(
         "export function used(): void {\n"
         "  // this comment restates what the code already says clearly\n"
-        "}\n"
+        "}\n",
+        encoding="utf-8",
     )
     return project
 
@@ -123,6 +126,7 @@ def python_project(tmp_path: Path) -> Path:
         'plugins = ["python"]\n\n[sensors.deptry]\ndisabled = true\n',
     )
     (project / PYTHON_SOURCE).write_text(
-        "def total(items):\n    unused = 1\n    return sum(items)\n"
+        "def total(items):\n    unused = 1\n    return sum(items)\n",
+        encoding="utf-8",
     )
     return project

@@ -42,7 +42,7 @@ def installed_machine(
         for plugin in distributions:
             directory = tmp_path / plugin
             directory.mkdir()
-            (directory / "config.toml").write_text("")
+            (directory / "config.toml").write_text("", encoding="utf-8")
             dirs[plugin] = directory
         monkeypatch.setattr(resolve, "installed_plugin_dirs", lambda: dirs)
         monkeypatch.setattr(

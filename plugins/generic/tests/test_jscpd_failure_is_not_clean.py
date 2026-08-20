@@ -83,8 +83,8 @@ def test_finding_no_clones_is_clean_even_though_jscpd_writes_no_report(
     requires_jscpd()
     source = tmp_path / "src"
     source.mkdir()
-    (source / "a.ts").write_text("export const p = 1;\n")
-    (source / "b.ts").write_text("export const q = 2;\n")
+    (source / "a.ts").write_text("export const p = 1;\n", encoding="utf-8")
+    (source / "b.ts").write_text("export const q = 2;\n", encoding="utf-8")
     config = _config(tmp_path, ["src"])
 
     result = _run_sensor(tmp_path, config)

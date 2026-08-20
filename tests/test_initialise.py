@@ -25,7 +25,7 @@ def _holding(project_dir: Path, files: dict[str, str]) -> None:
     for relative, body in files.items():
         path = project_dir / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(body)
+        path.write_text(body, encoding="utf-8")
 
 
 def _tracking(project_dir: Path, files: dict[str, str]) -> None:
@@ -67,7 +67,7 @@ def test_a_project_running_a_plugin_of_its_own_is_asked_for_no_other(
 def test_the_file_that_announces_a_language_plans_its_plugin(
     init_project: Path,
 ) -> None:
-    (init_project / "pyproject.toml").write_text("[project]\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
 
     planned = plan(init_project)
 
@@ -81,8 +81,8 @@ def test_every_language_found_is_planned_before_the_languageless_plugin(
 ) -> None:
     """``plugins`` order is a priority — the mapper prefers a plugin that speaks
     the finding's language over the fallback — so ``generic`` goes last."""
-    (init_project / "pyproject.toml").write_text("[project]\n")
-    (init_project / "tsconfig.json").write_text("{}\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (init_project / "tsconfig.json").write_text("{}\n", encoding="utf-8")
 
     assert plan(init_project).plugins == ("python", "typescript", "generic")
 
@@ -113,7 +113,7 @@ def test_a_file_git_ignores_names_no_language(init_project: Path) -> None:
     _tracking(init_project, {".gitignore": "node_modules/\n"})
     vendored = init_project / "node_modules" / "pkg"
     vendored.mkdir(parents=True)
-    (vendored / "index.d.ts").write_text("")
+    (vendored / "index.d.ts").write_text("", encoding="utf-8")
 
     assert plan(init_project).languages == ()
 
@@ -125,7 +125,7 @@ def test_outside_a_repository_a_source_file_names_nothing(
     walking the directory is how ``node_modules`` gets read as its TypeScript.
     The file that announces a language still answers."""
     (init_project / "src").mkdir()
-    (init_project / "src" / "app.py").write_text("x = 1\n")
+    (init_project / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
 
     assert plan(init_project).languages == ()
 
@@ -142,7 +142,7 @@ def test_an_existing_config_decides_the_plugins_rather_than_the_detection(
     """A re-run changes nothing, so what it reports on is the run this project
     actually gets — while still naming the language it found, which is the
     project's own to act on."""
-    (init_project / "pyproject.toml").write_text("[project]\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
     write_project_config(init_project, 'plugins = ["generic"]')
 
     planned = plan(init_project)
@@ -158,7 +158,7 @@ def test_a_config_that_names_no_plugins_plans_no_plugins(
     """Every plugin switched off is a run that reports nothing, and a re-run
     says so — the answer to "why is this run not reporting anything?" — rather
     than planning the plugins the project would otherwise have got."""
-    (init_project / "pyproject.toml").write_text("[project]\n")
+    (init_project / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
     write_project_config(init_project, "plugins = []")
 
     planned = plan(init_project)

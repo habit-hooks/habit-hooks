@@ -49,7 +49,8 @@ def _findings(tmp_path: Path, report: dict) -> list[dict]:
         cwd=tmp_path,
         env=_stub_knip(tmp_path, report),
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=True,
     )
     return json.loads(result.stdout)

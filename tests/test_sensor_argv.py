@@ -23,7 +23,8 @@ def test_a_scope_past_the_argv_budget_runs_in_chunks(tmp_path: Path) -> None:
     (tmp_path / "count.py").write_text(
         "import sys, json\n"
         'print(json.dumps([{"smell": "s", "count": len(sys.argv) - 1,'
-        ' "issues": []}]))\n'
+        ' "issues": []}]))\n',
+        encoding="utf-8",
     )
     part = Part(
         name="probe", command="${python} ${dir}/count.py ${files}", directory=tmp_path

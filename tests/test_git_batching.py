@@ -42,7 +42,7 @@ def test_the_whole_set_is_one_git_question(
     edited = repository_with_committed_file(tmp_path)
     untouched = tmp_path / "other.py"
     commit_file(untouched, "VALUES = [2]\n")
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     diffs = _recorded_diffs(monkeypatch)
 
     assert changed_against_base(["src.py", "other.py"], tmp_path, "main") == {"src.py"}
@@ -54,8 +54,8 @@ def test_two_of_three_batched_paths_come_back(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     for name in ("a.py", "b.py", "c.py"):
         commit_file(tmp_path / name, "VALUES = [1]\n")
-    (tmp_path / "a.py").write_text("VALUES = [1, 2]\n")
-    (tmp_path / "c.py").write_text("VALUES = [1, 3]\n")
+    (tmp_path / "a.py").write_text("VALUES = [1, 2]\n", encoding="utf-8")
+    (tmp_path / "c.py").write_text("VALUES = [1, 3]\n", encoding="utf-8")
 
     changed = changed_against_base(["a.py", "b.py", "c.py"], tmp_path, "main")
 
@@ -66,7 +66,7 @@ def test_a_path_that_reads_as_pathspec_magic_is_a_plain_path(tmp_path: Path) -> 
     """Magic in one key must not silence the rest: `:!x` excludes `x` from the
     answer, and unknown magic makes git fail the whole batch."""
     edited = repository_with_committed_file(tmp_path)
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
 
     assert changed_against_base([":!src.py", "src.py"], tmp_path, "main") == {"src.py"}
     assert changed_against_base([":(bad)x.py", "src.py"], tmp_path, "main") == {"src.py"}
@@ -76,7 +76,7 @@ def test_far_more_paths_than_one_command_line_holds(tmp_path: Path) -> None:
     """The documented way into a legacy repo snoozes everything it has, and an
     argument list that overflows fails the call — every snooze then permanent."""
     edited = repository_with_committed_file(tmp_path)
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     crowd = [f"generated/module_{index:06d}.py" for index in range(30_000)]
 
     assert changed_against_base([*crowd, "src.py"], tmp_path, "main") == {"src.py"}
@@ -89,8 +89,8 @@ def test_a_path_outside_the_repository_hides_none_of_the_others(
     project = tmp_path / "project"
     project.mkdir()
     edited = repository_with_committed_file(project)
-    edited.write_text("VALUES = [1, 2]\n")
-    (tmp_path / "outside.py").write_text("VALUES = [4]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
+    (tmp_path / "outside.py").write_text("VALUES = [4]\n", encoding="utf-8")
 
     changed = changed_against_base(["../outside.py", "src.py"], project, "main")
 
@@ -103,7 +103,7 @@ def test_a_non_ascii_path_is_matched_by_name(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     accented = tmp_path / "café.py"
     commit_file(accented, "VALUES = [2]\n")
-    accented.write_text("VALUES = [2, 3]\n")
+    accented.write_text("VALUES = [2, 3]\n", encoding="utf-8")
 
     assert changed_against_base(["café.py"], tmp_path, "main") == {"café.py"}
 
@@ -115,7 +115,7 @@ def test_a_project_below_the_repository_root_is_understood(tmp_path: Path) -> No
     project.mkdir()
     nested = project / "nested.py"
     commit_file(nested, "VALUES = [2]\n")
-    nested.write_text("VALUES = [2, 3]\n")
+    nested.write_text("VALUES = [2, 3]\n", encoding="utf-8")
 
     assert changed_against_base(["nested.py"], project, "main") == {"nested.py"}
 
@@ -126,9 +126,9 @@ def test_a_bracketed_path_is_not_a_glob(tmp_path: Path) -> None:
     routes = tmp_path / "app"
     (routes / "[slug]").mkdir(parents=True)
     (routes / "s").mkdir()
-    (routes / "[slug]" / "page.tsx").write_text("export const dynamic = 1;\n")
-    (routes / "s" / "page.tsx").write_text("export const static_ = 1;\n")
+    (routes / "[slug]" / "page.tsx").write_text("export const dynamic = 1;\n", encoding="utf-8")
+    (routes / "s" / "page.tsx").write_text("export const static_ = 1;\n", encoding="utf-8")
     git(tmp_path, "add", "app")
     git(tmp_path, "commit", "-q", "-m", "routes")
-    (routes / "s" / "page.tsx").write_text("export const static_ = 2;\n")
+    (routes / "s" / "page.tsx").write_text("export const static_ = 2;\n", encoding="utf-8")
     assert changed_against_base(["app/[slug]/page.tsx"], tmp_path, "main") == set()

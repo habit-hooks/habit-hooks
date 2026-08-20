@@ -20,13 +20,14 @@ SENSOR = (
 def test_a_java_pmd_nobody_installed_answers_the_way_a_shell_does(
     tmp_path: Path,
 ) -> None:
-    (tmp_path / "App.java").write_text("class App {}\n")
+    (tmp_path / "App.java").write_text("class App {}\n", encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, str(SENSOR), "App.java"],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         env={"PATH": "/nonexistent"},
     )
 

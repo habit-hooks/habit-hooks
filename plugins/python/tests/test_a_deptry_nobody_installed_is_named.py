@@ -26,7 +26,8 @@ def test_a_deptry_nobody_installed_answers_the_way_a_shell_does(
         [sys.executable, str(SENSOR)],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         env={"PATH": "/nonexistent"},
     )
 

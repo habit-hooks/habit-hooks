@@ -22,7 +22,7 @@ def _feature_branch_with_an_untracked_file(tmp_path: Path) -> None:
     """A feature branch off ``main`` carrying one brand-new untracked source file."""
     repository_with_committed_file(tmp_path)
     git(tmp_path, "checkout", "-q", "-b", "feature")
-    (tmp_path / "new.py").write_text("VALUES = [1, 2, 3]\n")
+    (tmp_path / "new.py").write_text("VALUES = [1, 2, 3]\n", encoding="utf-8")
 
 
 # Discovery is opt-in since #97, so every mode must name its source before it can
@@ -50,7 +50,7 @@ def test_a_git_derived_scope_measures_an_untracked_file(
 def test_changed_only_measures_a_staged_file(tmp_path: Path) -> None:
     """A pre-commit hook reviews staged work; a bare ``git diff`` shows none of it."""
     committed = repository_with_committed_file(tmp_path)
-    committed.write_text("VALUES = [1, 2]\n")
+    committed.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     git(tmp_path, "add", "src.py")
     config = Config(files=["**/*.py"], scope=ScopeDefaults(changedOnly=True))
     assert scoped_files([], tmp_path, config) == ["src.py"]
@@ -60,7 +60,7 @@ def test_a_gitignored_untracked_file_is_not_measured(tmp_path: Path) -> None:
     """A build artifact is not work in progress, so it stays out of the scope."""
     repository_with_committed_file(tmp_path)
     git(tmp_path, "checkout", "-q", "-b", "feature")
-    (tmp_path / ".gitignore").write_text("build.py\n")
-    (tmp_path / "build.py").write_text("VALUES = [9]\n")
+    (tmp_path / ".gitignore").write_text("build.py\n", encoding="utf-8")
+    (tmp_path / "build.py").write_text("VALUES = [9]\n", encoding="utf-8")
     config = Config(files=["**/*.py"])
     assert "build.py" not in scoped_files(["--branch", "main"], tmp_path, config)

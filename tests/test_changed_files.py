@@ -40,23 +40,23 @@ def test_committed_file_is_unchanged(tmp_path: Path) -> None:
 def test_only_the_edited_file_comes_back(tmp_path: Path) -> None:
     edited = repository_with_committed_file(tmp_path)
     untouched = tmp_path / "other.py"
-    untouched.write_text("VALUES = [2]\n")
+    untouched.write_text("VALUES = [2]\n", encoding="utf-8")
     git(tmp_path, "add", "other.py")
     git(tmp_path, "commit", "-q", "-m", "other")
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     assert changed_against_base(["src.py", "other.py"], tmp_path, "main") == {"src.py"}
 
 
 def test_absolute_paths_are_understood(tmp_path: Path) -> None:
     """eslint and comment report an absolute ``details.file``; git accepts those."""
     edited = repository_with_committed_file(tmp_path)
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     assert changed_against_base([str(edited)], tmp_path, "main") == {str(edited)}
 
 
 def test_untracked_file_reports_nothing_changed(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
-    (tmp_path / "new.py").write_text("VALUES = [3]\n")
+    (tmp_path / "new.py").write_text("VALUES = [3]\n", encoding="utf-8")
     assert changed_against_base(["new.py"], tmp_path, "main") == set()
 
 
@@ -64,14 +64,14 @@ def test_path_outside_the_repository_reports_nothing_changed(tmp_path: Path) -> 
     project = tmp_path / "project"
     project.mkdir()
     repository_with_committed_file(project)
-    (tmp_path / "outside.py").write_text("VALUES = [4]\n")
+    (tmp_path / "outside.py").write_text("VALUES = [4]\n", encoding="utf-8")
     assert changed_against_base(["../outside.py"], project, "main") == set()
 
 
 def test_unresolvable_base_ref_fails_loudly(tmp_path: Path) -> None:
     """Silently answering "unchanged" here would make every snooze permanent."""
     edited = repository_with_committed_file(tmp_path)
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     git(tmp_path, "branch", "-m", "main", "trunk")
     with pytest.raises(SystemExit) as failure:
         changed_against_base(["src.py"], tmp_path, "main")

@@ -19,7 +19,7 @@ from habit_hooks.sensors.loader import PluginLoader
 def write_project_config(project_dir: Path, body: str) -> None:
     path = project_dir / ".habit-hooks" / "config.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body)
+    path.write_text(body, encoding="utf-8")
 
 
 def write_plugin(project_dir: Path, name: str, files: dict[str, str]) -> None:
@@ -32,7 +32,7 @@ def write_plugin(project_dir: Path, name: str, files: dict[str, str]) -> None:
     for relative, contents in files.items():
         path = base / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(contents)
+        path.write_text(contents, encoding="utf-8")
 
 
 def loader_for(project_dir: Path) -> PluginLoader:

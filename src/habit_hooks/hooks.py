@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .cli import run_console, version_line
+from .cli import ensure_utf8_streams, run_console, version_line
 from .init_command import run as run_init
 from .sensors import build_parser
 
@@ -55,6 +55,11 @@ def print_usage() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
+    # --version and --help print here, before run_console is ever reached, so
+    # this pipeline's own streams need the same UTF-8 fix run_console gives
+    # every other console script — calling it again inside run_console for
+    # `init` below costs nothing, reconfigure() being idempotent.
+    ensure_utf8_streams()
     # All three are answered here, before anything is spawned: forwarded to
     # habit-sensors they print onto the pipe where habit-mapper expects findings
     # JSON, so the version arrived as an unparseable line and the usage text as a

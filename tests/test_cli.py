@@ -86,7 +86,7 @@ def test_a_malformed_config_fails_the_tool_not_the_code(
     smell. The tool never ran: that is a 2, on one named line (#114)."""
     config = tmp_path / ".habit-hooks" / "config.toml"
     config.parent.mkdir(parents=True)
-    config.write_text('files = ["src/**"\n')
+    config.write_text('files = ["src/**"\n', encoding="utf-8")
     monkeypatch.chdir(tmp_path)
 
     assert sensors.main(["--all"]) == 2

@@ -18,13 +18,14 @@ SENSOR = (
 
 
 def test_a_php_nobody_installed_answers_the_way_a_shell_does(tmp_path: Path) -> None:
-    (tmp_path / "app.php").write_text("<?php\nfunction f($a) { return $a; }\n")
+    (tmp_path / "app.php").write_text("<?php\nfunction f($a) { return $a; }\n", encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, str(SENSOR), "app.php"],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         env={"PATH": "/nonexistent"},
     )
 

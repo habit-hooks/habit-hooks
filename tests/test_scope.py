@@ -69,7 +69,11 @@ def test_last_scopes_to_the_commits_it_names(tmp_path: Path) -> None:
 def test_since_scopes_to_what_changed_after_a_commit(tmp_path: Path) -> None:
     edited = repository_with_committed_file(tmp_path)
     first = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     ).stdout.strip()
     commit_file(edited, "VALUES = [1, 2]\n")
     assert _scoped_files(["--since", first], tmp_path, Config(files=_PY_SOURCE)) == [
@@ -126,7 +130,7 @@ def test_a_project_below_the_repository_root_scopes_its_own_paths(
     project.mkdir()
     nested = project / "nested.py"
     commit_file(nested, "VALUES = [2]\n")
-    nested.write_text("VALUES = [2, 3]\n")
+    nested.write_text("VALUES = [2, 3]\n", encoding="utf-8")
     config = Config(files=_PY_SOURCE, scope=ScopeDefaults(changedOnly=True))
     assert _scoped_files([], project, config) == ["nested.py"]
 
@@ -136,7 +140,7 @@ def test_a_non_ascii_path_reaches_the_sensors(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     accented = tmp_path / "café.py"
     commit_file(accented, "VALUES = [2]\n")
-    accented.write_text("VALUES = [2, 3]\n")
+    accented.write_text("VALUES = [2, 3]\n", encoding="utf-8")
     config = Config(files=_PY_SOURCE, scope=ScopeDefaults(changedOnly=True))
     assert _scoped_files([], tmp_path, config) == ["café.py"]
 
@@ -152,7 +156,7 @@ def test_explicit_files_reaches_inside_a_vendor_directory(tmp_path: Path) -> Non
     convention would otherwise exclude — ``[files]`` is the only authority (#97)."""
     vendored = tmp_path / "node_modules" / "kept"
     vendored.mkdir(parents=True)
-    (vendored / "keep.py").write_text("x = 1\n")
-    (tmp_path / "node_modules" / "other.py").write_text("y = 2\n")
+    (vendored / "keep.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "node_modules" / "other.py").write_text("y = 2\n", encoding="utf-8")
     scoped = _scoped_files(["--all"], tmp_path, Config(files=["node_modules/kept/**"]))
     assert scoped == ["node_modules/kept/keep.py"]

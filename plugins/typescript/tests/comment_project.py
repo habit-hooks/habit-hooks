@@ -72,7 +72,8 @@ def run(project: Path, helper: Path) -> subprocess.CompletedProcess[str]:
         cwd=project,
         env={**os.environ, "PATH": path},
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 

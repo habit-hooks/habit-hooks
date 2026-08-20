@@ -25,13 +25,14 @@ SENSOR = (
 
 
 def test_a_project_declaring_no_dependencies_is_a_clean_run(tmp_path: Path) -> None:
-    (tmp_path / "app.py").write_text("import os\n")
+    (tmp_path / "app.py").write_text("import os\n", encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, str(SENSOR)],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert result.returncode == 0
@@ -44,13 +45,14 @@ def test_deptry_still_answers_a_missing_declaration_with_that_error(
 ) -> None:
     """The sensor recognises deptry's exception by name, so a deptry that stops
     raising it must fail here rather than silently retire that branch."""
-    (tmp_path / "app.py").write_text("import os\n")
+    (tmp_path / "app.py").write_text("import os\n", encoding="utf-8")
 
     result = subprocess.run(
         ["deptry", "."],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert "DependencySpecificationNotFoundError" in result.stderr
@@ -59,15 +61,17 @@ def test_deptry_still_answers_a_missing_declaration_with_that_error(
 def test_deptry_failing_another_way_still_fails_the_run(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\nversion = "0.0.0"\ndependencies = []\n\n'
-        "[tool.deptry]\nnot_a_real_option = true\n"
+        "[tool.deptry]\nnot_a_real_option = true\n",
+        encoding="utf-8",
     )
-    (tmp_path / "app.py").write_text("import os\n")
+    (tmp_path / "app.py").write_text("import os\n", encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, str(SENSOR)],
         cwd=tmp_path,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert result.returncode == 2

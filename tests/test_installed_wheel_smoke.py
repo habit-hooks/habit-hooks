@@ -111,13 +111,14 @@ def test_configured_but_uninstalled_plugin_names_its_install_command(
     project.mkdir()
     config = project / ".habit-hooks"
     config.mkdir()
-    (config / "config.toml").write_text(f'plugins = ["{UNSHIPPED_PLUGIN}"]\n')
+    (config / "config.toml").write_text(f'plugins = ["{UNSHIPPED_PLUGIN}"]\n', encoding="utf-8")
 
     result = subprocess.run(
         [str(installed_habit_sensors), "--all"],
         cwd=project,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     assert result.returncode != 0

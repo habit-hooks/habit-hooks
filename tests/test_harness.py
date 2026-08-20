@@ -85,13 +85,13 @@ def test_file_write_marker(tmp_path):
 
 
 def test_file_copy_marker(tmp_path):
-    (tmp_path / "fixture.txt").write_text("from repo\n")
+    (tmp_path / "fixture.txt").write_text("from repo\n", encoding="utf-8")
     spec = "# T\n📄 @fixture.txt\n```bash\ncat fixture.txt\n```\n🖥️ ✅\n```text\nfrom repo\n```\n"
     assert run(spec, tmp_path, repo_root=tmp_path) == ["pass"]
 
 
 def test_file_copy_marker_with_explicit_dest(tmp_path):
-    (tmp_path / "fixture.txt").write_text("from repo\n")
+    (tmp_path / "fixture.txt").write_text("from repo\n", encoding="utf-8")
     spec = "# T\n📄dest.txt @fixture.txt\n```bash\ncat dest.txt\n```\n🖥️ ✅\n```text\nfrom repo\n```\n"
     assert run(spec, tmp_path, repo_root=tmp_path) == ["pass"]
 

@@ -59,7 +59,7 @@ def test_an_unused_language_is_not_recommended(tmp_path: Path) -> None:
 def test_a_java_project_is_recommended_java(tmp_path: Path) -> None:
     """A `pom.xml` or `build.gradle` — the two build tools that own the
     ecosystem — counts as java, as does any `.java` file in scope."""
-    (tmp_path / "pom.xml").write_text("<project/>")
+    (tmp_path / "pom.xml").write_text("<project/>", encoding="utf-8")
     assert recommendations(tmp_path, [], PluginStatus(set(), _on_hand())) == [
         "habit-sensors: detected java; "
         "consider `pip install habit-hooks-java`, "
@@ -67,7 +67,7 @@ def test_a_java_project_is_recommended_java(tmp_path: Path) -> None:
     ]
 
     (tmp_path / "pom.xml").unlink()
-    (tmp_path / "build.gradle.kts").write_text("")
+    (tmp_path / "build.gradle.kts").write_text("", encoding="utf-8")
     assert recommendations(tmp_path, [], PluginStatus(set(), _on_hand())) != []
     assert recommendations(tmp_path, [], PluginStatus({"java"}, _on_hand("java"))) == []
     assert recommendations(tmp_path, ["src/App.java"], PluginStatus(set(), _on_hand())) != []

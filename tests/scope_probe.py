@@ -19,7 +19,7 @@ def source_file(project_dir: Path) -> Path:
     """A source file at ``src/a.py``, returned by its absolute path."""
     (project_dir / "src").mkdir(exist_ok=True)
     source = project_dir / "src" / "a.py"
-    source.write_text("x = 1\n")
+    source.write_text("x = 1\n", encoding="utf-8")
     return source
 
 

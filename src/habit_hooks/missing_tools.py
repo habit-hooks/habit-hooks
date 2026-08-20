@@ -119,7 +119,8 @@ def _node_resolves(node: str, module: str, project_dir: Path) -> bool:
             [node, "-e", script],
             cwd=project_dir,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
             input="",
             timeout=NODE_RESOLVE_TIMEOUT_SECONDS,
         )

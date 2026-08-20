@@ -1,9 +1,10 @@
 """What a broken sensor's output becomes: the notice the run reports.
 
-Running a part is ``test_sensor_subprocess.py``; this is the reading back — the
-``part_output`` question of how a failure is described once the command has
-exited. A command nobody installed is the one failure the tool has no words of
-its own for, because it never ran, so habit-hooks supplies them (#114).
+Running a part is ``test_sensor_deadline.py`` and ``test_sensor_environment.py``;
+this is the reading back — the ``part_output`` question of how a failure is
+described once the command has exited. A command nobody installed is the one
+failure the tool has no words of its own for, because it never ran, so
+habit-hooks supplies them (#114).
 """
 
 from __future__ import annotations
@@ -113,7 +114,8 @@ def test_a_sensor_whose_last_line_carries_the_diagnosis_still_quotes_it(
         "import sys\n"
         "for i in range(1, 25):\n"
         '    print(f"noise {i}", file=sys.stderr)\n'
-        'raise RuntimeError("boom: the real reason")\n'
+        'raise RuntimeError("boom: the real reason")\n',
+        encoding="utf-8",
     )
 
     notice = _sensor_notice(tmp_path, "${python} ${dir}/crash.py")

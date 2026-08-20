@@ -33,7 +33,7 @@ def pytest_collect_file(parent, file_path):
 
 class SpecFile(pytest.File):
     def collect(self):
-        for case in parse_spec(self.path.read_text()):
+        for case in parse_spec(self.path.read_text(encoding="utf-8")):
             yield SpecItem.from_parent(self, name=case.name, case=case)
 
 

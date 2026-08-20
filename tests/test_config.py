@@ -23,7 +23,7 @@ from habit_hooks.config import (
 def _write(tmp_path: Path, body: str) -> Path:
     path = tmp_path / ".habit-hooks" / "config.toml"
     path.parent.mkdir(parents=True)
-    path.write_text(body)
+    path.write_text(body, encoding="utf-8")
     return tmp_path
 
 

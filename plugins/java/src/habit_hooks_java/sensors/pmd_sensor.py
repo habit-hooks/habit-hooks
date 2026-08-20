@@ -82,7 +82,8 @@ def run_pmd(arguments: list[str]) -> subprocess.CompletedProcess[str]:
     command = ["pmd", "check", "--no-cache", "--format", "json"]
     try:
         return subprocess.run(
-            [*command, *arguments], capture_output=True, text=True
+            [*command, *arguments], capture_output=True,
+            encoding="utf-8", errors="replace",  # sensors.spawn's policy
         )
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "pmd: command not found\n")

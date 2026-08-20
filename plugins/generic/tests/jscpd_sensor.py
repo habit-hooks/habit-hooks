@@ -56,14 +56,15 @@ def run_sensor(
         [sys.executable, str(SENSOR), *arguments],
         cwd=project,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         env=environment,
     )
 
 
 def write_json(path: Path, content: dict) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(content))
+    path.write_text(json.dumps(content), encoding="utf-8")
     return path
 
 
@@ -71,4 +72,4 @@ def write_clones(directory: Path, names: list[str]) -> None:
     """One file per name, each holding the same block, so jscpd sees clones."""
     directory.mkdir(parents=True, exist_ok=True)
     for name in names:
-        (directory / f"{name}.ts").write_text(CLONED_BLOCK.format(name=name))
+        (directory / f"{name}.ts").write_text(CLONED_BLOCK.format(name=name), encoding="utf-8")

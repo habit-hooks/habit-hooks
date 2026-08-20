@@ -55,7 +55,8 @@ def passes(project: Path, args: tuple[str, ...] = ()) -> list[list[str]]:
         cwd=project,
         env={**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"},
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=True,
     )
     log = (bin_dir / "argv.log").read_text(encoding="utf-8")

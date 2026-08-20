@@ -123,7 +123,7 @@ def pip_less_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def uvx_run(pip_less_prefix: Path) -> None:
     """habit-hooks running from `uvx`: an entry in uv's own cache, marked
     relocatable, which uv reuses and prunes as it sees fit."""
-    (pip_less_prefix / VENV_CONFIG).write_text("uv = 0.8.11\nrelocatable = true\n")
+    (pip_less_prefix / VENV_CONFIG).write_text("uv = 0.8.11\nrelocatable = true\n", encoding="utf-8")
 
 
 @pytest.fixture
@@ -140,7 +140,7 @@ def uv_run_overlay(pip_less_prefix: Path) -> Path:
     which is the only environment such a run has to install into."""
     extended = pip_less_prefix.parent / "project-venv"
     (pip_less_prefix / VENV_CONFIG).write_text(
-        f"uv = 0.8.11\nextends-environment = {extended}\n"
+        f"uv = 0.8.11\nextends-environment = {extended}\n", encoding="utf-8"
     )
     return extended
 
@@ -150,7 +150,7 @@ def uv_venv(pip_less_prefix: Path) -> None:
     """habit-hooks running from a project's own `uv venv` — a durable
     environment, and the one a project keeps habit-hooks in as a dev
     dependency."""
-    (pip_less_prefix / VENV_CONFIG).write_text("uv = 0.8.11\nprompt = project\n")
+    (pip_less_prefix / VENV_CONFIG).write_text("uv = 0.8.11\nprompt = project\n", encoding="utf-8")
 
 
 @pytest.fixture
@@ -162,7 +162,7 @@ def uv_tool_installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     the receipt that has to recognise this one, since what rules pip out here is
     not its absence but the rebuild.
     """
-    (tmp_path / UV_TOOL_RECEIPT).write_text("[tool]\n")
+    (tmp_path / UV_TOOL_RECEIPT).write_text("[tool]\n", encoding="utf-8")
     monkeypatch.setattr(sys, "prefix", str(tmp_path))
     monkeypatch.setattr(plugin_install, "find_spec", _resolving)
 

@@ -110,7 +110,7 @@ def _venv_settings() -> dict[str, str]:
     """
     config = Path(sys.prefix) / VENV_CONFIG
     try:
-        lines = config.read_text(errors="replace").splitlines()
+        lines = config.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return {}
     settings = (line.partition("=") for line in lines)

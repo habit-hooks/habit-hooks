@@ -39,7 +39,12 @@ def _pids(marker: str) -> list[str]:
     The marker travels to the run in the environment, not in its arguments, so
     what this finds is only ever the pipeline, never the tool that spawned it.
     """
-    found = subprocess.run(["pgrep", "-f", marker], capture_output=True, text=True)
+    found = subprocess.run(
+        ["pgrep", "-f", marker],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     return found.stdout.split()
 
 

@@ -43,7 +43,8 @@ def test_comment_sensor_emits_complete_json_through_a_pipe(tmp_path: Path) -> No
         # does in a consumer project, so the run needs one that has it.
         cwd=PLUGIN,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 

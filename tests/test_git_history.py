@@ -43,7 +43,11 @@ def test_git_that_cannot_be_run_places_nothing(
 def test_a_known_ref_resolves_to_its_commit(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     ).stdout.strip()
     assert git_history.resolves(tmp_path, "main") == head
 
@@ -68,7 +72,7 @@ def test_histories_with_no_common_ancestor_fall_back_to_the_tip(
     base at all — and comparing against nothing would scope a run to nothing."""
     repository_with_committed_file(tmp_path)
     git(tmp_path, "checkout", "-q", "--orphan", "unrelated")
-    (tmp_path / "other.py").write_text("VALUES = [9]\n")
+    (tmp_path / "other.py").write_text("VALUES = [9]\n", encoding="utf-8")
     git(tmp_path, "add", "other.py")
     git(tmp_path, "commit", "-q", "-m", "unrelated history")
     tip = git_history.resolves(tmp_path, "main")
@@ -88,7 +92,7 @@ def test_the_empty_tree_precedes_every_commit(tmp_path: Path) -> None:
 
 def test_no_pathspecs_asks_about_the_whole_tree(tmp_path: Path) -> None:
     edited = repository_with_committed_file(tmp_path)
-    edited.write_text("VALUES = [1, 2]\n")
+    edited.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     assert git_history.changed_paths(tmp_path, []) == ["src.py"]
 
 
@@ -99,7 +103,7 @@ def test_paths_are_named_in_the_projects_own_terms(tmp_path: Path) -> None:
     project.mkdir()
     nested = project / "nested.py"
     commit_file(nested, "VALUES = [2]\n")
-    nested.write_text("VALUES = [2, 3]\n")
+    nested.write_text("VALUES = [2, 3]\n", encoding="utf-8")
     assert git_history.changed_paths(project, []) == ["nested.py"]
 
 
@@ -108,22 +112,22 @@ def test_a_non_ascii_path_comes_back_unquoted(tmp_path: Path) -> None:
     repository_with_committed_file(tmp_path)
     accented = tmp_path / "café.py"
     commit_file(accented, "VALUES = [2]\n")
-    accented.write_text("VALUES = [2, 3]\n")
+    accented.write_text("VALUES = [2, 3]\n", encoding="utf-8")
     assert git_history.changed_paths(tmp_path, []) == ["café.py"]
 
 
 def test_an_untracked_file_is_named(tmp_path: Path) -> None:
     """The file `git diff` never mentions, and a scoped run must still measure."""
     repository_with_committed_file(tmp_path)
-    (tmp_path / "fresh.py").write_text("VALUES = [1]\n")
+    (tmp_path / "fresh.py").write_text("VALUES = [1]\n", encoding="utf-8")
     assert git_history.untracked_paths(tmp_path) == ["fresh.py"]
 
 
 def test_an_ignored_file_is_not_named_untracked(tmp_path: Path) -> None:
     """`--exclude-standard` keeps a build artifact out of the work in progress."""
     repository_with_committed_file(tmp_path)
-    (tmp_path / ".gitignore").write_text("build.py\n")
-    (tmp_path / "build.py").write_text("VALUES = [9]\n")
+    (tmp_path / ".gitignore").write_text("build.py\n", encoding="utf-8")
+    (tmp_path / "build.py").write_text("VALUES = [9]\n", encoding="utf-8")
     assert "build.py" not in git_history.untracked_paths(tmp_path)
 
 
@@ -131,10 +135,10 @@ def test_uncommitted_changes_unite_the_three_kinds_of_work(tmp_path: Path) -> No
     """Staged and unstaged edits and a brand-new file, all named once."""
     committed = repository_with_committed_file(tmp_path)
     commit_file(tmp_path / "tracked.py", "VALUES = [0]\n")
-    committed.write_text("VALUES = [1, 2]\n")
+    committed.write_text("VALUES = [1, 2]\n", encoding="utf-8")
     git(tmp_path, "add", "src.py")  # staged
-    (tmp_path / "tracked.py").write_text("VALUES = [0, 1]\n")  # unstaged
-    (tmp_path / "fresh.py").write_text("VALUES = [9]\n")  # untracked
+    (tmp_path / "tracked.py").write_text("VALUES = [0, 1]\n", encoding="utf-8")  # unstaged
+    (tmp_path / "fresh.py").write_text("VALUES = [9]\n", encoding="utf-8")  # untracked
     assert set(git_history.uncommitted_changes(tmp_path)) == {
         "src.py",
         "tracked.py",

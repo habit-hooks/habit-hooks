@@ -44,7 +44,8 @@ def test_a_knip_nobody_installed_answers_the_way_a_shell_does(tmp_path: Path) ->
         ["node", str(SENSOR)],
         cwd=project,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         env={**os.environ, "PATH": _path_with_node_but_no_knip(tmp_path)},
         check=False,
     )

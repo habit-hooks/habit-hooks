@@ -40,7 +40,7 @@ WEDGED_NODE = "#!/bin/sh\nexec /bin/sleep 5\n"
 
 def _needing(project_dir: Path, *entries: str) -> Path:
     """A project init reads as Python, whose plugin declares exactly ``entries``."""
-    (project_dir / "pyproject.toml").write_text("[project]\n")
+    (project_dir / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
     declared = f"detectors = [{', '.join(entries)}]"
     write_plugin(project_dir, "python", {"config.toml": declared})
     return project_dir
@@ -49,7 +49,7 @@ def _needing(project_dir: Path, *entries: str) -> Path:
 def _executable(bin_dir: Path, name: str, body: str) -> None:
     bin_dir.mkdir(parents=True, exist_ok=True)
     tool = bin_dir / name
-    tool.write_text(body)
+    tool.write_text(body, encoding="utf-8")
     tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
 
 
@@ -182,6 +182,6 @@ def test_node_is_asked_to_resolve_the_module_from_the_project_itself(
 
     plan(toolless_project)
 
-    asked, asked_in = (bin_dir / "node.log").read_text().splitlines()
+    asked, asked_in = (bin_dir / "node.log").read_text(encoding="utf-8").splitlines()
     assert 'require.resolve("ts-morph")' in asked
     assert Path(asked_in).resolve() == toolless_project.resolve()

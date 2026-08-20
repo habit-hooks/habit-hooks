@@ -76,7 +76,8 @@ def test_a_project_without_typescript_eslint_is_told_to_install_it(
         ["node", "--input-type=module", "-e", f"import({SHIPPED_CONFIG.as_uri()!r})"],
         cwd=consumer,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 

@@ -63,13 +63,32 @@ class Spawner:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            # A sensor is a third-party tool this run does not control, but the
+            # findings JSON it prints is always ours to expect as UTF-8 — the
+            # locale must never be what decides. ``errors="replace"`` rather than
+            # the default "strict": one invalid byte in a tool's chatter must not
+            # take the whole sensor down with it, and a replacement character
+            # sitting in a quoted-back message is a visible sign something was
+            # lost, not a silent one.
+            encoding="utf-8",
+            errors="replace",
             start_new_session=True,
         ) as process, LIVE_GROUPS.tracking(process.pid):
             return _bounded_output(process, stdin, self.timeout)
 
     def _path_env(self) -> dict:
-        return {**os.environ, "PATH": tool_search_path(self.project_dir)}
+        return {
+            **os.environ,
+            "PATH": tool_search_path(self.project_dir),
+            # Every helper habit-hooks itself ships is a Python script whose
+            # print() would otherwise encode in the child's locale — cp1252 on
+            # Windows — and a helper's stderr is arbitrary text part_output
+            # quotes back verbatim, not JSON that escapes its way to safety
+            # like a sensor's findings do. A third-party tool cannot be told
+            # this, which is why errors="replace" above remains the fallback
+            # for everything else this run spawns.
+            "PYTHONIOENCODING": "utf-8",
+        }
 
 
 def _bounded_output(
