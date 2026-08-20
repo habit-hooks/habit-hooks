@@ -894,7 +894,7 @@ habit-sensors --all | jq -c '[.[] | select(.smell != "incomplete-run") | .issues
 
 🚨
 ```text
-habit-sensors: transformer 'snooze-until-changed' failed: ${python} -m habit_hooks.snooze --until-changed ${config}
+habit-sensors: transformer 'snooze-until-changed' failed: '${python}' -m habit_hooks.snooze --until-changed '${config}'
 habit-snooze: base ref 'main' does not resolve in this checkout — set [scope] branchBase to a ref it has
 ```
 

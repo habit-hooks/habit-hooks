@@ -3,4 +3,4 @@
 # there. A `--config` among them is the project naming its config, and the helper
 # treats it as one: ours is not named alongside it, and the production gate reads
 # the markers of the config the args chose.
-command = "node ${dir}/knip.cjs ${args}"
+argv = ["node", "${dir}/knip.cjs", "${args}"]

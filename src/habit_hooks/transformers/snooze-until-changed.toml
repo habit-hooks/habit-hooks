@@ -10,4 +10,4 @@
 # `${config}` forwards the run's `--config` so `[scope] branchBase` is read from
 # the same file the sensors stage scoped from — one config answer for the whole
 # run (#86). It expands to nothing when the run named no `--config`.
-command = "${python} -m habit_hooks.snooze --until-changed ${config}"
+argv = ["${python}", "-m", "habit_hooks.snooze", "--until-changed", "${config}"]

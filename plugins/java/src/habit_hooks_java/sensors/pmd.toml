@@ -1,1 +1,1 @@
-command = "${python} ${dir}/pmd_sensor.py ${args} -- ${files}"
+argv = ["${python}", "${dir}/pmd_sensor.py", "${args}", "--", "${files}"]

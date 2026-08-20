@@ -126,5 +126,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'phpmd' failed: ${python} ${dir}/phpmd_sensor.py ${files}
+habit-sensors: sensor 'phpmd' failed: '${python}' '${dir}/phpmd_sensor.py' '${files}'
 ```

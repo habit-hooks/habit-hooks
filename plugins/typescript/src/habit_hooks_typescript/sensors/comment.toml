@@ -1,1 +1,1 @@
-command = "node ${dir}/comment.cjs ${files}"
+argv = ["node", "${dir}/comment.cjs", "${files}"]

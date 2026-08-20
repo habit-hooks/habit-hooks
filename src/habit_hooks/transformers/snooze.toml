@@ -6,4 +6,4 @@
 # `${python} -m`, not the bare console script: the bin directory is not always on
 # PATH (an installed `habit-hooks` invoked by absolute path — see
 # habit-hooks.spec.md), and the default must not depend on it.
-command = "${python} -m habit_hooks.snooze"
+argv = ["${python}", "-m", "habit_hooks.snooze"]

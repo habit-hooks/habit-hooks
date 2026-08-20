@@ -389,7 +389,7 @@ sensors stage scoped from, rather than always `.habit-hooks/config.toml`:
 
 ```toml
 # transformers/snooze-until-changed.toml
-command = "${python} -m habit_hooks.snooze --until-changed ${config}"
+argv = ["${python}", "-m", "habit_hooks.snooze", "--until-changed", "${config}"]
 ```
 
 > **A transformer must pass through every finding it does not handle.**

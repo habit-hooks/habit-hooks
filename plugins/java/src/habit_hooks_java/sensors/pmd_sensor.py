@@ -17,7 +17,7 @@ as another ``-R`` value (``-R ruleset.xml file.java`` analyses nothing), so the
 wrapper uses the short forms ``-R`` and per-file ``-d``, which do not. Verified
 against PMD 7.26.0.
 
-The sensor's own command spells ``${args} -- ${files}``, so ``sys.argv[1:]``
+The sensor's own argv spells ``${args} -- ${files}``, so ``sys.argv[1:]``
 carries both halves of ``[sensors.pmd] args`` on one side of a literal ``--``
 and the scoped files on the other — that is what lets a project pass any PMD
 flag (``--aux-classpath``, ``--minimum-priority``, ...) through untouched
