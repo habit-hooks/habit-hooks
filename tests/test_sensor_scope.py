@@ -64,11 +64,19 @@ def test_an_empty_scope_runs_no_sensor(tmp_path: Path) -> None:
 
 
 def test_a_non_empty_scope_still_runs_its_sensors(tmp_path: Path) -> None:
-    """The empty-scope guard must not silence a run that did measure something."""
+    """The empty-scope guard must not silence a run that did measure something.
+
+    Spelled as an ``argv`` rather than a ``command``: what runs the sensor's
+    own output is beside the point here, so no shell is needed to prove it.
+    """
     part = Part(
         name="probe",
-        command='printf \'[{"smell": "oversized-file", "issues": []}]\'',
         directory=tmp_path,
+        argv=[
+            "${python}",
+            "-c",
+            'print(\'[{"smell": "oversized-file", "issues": []}]\')',
+        ],
         args=[],
     )
     execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
@@ -125,18 +133,26 @@ def test_a_sensor_reading_its_own_paths_is_dropped_too(tmp_path: Path) -> None:
 
 
 def test_a_sibling_sensor_keeping_files_still_runs(tmp_path: Path) -> None:
-    """Dropping one narrowed-out sensor must not silence the rest of the run."""
+    """Dropping one narrowed-out sensor must not silence the rest of the run.
+
+    Spelled as ``argv`` rather than ``command`` for the same reason as above:
+    no shell is needed to prove one sensor being dropped leaves its sibling be.
+    """
     narrowed = Part(
         name="narrowed",
-        command="printf '[]'",
         directory=tmp_path,
+        argv=["${python}", "-c", "print('[]')"],
         args=[],
         files=["*.js"],
     )
     kept = Part(
         name="kept",
-        command='printf \'[{"smell": "oversized-file", "issues": []}]\'',
         directory=tmp_path,
+        argv=[
+            "${python}",
+            "-c",
+            'print(\'[{"smell": "oversized-file", "issues": []}]\')',
+        ],
         args=[],
         files=["*.py"],
     )

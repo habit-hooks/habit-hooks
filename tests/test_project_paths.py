@@ -11,8 +11,8 @@ import os
 from pathlib import Path
 
 import pytest
+from platform_probe import off_windows, on_windows
 
-from habit_hooks import host_platform
 from habit_hooks.project_paths import (
     project_relative,
     tool_search_path,
@@ -72,7 +72,7 @@ def test_the_project_s_own_tool_bins_come_first_on_its_search_path(
     """A project's pinned tools beat the machine's, and one answer serves both
     the run that spawns them and the setup that reports them missing."""
     monkeypatch.setenv("PATH", "/usr/bin")
-    monkeypatch.setattr(host_platform, "is_windows", lambda: False)
+    off_windows(monkeypatch)
 
     assert tool_search_path(tmp_path).split(os.pathsep) == [
         str(tmp_path / "node_modules" / ".bin"),
@@ -85,7 +85,7 @@ def test_a_venv_keeps_its_executables_under_bin(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """CPython's own layout, everywhere except Windows."""
-    monkeypatch.setattr(host_platform, "is_windows", lambda: False)
+    off_windows(monkeypatch)
 
     assert venv_bin_dir(tmp_path / ".venv") == tmp_path / ".venv" / "bin"
 
@@ -93,7 +93,7 @@ def test_a_venv_keeps_its_executables_under_bin(
 def test_a_windows_venv_keeps_its_executables_under_scripts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+    on_windows(monkeypatch)
 
     assert venv_bin_dir(tmp_path / ".venv") == tmp_path / ".venv" / "Scripts"
 
@@ -105,7 +105,7 @@ def test_the_search_path_reaches_a_windows_venv_s_scripts_directory(
     do not drift apart, since a run and a missing-tools report both go through
     ``tool_search_path``, never ``venv_bin_dir`` alone."""
     monkeypatch.setenv("PATH", "/usr/bin")
-    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+    on_windows(monkeypatch)
 
     entries = tool_search_path(tmp_path).split(os.pathsep)
 
@@ -116,7 +116,7 @@ def test_the_search_path_reaches_a_windows_venv_s_scripts_directory(
 def test_a_venv_s_interpreter_keeps_its_bare_name_off_windows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(host_platform, "is_windows", lambda: False)
+    off_windows(monkeypatch)
 
     assert venv_executable(tmp_path / ".venv", "python") == tmp_path / ".venv" / "bin" / "python"
 
@@ -124,7 +124,7 @@ def test_a_venv_s_interpreter_keeps_its_bare_name_off_windows(
 def test_a_windows_venv_s_interpreter_gains_an_exe_suffix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+    on_windows(monkeypatch)
 
     assert (
         venv_executable(tmp_path / ".venv", "python")
@@ -136,7 +136,7 @@ def test_a_windows_venv_s_console_script_gains_the_same_suffix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Not just the interpreter — a plugin's own console script too."""
-    monkeypatch.setattr(host_platform, "is_windows", lambda: True)
+    on_windows(monkeypatch)
 
     assert (
         venv_executable(tmp_path / ".venv", "habit-sensors")

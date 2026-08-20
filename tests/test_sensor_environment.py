@@ -17,6 +17,9 @@ import stat
 from collections.abc import Iterator
 from pathlib import Path
 
+import pytest
+from platform_probe import A_SHELL_TO_RUN_IT_WITH, off_windows
+
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
 from habit_hooks.sensors.model import Part
@@ -44,6 +47,9 @@ def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
     A ``pre-push`` hook carries refs on stdin and a tool that reads input would
     consume them or block on the prompt. Handing the child an empty, closed
     stdin makes its first read return EOF, whatever the parent's stdin holds.
+
+    Spelled as an ``argv`` rather than a ``command``: no shell is needed to
+    prove stdin isolation, so this runs unchanged on either platform.
     """
     (tmp_path / "readall.py").write_text(
         "import sys, json\n"
@@ -52,7 +58,7 @@ def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     part = Part(
-        name="probe", command="${python} ${dir}/readall.py", directory=tmp_path
+        name="probe", directory=tmp_path, argv=["${python}", "${dir}/readall.py"]
     )
     execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
 
@@ -63,7 +69,7 @@ def test_a_sensor_reading_stdin_gets_immediate_eof(tmp_path: Path) -> None:
 
 
 def test_a_helper_reaches_its_neighbour_under_a_hardened_environment(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A shipped Python helper imports the modules beside it by name, and
     ``PYTHONSAFEPATH`` in the consumer's environment must not take that away.
@@ -72,6 +78,9 @@ def test_a_helper_reaches_its_neighbour_under_a_hardened_environment(
     ``sys.path`` — the one thing a loose helper's ``import <neighbour>`` rests
     on. Inherited, it turned the java sensor into a ``ModuleNotFoundError``
     traceback where the coaching should be.
+
+    Spelled as an ``argv`` rather than a ``command``: the hardened environment
+    is the point, not the shell, so this runs unchanged on either platform.
     """
     (tmp_path / "neighbour.py").write_text('SMELL = "s"\n', encoding="utf-8")
     (tmp_path / "helper.py").write_text(
@@ -81,16 +90,27 @@ def test_a_helper_reaches_its_neighbour_under_a_hardened_environment(
         encoding="utf-8",
     )
     monkeypatch.setenv("PYTHONSAFEPATH", "1")
-    part = Part(name="probe", command="${python} ${dir}/helper.py", directory=tmp_path)
+    part = Part(
+        name="probe", directory=tmp_path, argv=["${python}", "${dir}/helper.py"]
+    )
     execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
 
     assert execution.run_sensor(part) == [{"smell": "s", "issues": []}]
 
 
-def test_a_sensor_reaches_the_project_s_own_tools(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_sensor_reaches_the_project_s_own_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A project pins its tools under ``.venv/bin`` and ``node_modules/.bin``, and
     the path a run looks along is ``project_paths.tool_search_path`` — the same
-    one a setup reports a tool missing from, so the two cannot come to disagree."""
+    one a setup reports a tool missing from, so the two cannot come to disagree.
+
+    The tool itself is a POSIX shebang script, which only a real shell — and a
+    real POSIX exec underneath it — can run at all; the Windows half of this
+    story (``.venv\\Scripts``, an ``.exe`` suffix) is ``test_project_paths.py``'s.
+    """
+    off_windows(monkeypatch)
     bin_dir = tmp_path / ".venv" / "bin"
     bin_dir.mkdir(parents=True)
     tool = bin_dir / "habit-probe"

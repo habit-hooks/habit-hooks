@@ -468,6 +468,34 @@ a case before adding it to `docs/` is whether a user reading it to learn the
 tool would want it; if the honest answer is "it is here so this bug cannot come
 back", it belongs in `tests/`.
 
+### A test whose answer differs by platform pins the platform, through `host_platform` (agent decision)
+
+`host_platform.is_windows()` is the one seam every platform decision in this
+tool asks through, so it is also the one seam a test pins. A test qualifies
+whether or not it is failing today: an argv budget, a venv's bin directory, a
+`command` part's shell recipe, a `shlex.quote`d path — anywhere the correct
+answer differs between a Mac and Windows, the test states which platform it is
+answering for (`platform_probe.on_windows(monkeypatch)` /
+`off_windows(monkeypatch)`) and asserts that platform's own answer, never
+whichever one the machine running the suite happens to be. `tests/platform_probe.py`
+is the one place this is done — every pinning site imports it rather than
+hand-rolling `monkeypatch.setattr(host_platform, "is_windows", ...)`, so there
+is one seam and one docstring explaining why it matters, not four drifting
+copies. `platform_probe.A_SHELL_TO_RUN_IT_WITH` is the other half: some POSIX
+behaviour (a shell must never let a filename execute its own contents) can
+only be shown by really running a shell recipe, which `off_windows` alone does
+not conjure onto a machine that has none — that stays a `skipif`, a question
+about the host rather than the platform seam.
+
+Without pinning, a test reads its expected answer off the host it happens to
+run on: green on the author's Mac, red the moment the Windows leg of CI runs
+the same suite, and — because nothing about *why* was ever asserted — evidence
+of nothing on either. It happened three times in this repo before the pattern
+was named, the third slipping in after the first two were already called out.
+Where the shell a test spawns is incidental to what it proves (a scope
+narrowing, an argv budget split), spelling it as an `argv` part instead is
+better than pinning it at all: nothing platform-specific is left to assert.
+
 ## Gotchas
 
 ### A git-backed spec case without a ceiling can rewrite THIS repo

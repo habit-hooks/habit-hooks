@@ -16,6 +16,8 @@ import uuid
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from platform_probe import A_SHELL_TO_RUN_IT_WITH
+
 WEDGED_RUN = """
 import os, sys
 from pathlib import Path
@@ -82,6 +84,7 @@ def _wedged_run(marker: str, tmp_path: Path) -> Iterator[subprocess.Popen[bytes]
         tool.wait()
 
 
+@A_SHELL_TO_RUN_IT_WITH
 def test_an_interrupted_run_does_not_wait_out_its_sensor_deadlines(
     tmp_path: Path,
 ) -> None:
@@ -94,6 +97,14 @@ def test_an_interrupted_run_does_not_wait_out_its_sensor_deadlines(
     the hang that made the user press the key. Giving the tools their own
     session took away the terminal's own answer to this, so the run has to have
     one: kill the groups from the thread that heard the interrupt.
+
+    The pipeline the WEDGED_RUN below spells is a shell recipe, needing a real
+    shell (and ``pgrep``) the same as ``test_sensor_deadline.py``'s pipeline
+    case — but it runs in a subprocess of its own, a fresh interpreter that
+    reads the real ``host_platform.is_windows()`` no monkeypatch in this
+    process reaches, so pinning it off Windows here would be a no-op. The
+    ``skipif`` above is what keeps this test honest on a real Windows machine;
+    nothing in this repo can make that same claim under a forced platform.
     """
     marker = f"habit_hooks_probe_{uuid.uuid4().hex}"
 

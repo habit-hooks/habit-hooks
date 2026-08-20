@@ -19,6 +19,8 @@ without reading is the reader who should not be installing anything.
 from __future__ import annotations
 
 import argparse
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -71,16 +73,33 @@ def _agreed(count: int) -> bool:
 
 
 def _succeeded(command: str) -> bool:
-    """Run one install through a shell, echoing it first.
+    """Run one install as the argv it names, echoing it first.
 
-    A shell because that is what an ``install`` string is written for — a plugin
-    author spells the line they would type — and echoing first because the
-    output of several installs in a row is otherwise unattributable. The reader
-    has just seen every one of these listed and agreed to them.
+    Not through a shell: ``shell=True`` on Windows runs the string through
+    ``cmd.exe``, which does not understand the single quotes
+    ``plugin_install.py`` spells around a plugin name (``uv tool install
+    'habit-hooks[python]'``) — so the very install this offers to run could not
+    work there. Every command this tool prints is already argv-safe text (the
+    same quoting a reader's own POSIX shell would undo), so ``shlex.split``
+    reads it back the same way on either platform, with no shell in between to
+    disagree about what a quote means. ``shutil.which`` resolves the program
+    first — a bare ``npm`` spawned without a shell would miss the ``.cmd`` that
+    is really on Windows' ``PATH`` for it. Echoing first, because the output of
+    several installs in a row is otherwise unattributable; the reader has just
+    seen every one of these listed and agreed to them.
+
+    A command that cannot even be parsed as an argv, or a program that cannot
+    be found or started, is the same "did not succeed" any failed install is —
+    not a reason for this to crash rather than move on to the next one.
     """
     _say(f"\n$ {command}")
     sys.stdout.flush()
-    return subprocess.run(command, shell=True).returncode == 0
+    try:
+        argv = shlex.split(command)
+        argv[0] = shutil.which(argv[0]) or argv[0]
+        return subprocess.run(argv).returncode == 0
+    except (ValueError, IndexError, OSError):
+        return False
 
 
 def _run_all(commands: tuple[str, ...]) -> None:

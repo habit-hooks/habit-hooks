@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from platform_probe import A_SHELL_TO_RUN_IT_WITH, off_windows
 
 from habit_hooks.cli import ConfigError
 from habit_hooks.scope import Scope
@@ -35,6 +36,10 @@ def _shell_text(argv: list[str]) -> str:
 
 
 def test_expand_replaces_python_with_the_running_interpreter(tmp_path: Path) -> None:
+    """``${dir}`` is quoted for the shell the same as ``${python}`` is — a
+    ``tmp_path`` spelled with backslashes (Windows) needs it exactly where one
+    spelled with plain POSIX segments would not, so the expectation has to be
+    built the same way ``_shell_form`` builds it, not assumed unquoted."""
     part = Part(
         name="line-count",
         command="${python} ${dir}/line-count.py",
@@ -44,7 +49,9 @@ def test_expand_replaces_python_with_the_running_interpreter(tmp_path: Path) -> 
 
     expanded = _shell_text(_execution(tmp_path)._expand(part))
 
-    assert expanded == f"{shlex.quote(sys.executable)} {tmp_path}/line-count.py"
+    assert expanded == (
+        f"{shlex.quote(sys.executable)} {shlex.quote(str(tmp_path))}/line-count.py"
+    )
 
 
 def test_expand_splices_the_sensor_args_in_quoted(tmp_path: Path) -> None:
@@ -89,13 +96,21 @@ def test_an_emptied_args_override_is_no_argument_at_all(tmp_path: Path) -> None:
     assert _shell_text(_execution(tmp_path)._expand(part)) == "node comment.js"
 
 
-def test_a_filename_can_never_execute_a_command(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_filename_can_never_execute_a_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A scoped path is data. Bash must not evaluate anything inside it.
 
     habit-hooks runs from a git hook and in CI, so a file added by a pull
     request from a fork would otherwise run its author's command on every
     reviewer's machine.
+
+    Proving it needs a real shell to hand the filename to, so this pins off
+    Windows to get past the part's own on-Windows refusal, and is skipped
+    where there is no shell to run it with.
     """
+    off_windows(monkeypatch)
     marker = tmp_path / "PWNED"
     part = Part(
         name="probe",
@@ -148,7 +163,14 @@ def test_expand_drops_config_when_the_run_named_none(tmp_path: Path) -> None:
     assert shlex.split(expanded) == ["run"]
 
 
-def test_a_plugin_directory_containing_a_space_still_runs(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_plugin_directory_containing_a_space_still_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whether ``${dir}`` is quoted correctly for the shell that reads it is
+    the whole question, so — like the filename-execution case above — this
+    pins off Windows and needs a real shell to run it with."""
+    off_windows(monkeypatch)
     directory = tmp_path / "my plugin"
     directory.mkdir()
     (directory / "findings.json").write_text(

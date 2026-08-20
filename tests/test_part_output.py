@@ -1,15 +1,17 @@
 """What a broken sensor's output becomes: the notice the run reports.
 
 Running a part is ``test_sensor_deadline.py`` and ``test_sensor_environment.py``;
-this is the reading back — the ``part_output`` question of how a failure is
-described once the command has exited. A command nobody installed is the one
-failure the tool has no words of its own for, because it never ran, so
-habit-hooks supplies them (#114).
+this is the reading back — how a failure is described once the command has
+exited. A command nobody installed is the one failure the tool has no words of
+its own for, because it never ran, so habit-hooks supplies them (#114).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
+from platform_probe import A_SHELL_TO_RUN_IT_WITH, off_windows
 
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
@@ -19,6 +21,18 @@ from habit_hooks.sensors.model import Part
 def _sensor_notice(tmp_path: Path, command: str) -> str:
     """The one notice a sensor running ``command`` leaves on its failed run."""
     return _only_notice(Part(name="probe", command=command, directory=tmp_path), tmp_path)
+
+
+def _script_notice(tmp_path: Path, script: str) -> str:
+    """The one notice a sensor running python ``script`` leaves on its failed run.
+
+    No shell is needed for what these tests prove — how a broken part's own
+    output is quoted back — so this spells an ``argv`` part, unlike the real
+    shell's own ``command not found`` diagnosis ``_sensor_notice`` above needs.
+    """
+    (tmp_path / "probe.py").write_text(script, encoding="utf-8")
+    part = Part(name="probe", directory=tmp_path, argv=["${python}", "${dir}/probe.py"])
+    return _only_notice(part, tmp_path)
 
 
 def _only_notice(part: Part, project_dir: Path) -> str:
@@ -33,13 +47,23 @@ def _only_notice(part: Part, project_dir: Path) -> str:
     return run.notices[0]
 
 
-def test_a_sensor_whose_tool_is_not_installed_names_the_tool(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_sensor_whose_tool_is_not_installed_names_the_tool(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The commonest failure on a machine that has just met habit-hooks answered
     as whatever the shell or the sensor's own helper happened to print — for
     jscpd, twenty lines of Python internals whose punchline named the binary only
     as a filename that could not be found (#114). It is still the same notice +
     failed run any broken sensor produces; the notice now says what to install,
-    and what to do instead of installing it."""
+    and what to do instead of installing it.
+
+    ``COMMAND_NOT_FOUND`` recognises the real shell's own words for this, so
+    proving it needs a real shell to say them — pinned off Windows, skipped
+    where there is none. The argv form's equivalent is
+    ``test_an_argv_sensor_names_its_missing_tool_in_the_very_same_words`` below.
+    """
+    off_windows(monkeypatch)
     notice = _sensor_notice(tmp_path, "no-such-tool-here --json ${files}")
 
     assert notice == (
@@ -49,10 +73,16 @@ def test_a_sensor_whose_tool_is_not_installed_names_the_tool(tmp_path: Path) -> 
     )
 
 
-def test_a_tool_missing_from_inside_a_pipeline_is_named_too(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_tool_missing_from_inside_a_pipeline_is_named_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The shipped ``ruff`` and ``eslint`` sensors both pipe their tool through
-    ``jq`` under ``set -o pipefail``, so the missing half is never the last thing
-    the shell mentions — the whole command's output is searched for it."""
+    ``jq`` under ``set -o pipefail``, so the missing half is never the last
+    thing the shell mentions — the whole command's output is searched for it.
+    The pipe is the point, so, like its sibling above, this pins off Windows.
+    """
+    off_windows(monkeypatch)
     pipeline = "set -o pipefail\nno-such-tool-here | jq ."
 
     assert "needs the 'no-such-tool-here' command" in _sensor_notice(tmp_path, pipeline)
@@ -64,7 +94,12 @@ def test_a_sensor_that_broke_some_other_way_still_quotes_itself_back(
     """Only a command that was never found is answered in our own words. Every
     other failure is the tool diagnosing itself, and that is the one thing a
     reader can act on, so it is still carried into the notice verbatim."""
-    notice = _sensor_notice(tmp_path, "echo 'cannot reach registry' >&2; exit 1")
+    notice = _script_notice(
+        tmp_path,
+        "import sys\n"
+        "print('cannot reach registry', file=sys.stderr)\n"
+        "sys.exit(1)\n",
+    )
 
     assert notice.startswith("habit-sensors: sensor 'probe' failed:")
     assert "cannot reach registry" in notice
@@ -77,9 +112,13 @@ def test_a_sensor_at_the_truncation_boundary_is_still_quoted_whole(
     elision line, and tail — is actually shorter than the diagnosis it would
     replace. At 21 lines the excerpt would also come to 21 lines, so nothing is
     dropped, and nothing is lost for free."""
-    storm = 'for i in $(seq 1 21); do echo "line $i" >&2; done; exit 1'
-
-    notice = _sensor_notice(tmp_path, storm)
+    notice = _script_notice(
+        tmp_path,
+        "import sys\n"
+        "for i in range(1, 22):\n"
+        "    print(f'line {i}', file=sys.stderr)\n"
+        "sys.exit(1)\n",
+    )
     lines = notice.splitlines()
 
     assert "line 1" in lines
@@ -90,9 +129,13 @@ def test_a_sensor_at_the_truncation_boundary_is_still_quoted_whole(
 def test_a_sensor_one_line_past_the_boundary_finally_elides(tmp_path: Path) -> None:
     """One line more and the excerpt is finally shorter than the diagnosis it
     replaces, so it elides — head, tail, and the middle it stands in for."""
-    storm = 'for i in $(seq 1 22); do echo "line $i" >&2; done; exit 1'
-
-    notice = _sensor_notice(tmp_path, storm)
+    notice = _script_notice(
+        tmp_path,
+        "import sys\n"
+        "for i in range(1, 23):\n"
+        "    print(f'line {i}', file=sys.stderr)\n"
+        "sys.exit(1)\n",
+    )
     lines = notice.splitlines()
 
     assert "line 1" in lines
@@ -110,19 +153,15 @@ def test_a_sensor_whose_last_line_carries_the_diagnosis_still_quotes_it(
     sensor's own crash takes, deptry included — buries its one useful line at
     the bottom of output that easily runs past the quoted budget. Quoting only
     the head, as this once did, guarantees that line is exactly the one
-    dropped; the tail has to survive too. The exception text lives only in the
-    helper script's stderr, not in the command that ran it, so this fails for
-    the right reason rather than by the command line echoing itself back.
+    dropped; the tail has to survive too.
     """
-    (tmp_path / "crash.py").write_text(
+    notice = _script_notice(
+        tmp_path,
         "import sys\n"
         "for i in range(1, 25):\n"
         '    print(f"noise {i}", file=sys.stderr)\n'
         'raise RuntimeError("boom: the real reason")\n',
-        encoding="utf-8",
     )
-
-    notice = _sensor_notice(tmp_path, "${python} ${dir}/crash.py")
 
     assert "boom: the real reason" in notice
 

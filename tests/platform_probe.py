@@ -1,15 +1,23 @@
 """Pin the platform a test asks about, and watch what a kill did instead of doing it.
 
-Three modules put platform questions to the same seam — ``test_posix_shell.py``
-(whether a shell recipe may run at all), ``test_live_commands.py`` (how one
-command is ended) and ``test_live_command_registry.py`` (what an interrupt does
-to the live ones) — so the pinning lives here once.
+Every module whose expected answer could differ between a Mac and Windows —
+an argv budget, a venv layout, whether a shell recipe may run at all, how a
+command is ended — puts that question to the same seam, so the pinning lives
+here once rather than as a hand-rolled ``monkeypatch.setattr`` at each site.
 
 Pinning is what makes a platform test worth having: a case that reads its
 expected answer off the host machine is green on a Mac, red on the Windows
 runner, and evidence of nothing on either. ``host_platform.is_windows`` is
 replaced rather than ``sys.platform``, because that function is the one seam
 every platform decision in this tool asks through.
+
+``A_SHELL_TO_RUN_IT_WITH`` is the other half of pinning: some POSIX behaviour
+(a shell must never let a filename execute its own contents; a pipeline dies
+whole, not just its shell) can only be shown by really running a shell recipe,
+and ``off_windows`` alone is not enough for that — it makes the code stop
+refusing the part, but does not conjure a shell onto a machine that has none.
+Skipping there is a question about the host, not about what the code decided,
+so it stays a ``skipif`` rather than another platform branch to get wrong.
 
 The recorders below stand in for the two ways a command is ended. Neither can be
 let run: ``os.killpg`` would signal a real process group — pid 4321 is somebody
@@ -18,12 +26,18 @@ let run: ``os.killpg`` would signal a real process group — pid 4321 is somebod
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import pytest
 
 from habit_hooks import host_platform
 from habit_hooks.sensors import live_commands
+
+A_SHELL_TO_RUN_IT_WITH = pytest.mark.skipif(
+    os.name == "nt",
+    reason="showing a shell recipe run takes a machine with a shell on it",
+)
 
 
 def on_windows(monkeypatch: pytest.MonkeyPatch) -> None:

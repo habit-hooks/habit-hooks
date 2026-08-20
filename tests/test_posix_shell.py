@@ -22,21 +22,15 @@ half of running on Windows — ending a command's whole tree — is
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-from platform_probe import off_windows, on_windows
+from platform_probe import A_SHELL_TO_RUN_IT_WITH, off_windows, on_windows
 
 from habit_hooks.scope import Scope
 from habit_hooks.sensors import posix_shell
 from habit_hooks.sensors.execution import Execution
 from habit_hooks.sensors.model import Part, SensorError
-
-_A_SHELL_TO_RUN_IT_WITH = pytest.mark.skipif(
-    os.name == "nt",
-    reason="showing a shell recipe running takes a machine with a shell on it",
-)
 
 
 def _shell_sensor(tmp_path: Path, command: str) -> Part:
@@ -166,7 +160,7 @@ def test_a_refused_transformer_leaves_the_findings_it_was_given(
     assert "no POSIX shell" in notices[0]
 
 
-@_A_SHELL_TO_RUN_IT_WITH
+@A_SHELL_TO_RUN_IT_WITH
 def test_the_same_sensor_runs_where_there_is_a_shell(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

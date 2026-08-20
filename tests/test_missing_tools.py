@@ -15,6 +15,8 @@ import stat
 from pathlib import Path
 
 import pytest
+from platform_probe import off_windows
+
 from habit_hooks import missing_tools
 from habit_hooks.initialise import plan
 from plugin_fixture import write_plugin
@@ -73,11 +75,17 @@ def test_a_plugin_that_declares_no_tools_leaves_nothing_in_the_way(
 
 
 def test_a_command_in_the_project_s_python_bin_is_not_missing(
-    toolless_project: Path,
+    toolless_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A run spawns against ``<project>/.venv/bin``, so a tool installed there is
     one it can reach — asking a narrower question would send someone off to
-    install what they already have."""
+    install what they already have.
+
+    ``.venv/bin`` is the POSIX half of that path (``project_paths.venv_bin_dir``
+    answers ``.venv/Scripts`` on Windows), so this pins off Windows rather than
+    stubbing a directory the search path would not be looking in.
+    """
+    off_windows(monkeypatch)
     _needing(toolless_project, JQ)
     _stub(toolless_project / ".venv" / "bin", "jq")
 

@@ -18,14 +18,23 @@ import time
 import uuid
 from pathlib import Path
 
+import pytest
+from platform_probe import A_SHELL_TO_RUN_IT_WITH, off_windows
+
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
 from habit_hooks.sensors.model import Part
 
 
-def _timed_out_notice(tmp_path: Path, command: str) -> str:
-    """The notices a sensor wedged by ``command`` leaves on its failed run."""
-    part = Part(name="probe", command=command, directory=tmp_path)
+def _timed_out_notice(tmp_path: Path, script: str) -> str:
+    """The notices a sensor wedged by running ``script`` leaves on its failed run.
+
+    ``script`` is Python, not a shell recipe: what wedges the sensor and what
+    it prints before the kill is the point, not any shell — so this spells an
+    ``argv`` part and runs unchanged on either platform.
+    """
+    (tmp_path / "wedge.py").write_text(script, encoding="utf-8")
+    part = Part(name="probe", directory=tmp_path, argv=["${python}", "${dir}/wedge.py"])
     execution = Execution(
         project_dir=tmp_path, scope=Scope(files=["src/a.py"]), timeout=0.3
     )
@@ -43,7 +52,8 @@ def test_a_wedged_sensor_times_out_into_a_failed_run(tmp_path: Path) -> None:
     hook with no output. The deadline turns that into the same notice + failed
     run any other spawn failure produces, so the run reports and moves on.
     """
-    part = Part(name="probe", command="sleep 5; printf '[]'", directory=tmp_path)
+    (tmp_path / "wedge.py").write_text("import time\ntime.sleep(5)\n", encoding="utf-8")
+    part = Part(name="probe", directory=tmp_path, argv=["${python}", "${dir}/wedge.py"])
     execution = Execution(
         project_dir=tmp_path, scope=Scope(files=["src/a.py"]), timeout=0.2
     )
@@ -64,7 +74,13 @@ def test_a_wedged_sensor_quotes_back_the_little_it_managed_to_say(
     diagnosis reached the notice as a ``b'...'`` repr — the tool's own words
     wrapped in Python syntax, in the one place a user has nothing else to go on.
     """
-    notice = _timed_out_notice(tmp_path, "echo 'cannot reach registry' >&2; sleep 5")
+    notice = _timed_out_notice(
+        tmp_path,
+        "import sys, time\n"
+        "print('cannot reach registry', file=sys.stderr)\n"
+        "sys.stderr.flush()\n"
+        "time.sleep(5)\n",
+    )
 
     assert "cannot reach registry" in notice
     assert "b'" not in notice
@@ -78,9 +94,14 @@ def test_a_wedged_sensor_that_said_a_lot_is_still_a_notice(tmp_path: Path) -> No
     chatty wedged tool took the whole run down with a traceback instead of
     leaving the notice + failed run every other spawn failure produces.
     """
-    storm = 'for i in $(seq 1 25); do echo "warning $i" >&2; done; sleep 5'
-
-    notice = _timed_out_notice(tmp_path, storm)
+    notice = _timed_out_notice(
+        tmp_path,
+        "import sys, time\n"
+        "for i in range(1, 26):\n"
+        "    print(f'warning {i}', file=sys.stderr)\n"
+        "sys.stderr.flush()\n"
+        "time.sleep(5)\n",
+    )
     lines = notice.splitlines()
 
     assert "warning 1" in lines
@@ -101,7 +122,13 @@ def test_a_wedged_sensor_printing_undecodable_bytes_is_still_a_notice(
     accepts. Decoding them strictly would raise from inside the very path that
     exists to report a failure, losing the timeout it was called to describe.
     """
-    notice = _timed_out_notice(tmp_path, r"printf 'sad \377\376 end' >&2; sleep 5")
+    notice = _timed_out_notice(
+        tmp_path,
+        "import sys, time\n"
+        "sys.stderr.buffer.write(b'sad \\xff\\xfe end')\n"
+        "sys.stderr.buffer.flush()\n"
+        "time.sleep(5)\n",
+    )
 
     assert "timed out" in notice
     assert "sad" in notice
@@ -130,7 +157,10 @@ def _surviving_pids(marker: str) -> list[str]:
         time.sleep(0.05)
 
 
-def test_a_timed_out_sensor_takes_its_whole_pipeline_with_it(tmp_path: Path) -> None:
+@A_SHELL_TO_RUN_IT_WITH
+def test_a_timed_out_sensor_takes_its_whole_pipeline_with_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Killing the shell is not killing the command.
 
     A sensor is a pipeline — the shipped ``ruff`` and ``eslint`` sensors both
@@ -138,7 +168,13 @@ def test_a_timed_out_sensor_takes_its_whole_pipeline_with_it(tmp_path: Path) -> 
     we spawned, not of us. Killing ``bash`` alone left them running as orphans
     past the hook that started them, so the wedged tool the deadline exists to
     stop went on churning, invisibly, with nothing left to report it to.
+
+    The pipe (``|``) is the point here, so — unlike the notices above — this
+    stays a shell recipe: it pins off Windows to get past the part's own
+    on-Windows refusal, and it needs a real shell (and ``pgrep``) to run it
+    with, so it is skipped where there is none.
     """
+    off_windows(monkeypatch)
     marker = f"habit_hooks_probe_{uuid.uuid4().hex}"
     sleeper = f"{shlex.quote(sys.executable)} -c 'import time; time.sleep(30)' {marker}"
     part = Part(name="probe", command=f"{sleeper} | {sleeper}", directory=tmp_path)
