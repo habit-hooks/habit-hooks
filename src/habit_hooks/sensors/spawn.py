@@ -41,7 +41,12 @@ from . import batch_shell, posix_shell
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS, bounded_output
 from .live_commands import LIVE_COMMANDS, its_own_process_group
 from .model import Part, SensorError
-from .part_output import command_not_found, part_spawn_failure, part_timeout
+from .part_output import (
+    command_not_found,
+    no_project_to_run_in,
+    part_spawn_failure,
+    part_timeout,
+)
 
 
 @dataclass(frozen=True)
@@ -67,13 +72,16 @@ class Spawner:
         have given for it, so one recogniser answers for both forms of part.
         Only a missing *program* is answered that way: ``Popen`` raises the very
         same ``FileNotFoundError`` when the directory it was told to run in is
-        gone, and that is a broken run rather than a tool to install.
+        gone, and that is a broken run rather than a tool to install. Which of
+        the two it was is this layer's to say either way — Windows' own words
+        for the refusal name neither the program nor the directory
+        (``part_output.no_project_to_run_in``).
         """
         try:
             return self._spawned(self._runnable(argv), stdin)
         except FileNotFoundError:
             if not self.project_dir.is_dir():
-                raise
+                raise no_project_to_run_in(self.project_dir) from None
             return command_not_found(argv)
 
     def _runnable(self, argv: list[str]) -> list[str]:

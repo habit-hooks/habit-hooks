@@ -70,6 +70,25 @@ def run(project: Path, helper: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def as_ts_morph_spells(file: Path) -> str:
+    """``file`` the way the comment helper will key it: ts-morph's own spelling.
+
+    ts-morph hands back TypeScript's standardized path — absolute, and with
+    forward slashes on every platform, ``C:/Users/…`` drive letter and all —
+    where ``str(Path)`` is whatever the host separates with. A case asserting
+    the second reads its expected answer off the machine it runs on: right on a
+    Mac, wrong on the Windows runner, evidence of nothing on either.
+
+    Nobody sees this spelling in a run. The runner re-expresses every reported
+    path relative to the project as the findings enter it
+    (``sensors/finding_paths``, which reads a forward-slash absolute path as
+    happily as a native one), so what a user is shown is ``src/helper.ts`` on
+    both. These cases drive the helper directly, which is where the two
+    spellings are still distinguishable.
+    """
+    return file.resolve().as_posix()
+
+
 def reported_files(result: subprocess.CompletedProcess[str]) -> list[str]:
     """The keys of every comment the helper reported."""
     assert result.returncode == 0, result.stderr

@@ -28,6 +28,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from comment_project import as_ts_morph_spells
 from plugin_layouts import PACKAGE, in_a_local_venv, sensor, vendored
 
 PLUGIN = Path(__file__).parents[1]
@@ -109,11 +110,22 @@ def _keys_of(result: subprocess.CompletedProcess[str], smell: str) -> list[str]:
     ]
 
 
-def _the_helper_file(project: Path) -> list[str]:
-    """How a helper keys the fixture's one source: by absolute path. The pipeline
-    anchors it to the project later, at the sensor boundary, which is not what
-    these cases are about."""
-    return [str((project / "src" / "helper.ts").resolve())]
+def _the_helper_file(project: Path) -> Path:
+    """The fixture's one source file."""
+    return project / "src" / "helper.ts"
+
+
+def _as_eslint_spells(file: Path) -> list[str]:
+    """How the eslint helper keys a file: absolute, in the platform's own
+    spelling, which on Windows separates with ``\\``.
+
+    Its neighbour keys the very same file ts-morph's way — absolute with forward
+    slashes on every platform (``as_ts_morph_spells``) — so one expected answer
+    cannot serve both, and a case sharing one silently asserts the host's own
+    separator. Neither spelling reaches a user: the runner anchors both to
+    ``src/helper.ts`` at the sensor boundary (``sensors/finding_paths``).
+    """
+    return [str(file.resolve())]
 
 
 @under_either_manifest
@@ -126,7 +138,9 @@ def test_vendored_comment_helper_reports_a_comment(
     helper = sensor(vendored(project), COMMENT_HELPER)
     result = _run(project, helper, "src/helper.ts")
 
-    assert _keys_of(result, "non-essential-comment") == _the_helper_file(project)
+    assert _keys_of(result, "non-essential-comment") == [
+        as_ts_morph_spells(_the_helper_file(project))
+    ]
 
 
 @under_either_manifest
@@ -149,7 +163,9 @@ def test_vendored_eslint_helper_reports_a_smell(tmp_path: Path, manifest: str) -
     helper = sensor(vendored(project), ESLINT_HELPER)
     result = _run(project, helper, "--", "src/helper.ts")
 
-    assert _keys_of(result, "too-many-parameters") == _the_helper_file(project)
+    assert _keys_of(result, "too-many-parameters") == _as_eslint_spells(
+        _the_helper_file(project)
+    )
 
 
 @under_either_manifest
@@ -163,4 +179,6 @@ def test_venv_installed_comment_helper_reports_a_comment(
     helper = sensor(in_a_local_venv(project), COMMENT_HELPER)
     result = _run(project, helper, "src/helper.ts")
 
-    assert _keys_of(result, "non-essential-comment") == _the_helper_file(project)
+    assert _keys_of(result, "non-essential-comment") == [
+        as_ts_morph_spells(_the_helper_file(project))
+    ]

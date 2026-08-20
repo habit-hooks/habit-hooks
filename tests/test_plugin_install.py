@@ -96,7 +96,7 @@ def test_a_pip_less_environment_is_asked_once_per_missing_plugin(
 
 
 def test_an_overlay_installs_into_the_environment_it_extends(
-    uv_run_overlay: Path,
+    uv_run_overlay: str,
 ) -> None:
     """`uv run --with` runs from a directory under uv's cache that is gone by
     the time anybody reads the command, so naming its interpreter names a Python

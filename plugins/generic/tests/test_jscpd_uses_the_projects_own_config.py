@@ -10,7 +10,9 @@ config was honoured where jscpd would never have looked.
 Each case puts a clone under `src` and another under `lib`, and lets the two
 configs disagree about which one is scanned: the bundled config (written
 outside the project, where the real one lives) names `src`, the project's own
-names `lib`. Whose directory comes back names whose config won.
+names `lib`. Whose directory comes back names whose config won — on a machine
+whose jscpd can scan from a config at all (`A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG`),
+which Windows is not.
 """
 
 from __future__ import annotations
@@ -18,7 +20,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from jscpd_sensor import requires_jscpd, run_sensor, write_clones, write_json
+from jscpd_sensor import (
+    A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG,
+    requires_jscpd,
+    run_sensor,
+    write_clones,
+    write_json,
+)
 
 
 def _project(tmp_path: Path) -> Path:
@@ -45,6 +53,7 @@ def _scanned(result) -> set[str]:
     }
 
 
+@A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG
 def test_the_projects_own_jscpd_json_replaces_ours(tmp_path: Path) -> None:
     requires_jscpd()
     project = _project(tmp_path)
@@ -56,6 +65,7 @@ def test_the_projects_own_jscpd_json_replaces_ours(tmp_path: Path) -> None:
     assert _scanned(result) == {"lib"}
 
 
+@A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG
 def test_a_jscpd_key_in_package_json_replaces_ours(tmp_path: Path) -> None:
     """jscpd's other config home, so it has to be ours too."""
     requires_jscpd()

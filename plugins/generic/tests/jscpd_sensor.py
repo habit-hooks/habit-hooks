@@ -35,6 +35,24 @@ CLONED_BLOCK = (
 )
 
 
+# jscpd 4 resolves a config's `path` entries against the config file's directory
+# (`readConfigJson`), which makes them absolute, and @jscpd/finder then hands
+# `<resolved>/**/*` to fast-glob. On Windows that resolution spells the
+# separators `\`, which fast-glob reads as escape characters rather than
+# separators — so the glob matches nothing and jscpd scans zero files, exits 0
+# and writes no report. It is the tool's own blindness, not the sensor's: bare
+# `jscpd` in such a project answers the same, and with no `path` anywhere jscpd
+# scans `process.cwd()`, absolute again. A positional path stays relative and is
+# unaffected, which is why the cases where the plugin's own config is in play
+# still run there. Whose config won is therefore unobservable on Windows: the
+# only run that can show it is one that scans something.
+A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG = pytest.mark.skipif(
+    os.name == "nt",
+    reason="jscpd resolves a config's path to an absolute one, which on Windows "
+    "is a glob matching no file at all",
+)
+
+
 def requires_jscpd() -> None:
     if not (JSCPD_BIN / "jscpd").exists():
         pytest.skip("jscpd is not installed at the repo root (pnpm install)")

@@ -17,7 +17,6 @@ is ``test_live_command_registry.py``.
 
 from __future__ import annotations
 
-import signal
 import subprocess
 from collections.abc import Callable
 
@@ -45,13 +44,18 @@ def test_off_windows_a_command_dies_by_one_signal_to_its_group(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The spawn is a session leader, so its pid is also the group id every tool
-    it started inherited — and ``SIGKILL`` can be neither caught nor blocked."""
+    it started inherited — and ``SIGKILL`` can be neither caught nor blocked.
+
+    Spelled by its number, which POSIX fixes at 9 wherever the signal exists: a
+    Windows ``signal`` module names no ``SIGKILL`` for this to read, and reading
+    back the constant the code itself sends would assert nothing about which
+    signal that is."""
     off_windows(monkeypatch)
     spawns, signals = recorded_spawns(monkeypatch), recorded_signals(monkeypatch)
 
     kill_command(4321)
 
-    assert signals == [(4321, signal.SIGKILL)]
+    assert signals == [(4321, 9)]
     assert spawns == []
 
 

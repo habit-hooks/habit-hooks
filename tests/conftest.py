@@ -134,11 +134,19 @@ def uvx_run_with_a_pip(uvx_run: None, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def uv_run_overlay(pip_less_prefix: Path) -> Path:
+def uv_run_overlay(pip_less_prefix: Path) -> str:
     """habit-hooks running under `uv run --with`, which layers a throwaway
     environment of its own over a durable one — and names the one it extends,
-    which is the only environment such a run has to install into."""
-    extended = pip_less_prefix.parent / "project-venv"
+    which is the only environment such a run has to install into.
+
+    That environment is spelled out rather than taken from ``tmp_path``. The
+    case compares the offered command byte for byte, and a host path brings its
+    own shell quoting into a case that is not about quoting: a Mac's arrives
+    bare, a Windows one arrives with backslashes and is quoted on the way out.
+    Nothing ever looks for the directory — what uv wrote down is the whole of
+    what this environment says about itself.
+    """
+    extended = "/opt/project-venv"
     (pip_less_prefix / VENV_CONFIG).write_text(
         f"uv = 0.8.11\nextends-environment = {extended}\n", encoding="utf-8"
     )

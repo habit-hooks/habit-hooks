@@ -23,8 +23,8 @@ from installed_env import (
     build_wheels,
     install_by_name,
     installed_packages,
-    path_without_python,
     run_and_collect_findings,
+    without_python_on_path,
 )
 from installed_projects import MAX_ALLOWED_LINES, OVERSIZED_LINES, oversized_project
 
@@ -85,7 +85,7 @@ def test_bundled_python_sensor_runs_without_python_on_path(
     findings = run_and_collect_findings(
         installed_habit_sensors,
         project,
-        env={"PATH": path_without_python(tmp_path)},
+        env=without_python_on_path(tmp_path),
     )
 
     _assert_only_the_oversized_file(findings)

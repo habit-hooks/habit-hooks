@@ -313,6 +313,22 @@ the repo's own 200-line `oversized-file` gate by it, which the dogfood step
 (`── smell (n issues) ──`, blank line, guide text). Format it anywhere else and
 a run's output drifts from a coached incomplete run's.
 
+### What a failure *says* is `part_output.py`; how much of it is `diagnosis.py` (agent decision)
+
+`part_output.py` decides what a finished part's output means — which exit codes
+can be trusted, which failure a reader is looking at, and the words for each.
+`diagnosis.py` is the quoting underneath it: `DIAGNOSIS_LINE_LIMIT`, `as_text`,
+`keep_both_ends`. How much of a tool's own output to carry back is a separate
+question from what the failure was, and it is the half with the reasoning worth
+keeping in one place — a tool that dies mid-warning-storm produces megabytes,
+while a Python traceback names its exception on the *last* line, so neither end
+alone can be dropped.
+
+The dependency runs one way (`part_output` → `diagnosis`), the same direction
+and for the same reason as `config` → `config_schema` and `mapper` →
+`rendering`. Under size pressure again, move a whole concern across this line
+rather than drawing a new one.
+
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
 When `jscpd --config <abs path>` loads a config, its `path: ["src"]` resolves
@@ -639,24 +655,34 @@ shadowing it.
 
 
 
-### Indexing a jq object with `null` is an error, not a miss (issue #83)
+### An unmapped rule or code must never reach a bare lookup (issue #83)
 
-`{"a": 1}[null]` **aborts** jq with `Cannot index object with null` (exit 5), so
-a trailing `// .fallback` never runs — the whole sensor dies and every smell it
-would have reported vanishes from the run. Every adapter that maps a tool's rule
-ID through an object literal has to guarantee the key is non-null *before* the
-lookup. The eslint sensor does it with `select(.ruleId != null or .fatal)`
-(keeping `fatal`, which has no rule ID and is exactly what `parse-error` is for)
-plus `--no-warn-ignored` to stop the commonest of them being raised at all.
+Both sensors map a tool-supplied string — an eslint rule ID, a ruff code —
+through a table of the smells this plugin knows about, and the tool is free to
+send a string neither table has an entry for. The hazard was first named
+against the sensors' old jq pipelines: `{"a": 1}[null]` **aborts** jq with
+`Cannot index object with null` (exit 5), so a trailing `// .fallback` never
+ran and the whole sensor died, taking every finding in the run with it. Neither
+sensor pipes through jq any more — both are native helpers now — but the
+underlying hazard (trust an external string as a lookup key, and something
+breaks on the miss) is still real in each language, and each guards it in its
+own way:
 
-`ruff.toml` used to have the same `{...}[.code]` shape, safe only because
-`--select` pinned the codes and ruff spells a syntax error `invalid-syntax`
-rather than `null`. It is a Python helper now (`sensors/ruff_sensor.py`, argv
-form, no `jq`), and the replacement is safe by construction rather than by
-`--select` happening to pin the set: it maps through `CODE_SMELLS.get(code)`,
-so a code with no smell mapped comes back `None` and is dropped — the same
-"drop what the plugin has no vocabulary for" rule the knip sensor already
-follows (see "A sensor emits vocabulary smells only" below) — never a crash.
+- **ruff** (`sensors/ruff_sensor.py`) maps a code through
+  `CODE_SMELLS.get(entry["code"])`. A dict's `.get` answers `None` for a code
+  outside `--select`, and `findings` drops that entry rather than forwarding or
+  crashing on it — the same "drop what the plugin has no vocabulary for" rule
+  the knip sensor already follows (see "A sensor emits vocabulary smells only"
+  below).
+- **eslint** (`sensors/eslint.cjs`) maps a rule ID through `SMELL_BY_RULE`, a
+  `Map` rather than an object literal. A plain object answers
+  `SMELL_BY_RULE["constructor"]` with a function off `Object.prototype`, which
+  `JSON.stringify` then drops silently — the finding would keep its issue but
+  lose its `smell` key, with nothing in the run saying why. A `Map` has no
+  prototype chain, so `.get` answers `undefined` for anything absent, and
+  `smellOf` falls back to forwarding the rule ID itself (the deliberate
+  exception in "A sensor emits vocabulary smells only" — an eslint rule ID
+  comes from a config the project wrote, unlike knip's own vocabulary).
 
 ### jscpd ignores a checkout that *lives* under a path its own `.gitignore` covers
 
@@ -716,7 +742,7 @@ Two things about a release that are silent when forgotten (agent decision):
   (`brew pr-pull`) attaches them from a PR number — pushed straight to main,
   1.2.1 shipped with no bottles and every `brew install` builds from source.
 
-### A spawn never adds `.cmd` to a bare command name, so the name is resolved first
+### A spawn never adds `.cmd` to a bare command name, so the name is resolved first (agent decision)
 
 Windows' `CreateProcess` appends `.exe` to a bare command name and nothing else,
 while `shutil.which` applies the whole of `PATHEXT`. Every Node tool a plugin
@@ -732,15 +758,40 @@ reached. Only a **bare** name is resolved: a path (`${python}`,
 the project and not this process's cwd, and every argument after the first is an
 argument whatever it looks like.
 
-**This is not the whole of the bug it was found in.** No shipped sensor spells a
-wrapped tool as its part's `argv[0]` — every one is `argv = ["${python}",
-"${dir}/<helper>.py", ...]` or `["node", "...cjs", ...]`, and the helper then
-spawns `jscpd`/`pmd`/`deptry`/`phpmd`/`knip` itself. Those spawns hit the same
-`CreateProcess` rule and are still unfixed. A helper inherits `PATH` =
-`tool_search_path` from `spawn._path_env`, so its own `shutil.which` is the same
-answer and not a second one; `knip.cjs` needs more than that, because Node's
-`spawnSync` refuses a `.cmd` outright without `shell: true` (its CVE-2024-27980
-mitigation).
+**That fixes only a part's own `argv[0]`, and no shipped sensor spells its
+wrapped tool there.** Every one is `argv = ["${python}", "${dir}/<helper>.py",
+...]` or `["node", "...cjs", ...]`, and the helper then spawns
+`jscpd`/`pmd`/`deptry`/`phpmd`/`knip`/`eslint` itself, one process further in —
+where the tools that actually go missing on Windows go missing. That spawn now
+goes through one of two seams, split by language, and they cannot be merged
+into one:
+
+- **The four Python plugins** (generic, java, php, python) share
+  `sensors/tool_spawn.py` — byte-identical copies. It runs `shutil.which(name)`
+  along the `PATH` habit-hooks hands the helper (the same `tool_search_path` a
+  part's own resolution asks, so it is not a second answer to that question),
+  then spawns whatever file that resolves to. It is four copies rather than one
+  shared module because every plugin's `pyproject.toml` declares
+  `dependencies = []`: none may import `habit-hooks`, or each other, so a
+  helper cannot reach a shared implementation living in the core or in a
+  sibling plugin — four copies is what "no dependency" costs, and
+  `tests/test_helpers_spawn_by_file.py::test_every_plugin_carries_the_same_copy`
+  is the gate that keeps them from drifting apart unnoticed.
+- **The TypeScript plugin** uses `sensors/project_tool.cjs` instead: it finds
+  the package under the project's own `node_modules`, reads its `bin` entry,
+  and runs that file with `process.execPath` — never spawned by name at all.
+
+They cannot be unified. `shutil.which` finding a `.cmd` shim is no use to Node:
+`spawnSync` has refused to run a `.cmd` or `.bat` outright since its
+CVE-2024-27980 mitigation (`IsWindowsBatchFile` in `spawn_sync.cc`), still
+unconditional in Node 22 — and the `--security-revert` flag that once bypassed
+it was itself removed in Node 22.0.0, so there is no escape left to take.
+`shell: true` is not the way round it either: it hands the argv to `cmd.exe` to
+reparse, and a sensor's arguments are filenames straight out of a checked-out
+branch, which this repo treats as hostile (`tool_spawn.py`'s own batch-file
+guard exists for exactly that reason). Nor can Python take the Node route the
+other way: `CreateProcess` appends only `.exe` to a bare name, so a `.cmd` shim
+is reached only by looking it up first — which is what `shutil.which` is for.
 
 ### `TimeoutExpired` carries no partial output at all on Windows
 

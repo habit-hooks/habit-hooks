@@ -19,6 +19,7 @@ from pathlib import Path
 
 from comment_project import (
     SOURCE_FILE,
+    as_ts_morph_spells,
     installed_outside_the_project,
     project,
     project_without_ts_morph,
@@ -33,7 +34,7 @@ def test_an_install_outside_the_project_still_finds_ts_morph(tmp_path: Path) -> 
 
     result = run(consumer, installed_outside_the_project(tmp_path))
 
-    assert reported_files(result) == [str((consumer / SOURCE_FILE).resolve())]
+    assert reported_files(result) == [as_ts_morph_spells(consumer / SOURCE_FILE)]
 
 
 def test_a_project_without_ts_morph_is_told_to_install_it(tmp_path: Path) -> None:

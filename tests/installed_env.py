@@ -113,6 +113,37 @@ def run_and_collect_findings(
     return json.loads(result.stdout)
 
 
+# Every extension this machine runs a bare command name by, which is how Windows
+# decides what is a program at all.
+_RUNNABLE_EXTENSIONS = {
+    extension.lower() for extension in os.environ.get("PATHEXT", "").split(os.pathsep)
+}
+
+
+def _the_machine_runs(tool: Path) -> bool:
+    """Whether this machine would run ``tool`` as a program.
+
+    ``os.access(..., X_OK)`` asks after the execute bit, which Windows has not
+    got: there it is true of every file on the search path, DLLs and text files
+    alike. What Windows runs is decided by the extension instead, so that is
+    the question asked there.
+    """
+    if os.name == "nt":
+        return tool.suffix.lower() in _RUNNABLE_EXTENSIONS
+    return os.access(tool, os.X_OK)
+
+
+def _the_command_it_answers(tool: Path) -> str:
+    """The bare command name a lookup would find ``tool`` for.
+
+    A Python interpreter is the file ``python.exe`` on Windows and ``python``
+    everywhere else, and ``shutil.which("python")`` finds both — so a set of
+    bare names names the file to leave out on one platform only, and a PATH
+    built by matching them keeps the very interpreter it was meant to hide.
+    """
+    return tool.stem.lower() if os.name == "nt" else tool.name
+
+
 def _link_executables_except(bin_dir: Path, blocked: set[str]) -> None:
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         source = Path(entry)
@@ -120,21 +151,34 @@ def _link_executables_except(bin_dir: Path, blocked: set[str]) -> None:
             continue
         for tool in source.iterdir():
             link = bin_dir / tool.name
-            if tool.name in blocked or link.exists() or not os.access(tool, os.X_OK):
+            if _the_command_it_answers(tool) in blocked or link.exists():
                 continue
-            link.symlink_to(tool)
+            if _the_machine_runs(tool):
+                link.symlink_to(tool)
 
 
-def path_without_python(tmp_path: Path) -> str:
-    """A PATH with the usual tools (``bash`` etc.) but no ``python``/``python3``,
+def without_python_on_path(tmp_path: Path) -> dict[str, str]:
+    """This environment with the usual tools on PATH but no ``python``/``python3``,
     reproducing a clean CI sandbox / stock-macOS environment. Built by symlinking
     every executable on the current PATH except the Python interpreters into a
-    single bin dir."""
+    single bin dir.
+
+    Only PATH is replaced, exactly as ``sensors/spawn`` replaces it for every
+    command habit-hooks runs: an environment cut down to PATH alone varies more
+    than the one thing the case is about — on Windows it would leave the child
+    without ``PATHEXT``, so the tool lookup inside habit-hooks would answer
+    about no machine at all, and without ``SystemRoot``, which its own launcher
+    needs.
+
+    ``git`` stands for the tools that must survive: something on this PATH has
+    to, or an empty directory would pass for a PATH with no python in it, and
+    git is the one tool both this suite and its runners are certain to have.
+    """
     bin_dir = tmp_path / "no-python-bin"
     bin_dir.mkdir()
     _link_executables_except(bin_dir, {"python", "python3"})
 
     assert shutil.which("python", path=str(bin_dir)) is None
     assert shutil.which("python3", path=str(bin_dir)) is None
-    assert shutil.which("bash", path=str(bin_dir)) is not None
-    return str(bin_dir)
+    assert shutil.which("git", path=str(bin_dir)) is not None
+    return {**os.environ, "PATH": str(bin_dir)}

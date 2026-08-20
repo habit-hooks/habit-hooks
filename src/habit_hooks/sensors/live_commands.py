@@ -45,6 +45,17 @@ from .. import host_platform
 # and therefore testable, from a machine that is not Windows.
 CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
+# POSIX' unrefusable signal, which Windows' ``signal`` module does not name at
+# all — so naming it there is an ``AttributeError`` raised from inside a handler
+# that was reporting a timeout. Asked of ``signal`` where it is named and
+# spelled by its number where it is not (POSIX numbers ``SIGKILL`` 9 wherever it
+# exists), which leaves the POSIX branch reachable — and therefore testable —
+# from a machine that is not POSIX, exactly as the flag above leaves the Windows
+# branch spawnable from a machine that is not Windows. Nothing is ever signalled
+# by it there: ``os.killpg`` is equally absent, and a run with the platform
+# pinned reaches a stand-in for it (``tests/platform_probe``).
+UNREFUSABLE_KILL = getattr(signal, "SIGKILL", 9)
+
 
 def its_own_process_group() -> dict:
     """The spawn arguments that put a command in a process group of its own.
@@ -74,7 +85,7 @@ def kill_command(pid: int) -> None:
         _taskkill_tree(pid)
         return
     with contextlib.suppress(ProcessLookupError):
-        os.killpg(pid, signal.SIGKILL)
+        os.killpg(pid, UNREFUSABLE_KILL)
 
 
 def _taskkill_tree(pid: int) -> None:
