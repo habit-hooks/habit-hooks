@@ -13,7 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from harness import SpecCase, SpecError, SpecFailure, execute, parse_spec
+from harness import (
+    POSIX_SHELL_ONLY,
+    STEPS_RUN_ON_THIS_PLATFORM,
+    SpecCase,
+    SpecError,
+    SpecFailure,
+    execute,
+    parse_spec,
+)
 
 _REPO_ROOT = Path(__file__).parent
 
@@ -43,6 +51,8 @@ class SpecItem(pytest.Item):
         self.case = case
 
     def runtest(self):
+        if not STEPS_RUN_ON_THIS_PLATFORM:
+            pytest.skip(POSIX_SHELL_ONLY)
         if self.case.skip:
             pytest.skip("🟡 not built yet")
         with tempfile.TemporaryDirectory(dir=_case_root()) as tmp:

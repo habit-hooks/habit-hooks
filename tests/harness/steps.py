@@ -11,6 +11,15 @@ from pathlib import Path
 from .errors import SpecError, SpecFailure
 from .text import normalize
 
+# A spec case's steps are POSIX shell — heredocs, ``mkdir -p``, ``grep`` — run
+# through the ``bash -c`` below. Windows has no such shell, so the executable
+# documentation runs on POSIX only, and says so out loud as a skip rather than
+# a silent absence: a platform gap nothing reports is one nobody closes. Named
+# here, beside the line that makes it true. Issue #137 is the portable case
+# language that would retire it.
+STEPS_RUN_ON_THIS_PLATFORM = os.name != "nt"
+POSIX_SHELL_ONLY = "spec steps are POSIX shell run through bash — see issue #137"
+
 
 class Context:
     """Mutable state shared by one test's steps as they run."""
