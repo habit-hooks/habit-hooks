@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 from pmd_ruleset import ruleset_of
+from tool_spawn import run_tool
 
 RULE_SMELLS = {
     "ExcessiveParameterList": "too-many-parameters",
@@ -61,14 +62,12 @@ def run_pmd(arguments: list[str]) -> subprocess.CompletedProcess[str]:
     here, making twenty lines of Python internals the sensor's diagnosis
     (#114). This wrapper is what looks for pmd, so it answers the way the
     shell would have, and that phrase is what the run recognises to name the
-    missing tool.
+    missing tool. Looking is ``tool_spawn``'s: PMD ships ``pmd.bat``, which
+    Windows finds by a lookup and cannot spawn by name.
     """
     command = ["pmd", "check", "--no-cache", "--format", "json"]
     try:
-        return subprocess.run(
-            [*command, *arguments], capture_output=True,
-            encoding="utf-8", errors="replace",  # sensors.spawn's policy
-        )
+        return run_tool([*command, *arguments])
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "pmd: command not found\n")
 

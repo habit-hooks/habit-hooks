@@ -24,7 +24,8 @@ running to its own deadline where a same-group child used to die with the tree.
 
 ``run_part`` is also where a part whose recipe this platform cannot read is
 stopped before it spawns at all (``posix_shell``), as the one part failing that
-it is.
+it is — and where an argument the shell behind a batch file would read as its
+own syntax is named against the part that carried it (``batch_shell``).
 """
 
 from __future__ import annotations
@@ -36,10 +37,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..project_paths import tool_executable, tool_search_path
-from . import posix_shell
+from . import batch_shell, posix_shell
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS, bounded_output
 from .live_commands import LIVE_COMMANDS, its_own_process_group
-from .model import Part
+from .model import Part, SensorError
 from .part_output import command_not_found, part_spawn_failure, part_timeout
 
 
@@ -92,12 +93,21 @@ class Spawner:
         one guard in :meth:`run` reading the one ``FileNotFoundError`` it was
         written for — and a project directory that is gone still says so,
         instead of being reported as a tool somebody should install.
+
+        Knowing the file is also the only way to know what will read the
+        arguments: a ``.bat`` or ``.cmd`` program is run by ``cmd.exe``, whose
+        syntax nothing here quotes for (``batch_shell``). Both ways of arriving
+        at a program pass through the refusal, since a part may name a batch
+        file by its path just as easily as by its name.
         """
-        program = argv[0]
-        if os.path.dirname(program):
-            return argv
-        found = tool_executable(program, self.project_dir)
-        return argv if found is None else [found, *argv[1:]]
+        found = (
+            None
+            if os.path.dirname(argv[0])
+            else tool_executable(argv[0], self.project_dir)
+        )
+        runnable = argv if found is None else [found, *argv[1:]]
+        batch_shell.refuse_unreadable_arguments(runnable)
+        return runnable
 
     def _spawned(self, argv: list[str], stdin: str) -> subprocess.CompletedProcess[str]:
         """What the child printed, its group tracked for as long as it lives."""
@@ -156,10 +166,17 @@ def run_part(
     where it is asked because it is the boundary that knows both the part and
     whether it is a sensor or a transformer, which is what decides how to say
     "switch it off".
+
+    An argument a batch file's own shell would read as syntax is refused deeper
+    down, where the program has become a file and can be recognised as one
+    (``batch_shell``). That refusal knows everything about itself except which
+    part earned it, so this is where the part's name goes on the front of it.
     """
     posix_shell.refuse_where_there_is_none(kind, part)
     try:
         return run()
+    except batch_shell.UnreadableArgument as refusal:
+        raise SensorError(f"{kind} {part.name!r} {refusal}") from None
     except subprocess.TimeoutExpired as expiry:
         raise part_timeout(kind, part, expiry) from None
     except OSError as refusal:

@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
+from plugin_layouts import outside_the_project, sensor
+
 PLUGIN = Path(__file__).parents[1]
-PACKAGE = PLUGIN / "src" / "habit_hooks_typescript"
-SENSORS = PACKAGE / "sensors"
-HELPER = SENSORS / "comment.cjs"
+HELPER = "comment.cjs"
 
 COMMONJS_MANIFEST = '{ "name": "demo", "version": "0.0.0" }\n'
 
@@ -50,17 +49,10 @@ def _bare_project(tmp_path: Path, manifest: str) -> Path:
 
 
 def installed_outside_the_project(tmp_path: Path) -> Path:
-    """The shipped helper where `pip`, `uv tool` and Homebrew put it: a
-    site-packages tree of its own, with no `node_modules` anywhere above it."""
-    return _copied_to(
-        tmp_path / "site-packages" / "habit_hooks_typescript" / "sensors" / HELPER.name
-    )
-
-
-def _copied_to(destination: Path) -> Path:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(HELPER, destination)
-    return destination
+    """The shipped helper where `pip`, `uv tool` and Homebrew put it
+    (`plugin_layouts`): a site-packages tree of its own, with no `node_modules`
+    anywhere above it."""
+    return sensor(outside_the_project(tmp_path), HELPER)
 
 
 def run(project: Path, helper: Path) -> subprocess.CompletedProcess[str]:

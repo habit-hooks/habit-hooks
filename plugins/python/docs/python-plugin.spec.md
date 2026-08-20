@@ -12,10 +12,11 @@ plugins = ["python"]
 
 ## ruff adapter maps rule IDs to canonical smells
 
-The `ruff` adapter selects `C901,PLR0913,PLR0915,F841,F401,BLE001` and a jq
-transform in its command groups the flat output into one finding per smell,
-stamping `source: "ruff:<code>"` on each issue. The shipped `ruff.toml` carries
-`max-args = 3`, so a four-argument function trips `PLR0913`.
+The `ruff` adapter selects `C901,PLR0913,PLR0915,F841,F401,BLE001` and a
+Python helper beside the sensor spec (`ruff_sensor.py`) groups the flat
+output into one finding per smell, stamping `source: "ruff:<code>"` on each
+issue. The shipped `ruff.toml` carries `max-args = 3`, so a four-argument
+function trips `PLR0913`.
 
 📄ruff.toml @plugins/python/src/habit_hooks_python/ruff.toml
 
@@ -341,12 +342,13 @@ habit-sensors: sensor 'deptry' failed: '${python}' '${dir}/deptry_sensor.py'
 
 ## A crashing ruff fails the run, never reports clean
 
-The `ruff` sensor pipes the tool into `jq`. A crashing `ruff` (here, a malformed
-`ruff.toml` that makes the tool exit non-zero) prints nothing on stdout, so a
-naive pipe would let `jq` succeed on empty input and mask the crash as a false-
-clean run. The command sets `pipefail` so the tool's failing exit propagates
-through the pipe; `habit-sensors` then raises, names the sensor on stderr, and
-exits 1, carrying only the reserved `incomplete-run` marker on stdout
+The `ruff` sensor runs a Python helper (`ruff_sensor.py`) rather than piping
+the tool into `jq`. A crashing `ruff` (here, a malformed `ruff.toml` that makes
+the tool exit non-zero) is a genuine crash, not a violation: ruff's own
+contract is 0 clean, 1 violations found, and the helper treats any other exit
+as broken, exiting 2 itself with nothing on stdout. `habit-sensors` then
+raises, names the sensor on stderr, and exits 1, carrying only the reserved
+`incomplete-run` marker on stdout
 ([habit-sensors.spec.md](../../../docs/habit-sensors.spec.md)).
 
 📄.habit-hooks/config.toml
@@ -376,8 +378,7 @@ habit-sensors --all | jq -c '[.[].smell]'
 ["incomplete-run"]
 ```
 
-The notice quotes the sensor's whole command — multi-line here, so its first
-line shows only where that command starts — and then ruff's own diagnosis, which
+The notice quotes the sensor's whole command, then ruff's own diagnosis, which
 names the absolute path of the config it could not parse. Only the line naming
 the sensor is stable enough to assert.
 
@@ -387,5 +388,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'ruff' failed: set -o pipefail
+habit-sensors: sensor 'ruff' failed: '${python}' '${dir}/ruff_sensor.py' '${files}'
 ```

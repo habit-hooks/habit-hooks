@@ -13,6 +13,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tool_spawn import run_tool
+
 
 def run_deptry(report: Path) -> subprocess.CompletedProcess[str]:
     """What deptry said, or what a shell says about a deptry nobody installed.
@@ -22,16 +24,13 @@ def run_deptry(report: Path) -> subprocess.CompletedProcess[str]:
     absent tool raised a ``FileNotFoundError`` out of here, making twenty lines
     of Python internals the sensor's diagnosis (#114). This wrapper is what looks
     for deptry, so it answers the way the shell would have, and that phrase is
-    what the run recognises to name the missing tool.
+    what the run recognises to name the missing tool. Looking is ``tool_spawn``'s,
+    which names the file — a console script a project's own venv installed, which
+    Windows spells ``deptry.exe`` there and habit-hooks' venv may not hold at all.
     """
     command = ["deptry", ".", "--json-output", str(report)]
     try:
-        return subprocess.run(
-            command,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",  # sensors.spawn's policy
-        )
+        return run_tool(command)
     except FileNotFoundError:
         return subprocess.CompletedProcess(
             command, 127, "", "deptry: command not found\n"

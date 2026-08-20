@@ -8,15 +8,15 @@ declaring ``"type": "module"``, the default a new TypeScript project is
 scaffolded with. Two of this plugin's three sensors were gone on the first run.
 
 The helper is only inside the consumer's manifest scope when it sits under the
-project directory, which is exactly what the two installs below do: the
-vendoring route the README advertises (``.habit-hooks/<plugin>/sensors/``) and a
-project-local ``.venv/``. ``.cjs`` settles the question inside the file, where
-the consumer's manifest cannot reach it.
+project directory, which is exactly what the two layouts here do
+(``plugin_layouts``): the vendoring route the README advertises
+(``.habit-hooks/<plugin>/``) and a project-local ``.venv/``. ``.cjs`` settles the
+question inside the file, where the consumer's manifest cannot reach it.
 
-Every case copies the **shipped** helper byte for byte — a rewritten copy would
-prove only that the rewrite works — and runs it under both manifests. The
-CommonJS half is the control: same files, same project, one key removed, so a
-failure under ``"type": "module"`` is the manifest's doing and nothing else.
+Every case runs the **shipped** helper, copied byte for byte, under both
+manifests. The CommonJS half is the control: same files, same project, one key
+removed, so a failure under ``"type": "module"`` is the manifest's doing and
+nothing else.
 """
 
 from __future__ import annotations
@@ -28,13 +28,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from plugin_layouts import PACKAGE, in_a_local_venv, sensor, vendored
 
 PLUGIN = Path(__file__).parents[1]
-PACKAGE = PLUGIN / "src" / "habit_hooks_typescript"
-SENSORS = PACKAGE / "sensors"
 
 COMMENT_HELPER = "comment.cjs"
 KNIP_HELPER = "knip.cjs"
+ESLINT_HELPER = "eslint.cjs"
 
 ESM_MANIFEST = '{ "name": "demo", "version": "0.0.0", "type": "module" }\n'
 COMMONJS_MANIFEST = '{ "name": "demo", "version": "0.0.0" }\n'
@@ -53,31 +53,6 @@ def _project(tmp_path: Path, manifest: str) -> Path:
     (project / "package.json").write_text(manifest, encoding="utf-8")
     (project / "node_modules").symlink_to(PLUGIN / "node_modules")
     return project
-
-
-def _vendored(project: Path, helper: str) -> Path:
-    """The shipped helper, copied byte for byte to the README's vendoring path."""
-    destination = project / ".habit-hooks" / "typescript" / "sensors" / helper
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(SENSORS / helper, destination)
-    return destination
-
-
-def _installed_in_a_local_venv(project: Path, helper: str) -> Path:
-    """The shipped helper, at the path `uv pip install` into `.venv/` uses."""
-    destination = (
-        project
-        / ".venv"
-        / "lib"
-        / "python3.12"
-        / "site-packages"
-        / "habit_hooks_typescript"
-        / "sensors"
-        / helper
-    )
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(SENSORS / helper, destination)
-    return destination
 
 
 def _run(project: Path, helper: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -102,6 +77,17 @@ def _with_a_non_essential_comment(project: Path) -> None:
     )
 
 
+def _with_a_too_wide_signature(project: Path) -> None:
+    """Four parameters, which the shipped config caps at three — so a finding
+    here also proves the copy reached the config copied beside it."""
+    (project / "src" / "helper.ts").write_text(
+        "export function charge(a: number, b: number, c: number, d: number): number {\n"
+        "  return a + b + c + d;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+
 def _with_an_unused_export(project: Path) -> None:
     shutil.copy2(PACKAGE / "knip.json", project / "knip.json")
     (project / "src" / "cli.ts").write_text(
@@ -113,56 +99,68 @@ def _with_an_unused_export(project: Path) -> None:
     )
 
 
-def _findings(result: subprocess.CompletedProcess[str]) -> list[dict]:
+def _keys_of(result: subprocess.CompletedProcess[str], smell: str) -> list[str]:
     assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
-
-
-def _keys_of(findings: list[dict], smell: str) -> list[str]:
     return [
         issue["key"]
-        for finding in findings
+        for finding in json.loads(result.stdout)
         if finding["smell"] == smell
         for issue in finding["issues"]
     ]
 
 
-def _assert_reports_the_comment(findings: list[dict], project: Path) -> None:
-    """The helper keys a comment by absolute path — the pipeline anchors it to
-    the project later, at the sensor boundary, which is not what this is about."""
-    reported = _keys_of(findings, "non-essential-comment")
-    assert reported == [str((project / "src" / "helper.ts").resolve())], findings
+def _the_helper_file(project: Path) -> list[str]:
+    """How a helper keys the fixture's one source: by absolute path. The pipeline
+    anchors it to the project later, at the sensor boundary, which is not what
+    these cases are about."""
+    return [str((project / "src" / "helper.ts").resolve())]
 
 
 @under_either_manifest
-def test_vendored_comment_helper_reports_a_comment(tmp_path: Path, manifest: str) -> None:
+def test_vendored_comment_helper_reports_a_comment(
+    tmp_path: Path, manifest: str
+) -> None:
     project = _project(tmp_path, manifest)
     _with_a_non_essential_comment(project)
 
-    result = _run(project, _vendored(project, COMMENT_HELPER), "src/helper.ts")
+    helper = sensor(vendored(project), COMMENT_HELPER)
+    result = _run(project, helper, "src/helper.ts")
 
-    _assert_reports_the_comment(_findings(result), project)
+    assert _keys_of(result, "non-essential-comment") == _the_helper_file(project)
 
 
 @under_either_manifest
-def test_vendored_knip_helper_reports_an_unused_export(tmp_path: Path, manifest: str) -> None:
+def test_vendored_knip_helper_reports_an_unused_export(
+    tmp_path: Path, manifest: str
+) -> None:
     project = _project(tmp_path, manifest)
     _with_an_unused_export(project)
 
-    result = _run(project, _vendored(project, KNIP_HELPER))
+    result = _run(project, sensor(vendored(project), KNIP_HELPER))
 
-    findings = _findings(result)
-    reported = [issue["key"] for finding in findings for issue in finding["issues"]]
-    assert "neverUsed" in reported, findings
+    assert "neverUsed" in _keys_of(result, "unused-export"), result.stdout
 
 
 @under_either_manifest
-def test_venv_installed_comment_helper_reports_a_comment(tmp_path: Path, manifest: str) -> None:
+def test_vendored_eslint_helper_reports_a_smell(tmp_path: Path, manifest: str) -> None:
+    project = _project(tmp_path, manifest)
+    _with_a_too_wide_signature(project)
+
+    helper = sensor(vendored(project), ESLINT_HELPER)
+    result = _run(project, helper, "--", "src/helper.ts")
+
+    assert _keys_of(result, "too-many-parameters") == _the_helper_file(project)
+
+
+@under_either_manifest
+def test_venv_installed_comment_helper_reports_a_comment(
+    tmp_path: Path, manifest: str
+) -> None:
     """A project-local venv puts the helper under the consumer's manifest too."""
     project = _project(tmp_path, manifest)
     _with_a_non_essential_comment(project)
 
-    helper = _installed_in_a_local_venv(project, COMMENT_HELPER)
+    helper = sensor(in_a_local_venv(project), COMMENT_HELPER)
     result = _run(project, helper, "src/helper.ts")
 
-    _assert_reports_the_comment(_findings(result), project)
+    assert _keys_of(result, "non-essential-comment") == _the_helper_file(project)

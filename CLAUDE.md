@@ -648,9 +648,15 @@ ID through an object literal has to guarantee the key is non-null *before* the
 lookup. The eslint sensor does it with `select(.ruleId != null or .fatal)`
 (keeping `fatal`, which has no rule ID and is exactly what `parse-error` is for)
 plus `--no-warn-ignored` to stop the commonest of them being raised at all.
-`plugins/python/.../sensors/ruff.toml` has the same `{...}[.code]` shape and is
-safe only because `--select` pins the codes and ruff spells a syntax error
-`invalid-syntax` rather than `null` — if that ever changes, it fails the same way.
+
+`ruff.toml` used to have the same `{...}[.code]` shape, safe only because
+`--select` pinned the codes and ruff spells a syntax error `invalid-syntax`
+rather than `null`. It is a Python helper now (`sensors/ruff_sensor.py`, argv
+form, no `jq`), and the replacement is safe by construction rather than by
+`--select` happening to pin the set: it maps through `CODE_SMELLS.get(code)`,
+so a code with no smell mapped comes back `None` and is dropped — the same
+"drop what the plugin has no vocabulary for" rule the knip sensor already
+follows (see "A sensor emits vocabulary smells only" below) — never a crash.
 
 ### jscpd ignores a checkout that *lives* under a path its own `.gitignore` covers
 
@@ -672,10 +678,10 @@ run jscpd with positional relative paths, as the fallback branch does.
 
 ### A sensor named `ruff.toml` collides with ruff's config discovery
 
-`plugins/python/sensors/ruff.toml` is a sensor spec (`command = ...`),
+`plugins/python/sensors/ruff.toml` is a sensor spec (`argv = [...]`),
 but ruff treats any file literally named `ruff.toml` as its own config.
 A `ruff check` whose upward config-discovery walk passes through
-`plugins/python/sensors/` hard-fails with `unknown field 'command'`.
+`plugins/python/sensors/` hard-fails with `unknown field 'argv'`.
 Harmless in normal consumer operation — the file lives inside the
 habit-hooks package, off the consumer's discovery path — but a future
 dogfooding ruff run from inside that tree will be mystifying. Point ruff

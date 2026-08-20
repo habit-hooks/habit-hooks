@@ -105,11 +105,10 @@ def test_installed_typescript_plugin_resolves_ts_morph_from_the_project(
 def test_installed_python_plugin_runs_its_ruff_pipeline(
     installed_habit_sensors: Path, tmp_path: Path
 ) -> None:
-    """The ruff sensor is a shell pipeline rather than a helper script, so what
-    packaging can lose here is the sensor spec itself — and a lost sensor is a
-    smell nobody is ever told about."""
+    """The ruff sensor runs a Python helper beside its spec, so what packaging
+    can lose here is either of the two — and a lost sensor is a smell nobody
+    is ever told about."""
     require_tool("ruff")
-    require_tool("jq")
     project = python_project(tmp_path)
 
     issue = _sole_issue(

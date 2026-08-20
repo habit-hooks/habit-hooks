@@ -1,7 +1,7 @@
-const { spawnSync } = require("node:child_process");
 const { parseArgs } = require("node:util");
 const fs = require("node:fs");
 const path = require("node:path");
+const projectTool = require("./project_tool.cjs");
 
 // The knip issue keys this plugin coaches, and the canonical smell each maps to.
 // A sensor emits smells from OUR vocabulary, so translating knip's key set is
@@ -73,9 +73,11 @@ function isTestFile(file) {
   return TEST_FILE.test(file);
 }
 
+// Spawned through `project_tool` rather than by name: knip is installed on
+// Windows as a `.cmd` shim, which Node refuses to spawn and a bare name never
+// reaches, and it answers there for a knip nobody installed too.
 function runKnip(args) {
-  return spawnSync(KNIP, ["--reporter", "json", ...args], {
-    encoding: "utf8",
+  return projectTool.run(KNIP, ["--reporter", "json", ...args], {
     maxBuffer: 64 * 1024 * 1024,
   });
 }
@@ -84,14 +86,7 @@ function knipCrashed(result) {
   return result.error != null || result.status === null || result.status > 1;
 }
 
-// A tool nobody installed arrives here as an ENOENT, the way it arrives in a
-// Python helper as a FileNotFoundError. `Error: spawnSync knip ENOENT` is not a
-// phrase the runner recognises, so the one failure with an obvious fix was the
-// only one never told how to fix it — answer the way a shell does instead (#114).
 function knipFailure(result) {
-  if (result.error != null && result.error.code === "ENOENT") {
-    return `${KNIP}: command not found\n`;
-  }
   return result.stderr || String(result.error);
 }
 

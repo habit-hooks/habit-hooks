@@ -1,64 +1,13 @@
-# The project's config is authoritative, and only eslint can say whether the
-# project has one: its lookup runs from each linted FILE's directory (eslint 10
-# `lib/config/config-loader.js`), so a config below the directory habit-hooks was
-# invoked in is eslint's answer while being invisible to any walk from there. So
-# name no config, and reach for the shipped one on the single failure that means
-# "there was none" — eslint's `config-file-missing`, whose wording is the only
-# handle its CLI offers. Any other failure is the project's own and is passed
-# through: a run lent our config after a real breakage would report against a
-# config nobody asked for and call itself complete. Should that wording ever
-# change, a config-less project fails loudly here instead of being mis-linted
-# quietly, which is the direction to be wrong in.
+# The helper spawns eslint itself, so this argv is the helper's own. `${args}` —
+# the project's `[sensors.eslint] args` — comes first and the scoped files last,
+# with `--` between them: eslint options and file paths are both bare words, so
+# without a separator the helper could not tell an option's value from a path
+# (`--config configs/eslint.mjs` ends in an extension it lints).
 #
-# `${args}` is the project's own `[sensors.eslint] args`, and it goes into the
-# bare run: a project whose config sits where eslint's lookup cannot reach it
-# says so with `--config`, and passing that first is what makes eslint succeed —
-# so the fallback branch is never entered and our config is never named. It goes
-# into the fallback too, because those args are the project's whichever config is
-# in force, and last, because eslint takes the last `--config` it is given.
-command = """
-files=$(printf '%s\\n' ${files} | grep -E '\\.(tsx?|jsx?|[cm]js)$' || true)
-if [ -z "$files" ]; then echo '[]'; exit 0; fi
-set -o pipefail
-complaint=$(mktemp)
-trap 'rm -f "$complaint"' EXIT
-report=$(eslint -f json --no-warn-ignored ${args} $files 2>"$complaint")
-status=$?
-if [ "$status" -gt 1 ] && grep -qF "couldn't find an eslint.config" "$complaint"; then
-  report=$(eslint -f json --no-warn-ignored --config ${dir}/../eslint.config.mjs ${args} $files 2>"$complaint")
-  status=$?
-fi
-if [ "$status" -gt 1 ] || [ -z "$report" ]; then cat "$complaint" >&2; exit 2; fi
-printf '%s' "$report" | jq '[.[] | .filePath as $file | .messages[]
-| select(.ruleId != null or .fatal) | {
-  smell: (if .fatal then "parse-error" else ({
-    "max-lines-per-function": "oversized-function",
-    "max-params": "too-many-parameters",
-    "@typescript-eslint/max-params": "too-many-parameters",
-    "complexity": "high-complexity",
-    "max-depth": "deep-nesting",
-    "max-lines": "oversized-file",
-    "no-unused-vars": "unused-variable",
-    "@typescript-eslint/no-unused-vars": "unused-variable",
-    "eqeqeq": "loose-equality",
-    "no-var": "var-declaration",
-    "prefer-const": "non-const-binding",
-    "no-duplicate-imports": "duplicate-import",
-    "no-warning-comments": "warning-comment",
-    "@typescript-eslint/no-explicit-any": "explicit-any",
-    "@typescript-eslint/no-non-null-assertion": "non-null-assertion",
-    "@typescript-eslint/no-inferrable-types": "redundant-type-annotation"
-  }[.ruleId] // .ruleId) end),
-  file: $file, line: .line, column: .column, message: .message,
-  source: ("eslint:" + (.ruleId // "fatal"))
-}]
-| group_by(.smell)
-| map({
-    smell: .[0].smell,
-    details: {},
-    issues: map({
-      key: .file,
-      details: {file: .file, line: .line, column: .column, message: .message, source: .source}
-    })
-  })'
-"""
+# `argv` rather than a `command` string because a shell recipe cannot run where
+# there is no POSIX shell, which is every native Windows machine — this sensor
+# was the whole of eslint coaching there. What the shell used to do (filter the
+# scope by extension, run eslint twice, remap rule IDs through jq) is
+# `eslint.cjs`, and the reasons each of those pieces is shaped as it is are
+# recorded there.
+argv = ["node", "${dir}/eslint.cjs", "${args}", "--", "${files}"]

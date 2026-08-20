@@ -26,7 +26,6 @@ Installing a plugin does not switch it on — it has to be named in
 - `node`, [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/),
   [`ts-morph`](https://ts-morph.com/) — `npm install --save-dev eslint knip ts-morph`
   (`node` from your system package manager, e.g. `brew install node`)
-- `jq` — from your system package manager (e.g. `brew install jq`)
 
 A project with no eslint config of its own needs
 `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` too, since

@@ -16,12 +16,11 @@ real tool is exercised by `plugins/typescript/docs/typescript-plugin.spec.md`.
 from __future__ import annotations
 
 import json
-import os
-import stat
 import subprocess
 from pathlib import Path
 
 import pytest
+from node_tool_stub import install
 
 SENSOR = (
     Path(__file__).parents[1]
@@ -32,22 +31,11 @@ SENSOR = (
 )
 
 
-def _stub_knip(tmp_path: Path, report: dict) -> dict[str, str]:
-    """A `knip` on PATH that prints `report`, whatever it is asked."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    (bin_dir / "report.json").write_text(json.dumps(report), encoding="utf-8")
-    stub = bin_dir / "knip"
-    stub.write_text('#!/bin/sh\ncat "$(dirname "$0")/report.json"\n', encoding="utf-8")
-    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
-    return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
-
-
 def _findings(tmp_path: Path, report: dict) -> list[dict]:
+    install(tmp_path, "knip", json.dumps(report))
     result = subprocess.run(
         ["node", str(SENSOR)],
         cwd=tmp_path,
-        env=_stub_knip(tmp_path, report),
         capture_output=True,
         encoding="utf-8",
         errors="replace",

@@ -8,18 +8,22 @@ out, mapped to the smell keys in [smell-vocabulary.md](smell-vocabulary.md).
 `habit-sensors` is the installed CLI. The Node tools live in the typescript
 plugin's own `node_modules` (`plugins/typescript/node_modules`). The intro
 symlinks that into each case as `./node_modules` and puts its `.bin` on `PATH`
-once — the shipped `eslint.config.mjs` and `knip` resolve their plugin deps
-through the normal `node_modules` walk (ESM `import` ignores `NODE_PATH`, which
-is why we symlink rather than set it), and `ts-morph`'s `require` resolves the
-same way. The cases share `finding.jq` to project each finding down to the
-asserted fields.
+once — a wrapped tool is the project's own dependency and is looked for in that
+tree, and so are the shipped `eslint.config.mjs`'s plugin deps and `ts-morph`
+(ESM `import` ignores `NODE_PATH`, which is why we symlink rather than set it).
+The cases share
+`finding.jq` to project each finding down to the asserted fields.
 
-The `knip` and `comment` sensors spawn helper scripts named `.cjs`, so the
-project's `package.json` cannot decide their module system — they run the same
-whether or not it declares `"type": "module"`. A helper of your own named `.js`
-does not: Node reads that key from the nearest `package.json` above the script,
-never from the file, and a CommonJS `.js` under an ESM manifest dies on its
-first `require`.
+All three sensors spawn helper scripts named `.cjs`, so the project's
+`package.json` cannot decide their module system — they run the same whether or
+not it declares `"type": "module"`. A helper of your own named `.js` does not:
+Node reads that key from the nearest `package.json` above the script, never from
+the file, and a CommonJS `.js` under an ESM manifest dies on its first `require`.
+
+Each helper spawns the tool it wraps as the JavaScript file that tool's package
+names, never by the name `node_modules/.bin` holds. On Windows that name is a
+`.cmd` shim, which Node refuses to spawn at all, so a sensor reaching for it
+there reports nothing whatever the project has installed.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -54,9 +58,13 @@ $PWD/node_modules/.bin:$PATH
 
 ## The eslint adapter
 
-The `eslint` adapter runs eslint and a jq transform in its command flattens the
+The `eslint` adapter runs eslint through a helper script, which flattens the
 per-file `messages[]`, remaps each rule ID to a canonical smell, and groups one
-finding per smell, stamping `source: "eslint:<rule>"` on each issue.
+finding per smell, stamping `source: "eslint:<rule>"` on each issue. The scope
+reaches the helper after a `--`, because eslint options and file paths are both
+bare words and the helper has to know which is which — it lints only the
+extensions eslint has something to say about, and a scope with none of them is a
+clean empty run rather than a tool spawned with no work.
 
 **None of the cases below writes an `eslint.config.*`**, and they report anyway:
 the plugin ships a flat config with the thresholds its smells are defined against
@@ -71,12 +79,13 @@ here are the proof.
 
 A message eslint raises about a *file* rather than about a rule carries
 `ruleId: null` — an ignored file in the scope, an `eslint-disable` directive
-nothing used. Indexing the smell map with that null is a jq **error**, not a
-miss, so it would kill the sensor and silently take every eslint smell in the
-run with it. The adapter drops those messages before the map sees them, and
-passes `--no-warn-ignored` so the commonest of them is never raised at all. A
-`fatal` message is the one exception: it has no rule ID either and is exactly
-what `parse-error` exists to report, so it is kept.
+nothing used. That null is not a smell, and it must not be looked up in the smell
+map either: the map is a `Map`, whose keys are its own, because a plain object
+answers for anything on `Object.prototype` and would hand back a function for a
+rule called `constructor`. The adapter drops those messages before the map sees
+them, and passes `--no-warn-ignored` so the commonest of them is never raised at
+all. A `fatal` message is the one exception: it has no rule ID either and is
+exactly what `parse-error` exists to report, so it is kept.
 
 📄.habit-hooks/config.toml
 ```toml

@@ -19,6 +19,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tool_spawn import run_tool
+
 JSCPD_CONFIG = ".jscpd.json"
 PACKAGE_JSON = "package.json"
 
@@ -83,19 +85,16 @@ def config_arguments(fallback: str, project: Path) -> list[str]:
 def run_jscpd(arguments: list[str], output: Path) -> subprocess.CompletedProcess[str]:
     """What jscpd said, or what a shell says about a jscpd nobody installed.
 
-    An absent tool raised a ``FileNotFoundError`` out of here and twenty lines of
-    Python internals became the sensor's diagnosis (#114). This wrapper is what
-    looks for jscpd, so it answers the way the shell would have — and that phrase
-    is what the run recognises to name the missing tool.
+    This wrapper is what looks for jscpd — ``tool_spawn`` turns its name into
+    the file this project runs for it, which is the only spelling Windows can
+    spawn a ``jscpd.CMD`` shim by. An absent tool raised a ``FileNotFoundError``
+    out of here and twenty lines of Python internals became the sensor's
+    diagnosis (#114), so it answers the way the shell would have instead — and
+    that phrase is what the run recognises to name the missing tool.
     """
     command = ["jscpd", "--reporters", "json", "--output", str(output)]
     try:
-        return subprocess.run(
-            [*command, *arguments],
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",  # sensors.spawn's policy
-        )
+        return run_tool([*command, *arguments])
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "jscpd: command not found\n")
 

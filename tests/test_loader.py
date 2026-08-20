@@ -54,6 +54,24 @@ def test_a_spec_spelling_neither_is_refused_by_name(tmp_path: Path) -> None:
     assert str(refusal.value).startswith("sensor 's' spells neither 'command' nor 'argv'")
 
 
+def test_a_spec_spelling_an_empty_argv_is_refused_by_name(tmp_path: Path) -> None:
+    """It reads as a recipe all the way to the spawn, where the first element it
+    has not got is the program — an ``IndexError`` traceback out of the layer
+    whose whole job is that other people's programs fail as notices."""
+    with pytest.raises(ConfigError) as refusal:
+        _one_sensor(tmp_path, "argv = []")
+
+    assert str(refusal.value).startswith("sensor 's' spells an empty 'argv'")
+
+
+def test_an_argv_of_one_element_is_a_part_that_runs(tmp_path: Path) -> None:
+    """The other side of that boundary: one element is a program and nothing
+    else, which is a whole recipe — the refusal is about none, not about few."""
+    part = _one_sensor(tmp_path, 'argv = ["ruff"]')
+
+    assert part.argv == ["ruff"]
+
+
 def test_a_transformer_missing_its_recipe_is_named_a_transformer(
     tmp_path: Path,
 ) -> None:

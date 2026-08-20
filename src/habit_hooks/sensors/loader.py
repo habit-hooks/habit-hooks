@@ -82,8 +82,21 @@ def _recipe(kind: str, name: str, spec: dict) -> tuple[str | None, list[str] | N
     what it does. Both earn the treatment #102 gives a config key nothing
     consumes: a refusal that names the part, rather than a default nobody chose
     or the ``KeyError`` traceback a missing ``command`` used to be (#114).
+
+    An ``argv`` with nothing in it is the third of that family and answers in
+    the same register. It reads as a recipe right up to the spawn, where the
+    first element it does not have is the program — an ``IndexError`` traceback
+    out of the layer whose whole job is that other people's programs fail as
+    notices.
     """
     command, argv = spec.get("command"), spec.get("argv")
+    if argv == []:
+        raise ConfigError(
+            f"{kind[:-1]} {name!r} spells an empty 'argv' — the first element "
+            "of an argv is the program to run, so a list with nothing in it "
+            "names no command at all; give it the program and its arguments, "
+            "or spell a 'command' string instead"
+        )
     if (command is None) != (argv is None):
         return command, argv
     spelled = (

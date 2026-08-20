@@ -13,6 +13,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tool_spawn import run_tool
+
 RULE_SMELLS = {
     "ExcessiveParameterList": "too-many-parameters",
     "CyclomaticComplexity": "high-complexity",
@@ -32,6 +34,8 @@ def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
     here, making twenty lines of Python internals the sensor's diagnosis (#114).
     This wrapper is what looks for php, so it answers the way the shell would
     have, and that phrase is what the run recognises to name the missing tool.
+    Looking is ``tool_spawn``'s, which also stands between the scoped filenames
+    this passes on and a ``php`` some Windows distribution ships as a shim.
     """
     phar = str(Path(__file__).with_name("phpmd.phar"))
     command = [
@@ -46,12 +50,7 @@ def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
         RULESETS,
     ]
     try:
-        return subprocess.run(
-            command,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",  # sensors.spawn's policy
-        )
+        return run_tool(command)
     except FileNotFoundError:
         return subprocess.CompletedProcess(command, 127, "", "php: command not found\n")
 

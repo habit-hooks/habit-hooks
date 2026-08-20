@@ -34,6 +34,24 @@ def write_stub(bin_dir: Path, name: str, exit_code: int = 0) -> None:
     _write_posix(bin_dir, name, f"#!/bin/sh\nexit {exit_code}\n")
 
 
+def write_batch_stub(bin_dir: Path, name: str) -> Path:
+    """An executable ``<name>.cmd`` this host will run, and the path to it.
+
+    ``write_stub`` spells a name the way an install on that platform would, so
+    off Windows it carries no extension at all — and an extension is the whole
+    of what a batch file is recognised by. This one spells it deliberately: on
+    Windows that is a real batch file, run through ``cmd.exe``, and everywhere
+    else it is an ordinary shebang script whose name happens to end the same
+    way. Both are what the guard reads, which is why it can be shown on either.
+    """
+    tool = bin_dir / f"{name}.cmd"
+    if _ON_WINDOWS:
+        _write(bin_dir, tool.name, "@echo off\r\nexit /b 0\r\n")
+    else:
+        _write_posix(bin_dir, tool.name, "#!/bin/sh\nexit 0\n")
+    return tool
+
+
 def write_wedged_tool(bin_dir: Path, name: str, seconds: int = 5) -> None:
     """An executable ``name`` that never answers inside ``seconds``."""
     if _ON_WINDOWS:
