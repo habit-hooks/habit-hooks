@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from habit_hooks.cli import ConfigError
 from plugin_fixture import loader_for, write_plugin, write_project_config
 
 
@@ -21,6 +22,53 @@ def _one_sensor(project_dir: Path, sensor_toml: str) -> object:
         {"config.toml": 'sensors = ["s"]', "sensors/s.toml": sensor_toml},
     )
     return loader_for(project_dir).load_plugin("fixt").sensors[0]
+
+
+def test_an_argv_spec_reaches_the_part_as_a_list(tmp_path: Path) -> None:
+    """The other way to spell a recipe: an argument list, spawned as it stands
+    rather than read by a shell."""
+    part = _one_sensor(tmp_path, 'argv = ["ruff", "check", "${files}"]')
+
+    assert part.argv == ["ruff", "check", "${files}"]
+    assert part.command is None
+
+
+def test_a_spec_spelling_both_command_and_argv_is_refused_by_name(
+    tmp_path: Path,
+) -> None:
+    """Which of the two runs would otherwise be settled by whichever the code
+    looked at first — so it is refused where the author can still see both."""
+    with pytest.raises(ConfigError) as refusal:
+        _one_sensor(tmp_path, 'command = "ruff"\nargv = ["ruff"]')
+
+    assert str(refusal.value).startswith("sensor 's' spells both 'command' and 'argv'")
+
+
+def test_a_spec_spelling_neither_is_refused_by_name(tmp_path: Path) -> None:
+    """A part that states what it is and never what it does. It used to be a
+    ``KeyError`` traceback out of the loader, which is the first-contact
+    failure #114 was about."""
+    with pytest.raises(ConfigError) as refusal:
+        _one_sensor(tmp_path, 'files = ["src/**"]')
+
+    assert str(refusal.value).startswith("sensor 's' spells neither 'command' nor 'argv'")
+
+
+def test_a_transformer_missing_its_recipe_is_named_a_transformer(
+    tmp_path: Path,
+) -> None:
+    """The refusal names the kind it refused, so a reader is looking for the
+    right file — a transformer has no ``[sensors.<name>]`` to edit."""
+    write_plugin(
+        tmp_path,
+        "fixt",
+        {"config.toml": 'sensors = []', "transformers/t.toml": 'files = ["src/**"]'},
+    )
+
+    with pytest.raises(ConfigError) as refusal:
+        loader_for(tmp_path).resolve_part(["fixt"], "transformers", "t")
+
+    assert str(refusal.value).startswith("transformer 't' spells neither")
 
 
 def test_disabled_override_drops_the_sensor(tmp_path: Path) -> None:

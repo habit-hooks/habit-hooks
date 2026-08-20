@@ -25,7 +25,11 @@ from habit_hooks.argv_budget import (
 BORDERLINE_ARGUMENTS = ["a" * 15_000, "b" * 6_000]
 
 
-def test_the_budget_is_the_posix_number_on_this_machine() -> None:
+def test_the_budget_is_the_posix_number_off_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(host_platform, "is_windows", lambda: False)
+
     assert argument_budget() == POSIX_ARGUMENT_BUDGET
 
 
@@ -37,7 +41,11 @@ def test_the_budget_switches_to_windows_s_when_the_platform_does(
     assert argument_budget() == WINDOWS_ARGUMENT_BUDGET
 
 
-def test_paths_under_the_posix_budget_share_one_spawn() -> None:
+def test_paths_under_the_posix_budget_share_one_spawn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(host_platform, "is_windows", lambda: False)
+
     assert len(list(within_argument_limits(BORDERLINE_ARGUMENTS))) == 1
 
 

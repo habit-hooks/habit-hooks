@@ -27,6 +27,9 @@ TOOL_EXIT_CODES = (0, 1)
 # them without knowing what any of them was supposed to run.
 COMMAND_NOT_FOUND = re.compile(r"(?:^|: )([^:\s]+): command not found$", re.MULTILINE)
 
+# What a shell exits with for a program it could not find.
+COMMAND_NOT_FOUND_EXIT = 127
+
 # How much of a failing part's own output is quoted back, split evenly between
 # the start and the end. habit-hooks writes to a coding agent's context, and a
 # tool that dies mid-warning-storm can produce megabytes — but a Python
@@ -41,6 +44,23 @@ def parse_findings(stdout: str) -> list[dict]:
     if not isinstance(findings, list):
         raise ValueError("output is not a findings array")
     return findings
+
+
+def command_not_found(argv: list[str]) -> subprocess.CompletedProcess[str]:
+    """The answer a shell would have given for a program it cannot find.
+
+    A ``command`` part is read by ``bash``, which diagnoses this itself —
+    ``bash: line 1: ruff: command not found``, exit 127 — and that phrase is
+    what :data:`COMMAND_NOT_FOUND` recognises. An ``argv`` part has no shell to
+    speak for it: the spawn simply fails. Saying it here in the shell's own
+    words and exit code leaves one recogniser for both forms, so the message a
+    first-time user gets cannot depend on how their sensor was spelled — and
+    the commonest first-contact failure (#114) stays diagnosed on exactly the
+    platform that has no shell to fall back on.
+    """
+    return subprocess.CompletedProcess(
+        argv, COMMAND_NOT_FOUND_EXIT, "", f"{argv[0]}: command not found\n"
+    )
 
 
 def part_failure(
@@ -61,7 +81,7 @@ def part_failure(
         return _missing_tool(kind, part, missing[1])
     diagnosis = _keep_both_ends(result.stderr.strip())
     return SensorError(
-        f"{kind} {part.name!r} failed: {part.command}"
+        f"{kind} {part.name!r} failed: {part.command_line}"
         + (f"\n{diagnosis}" if diagnosis else "")
     )
 
@@ -105,7 +125,7 @@ def part_timeout(
     """
     diagnosis = _keep_both_ends(_as_text(expiry.stderr).strip())
     return SensorError(
-        f"{kind} {part.name!r} timed out after {expiry.timeout:g}s: {part.command}"
+        f"{kind} {part.name!r} timed out after {expiry.timeout:g}s: {part.command_line}"
         + (f"\n{diagnosis}" if diagnosis else "")
     )
 
@@ -119,7 +139,9 @@ def part_spawn_failure(kind: str, part: Part, refusal: OSError) -> SensorError:
     It travels the same notice + failed run channel a crash does, because a
     layer that runs other people's programs must never fail as a traceback.
     """
-    return SensorError(f"{kind} {part.name!r} could not run: {part.command}\n{refusal}")
+    return SensorError(
+        f"{kind} {part.name!r} could not run: {part.command_line}\n{refusal}"
+    )
 
 
 def _as_text(output: str | bytes | None) -> str:

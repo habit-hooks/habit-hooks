@@ -48,6 +48,16 @@ def argument_budget() -> int:
     return WINDOWS_ARGUMENT_BUDGET if host_platform.is_windows() else POSIX_ARGUMENT_BUDGET
 
 
+def argument_cost(arguments: list[str]) -> int:
+    """What ``arguments`` spend of a budget, counted as the batching counts.
+
+    The fixed part of a spawn — the shell or interpreter wrapped around a batch,
+    the flags before it — comes out of the same budget the batch is measured
+    against, so it has to be measured the same way or the two do not add up.
+    """
+    return sum(len(argument) + 1 for argument in arguments)
+
+
 def within_argument_limits(
     arguments: list[str], budget: int | None = None
 ) -> Iterator[list[str]]:

@@ -18,8 +18,12 @@ from habit_hooks.sensors.model import Part
 
 def _sensor_notice(tmp_path: Path, command: str) -> str:
     """The one notice a sensor running ``command`` leaves on its failed run."""
-    part = Part(name="probe", command=command, directory=tmp_path)
-    execution = Execution(project_dir=tmp_path, scope=Scope(files=["src/a.py"]))
+    return _only_notice(Part(name="probe", command=command, directory=tmp_path), tmp_path)
+
+
+def _only_notice(part: Part, project_dir: Path) -> str:
+    """The one notice ``part`` leaves on the failed run it produces."""
+    execution = Execution(project_dir=project_dir, scope=Scope(files=["src/a.py"]))
 
     run = execution.run_sensors([part])
 
@@ -121,3 +125,37 @@ def test_a_sensor_whose_last_line_carries_the_diagnosis_still_quotes_it(
     notice = _sensor_notice(tmp_path, "${python} ${dir}/crash.py")
 
     assert "boom: the real reason" in notice
+
+
+def test_an_argv_sensor_names_its_missing_tool_in_the_very_same_words(
+    tmp_path: Path,
+) -> None:
+    """An argv part has no shell to say ``command not found`` for it — the
+    spawn just fails — and a generic "could not run" would leave the commonest
+    first-contact failure (#114) undiagnosed on exactly the platform that has
+    no shell to fall back on. So the answer is the shell's own, word for word:
+    which form a sensor is spelled in must not change what a newcomer reads."""
+    part = Part(
+        name="probe", directory=tmp_path, argv=["no-such-tool-here", "--json"]
+    )
+
+    assert _only_notice(part, tmp_path) == (
+        "habit-sensors: sensor 'probe' needs the 'no-such-tool-here' command, "
+        "which is not installed — install it, or disable the sensor with "
+        "[sensors.probe] disabled = true"
+    )
+
+
+def test_a_spawn_refused_for_another_reason_is_not_called_a_missing_tool(
+    tmp_path: Path,
+) -> None:
+    """``Popen`` raises the same ``FileNotFoundError`` for a missing program and
+    for a project directory that is gone, and only the spawning layer can tell
+    them apart. Reading the second as the first would name a tool that is
+    installed and send the reader off to install it again."""
+    part = Part(name="probe", directory=tmp_path, argv=["printf", "[]"])
+
+    notice = _only_notice(part, tmp_path / "deleted")
+
+    assert "needs the" not in notice
+    assert notice.startswith("habit-sensors: sensor 'probe' could not run: printf '[]'")

@@ -1,36 +1,37 @@
-"""Spawn a part's command as a bounded, isolated subprocess.
+"""Spawn a part's argv as a bounded, isolated subprocess.
 
-Every sensor and transformer is a shell command run against the project's own
-tool binaries. Two things keep an unusual-but-real run from turning into a hang
-or a lost run: a deadline (a wedged tool must not block the git hook forever) and
-an own empty stdin (the child must never inherit the parent's — a ``pre-push``
-hook carries refs there). ``run_part`` adds the third at the caller's boundary:
-a spawn failure surfaced as the ``SensorError`` every other failure already is.
+Every sensor and transformer arrives here as an argument list, already built by
+``command_text`` — including the ``bash -c`` around a part that wanted a shell,
+which is that module's decision and not this one's. Two things keep an
+unusual-but-real run from turning into a hang or a lost run: a deadline (a
+wedged tool must not block the git hook forever) and an own empty stdin (the
+child must never inherit the parent's — a ``pre-push`` hook carries refs
+there). ``run_part`` adds the third at the caller's boundary: a spawn failure
+surfaced as the ``SensorError`` every other failure already is.
 
 The deadline is why this is ``Popen`` and not ``subprocess.run``: ``run`` kills
-the shell it started and nothing else, and a sensor command is a pipeline
-(``ruff ... | jq ...``) whose tools are the shell's children, not ours. Giving
-each command its own session is what makes one signal reach all of it — and it
-also takes it out of ours, so nothing that used to signal us collectively
-reaches it any more. ``LIVE_GROUPS`` is how the run signals them deliberately,
-and a CI runner that kills only our process tree now leaves a command running
-to its own deadline where a same-group child used to die with the tree.
+the program it started and nothing else, while a part is often a pipeline
+(``ruff ... | jq ...``) whose tools are that program's children, not ours.
+Giving each spawn its own session is what makes one signal reach all of it —
+and it also takes it out of ours, so nothing that used to signal us
+collectively reaches it any more. ``process_groups`` is how the run signals
+them deliberately, and a CI runner that kills only our process tree now leaves a
+command running to its own deadline where a same-group child used to die with
+the tree.
 """
 
 from __future__ import annotations
 
-import contextlib
 import os
-import signal
 import subprocess
-import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..project_paths import tool_search_path
 from .model import Part
-from .part_output import part_spawn_failure, part_timeout
+from .part_output import command_not_found, part_spawn_failure, part_timeout
+from .process_groups import LIVE_GROUPS, kill_group
 
 # Seconds one invocation may run before it is killed. A wedged tool — waiting on
 # input, or churning on a pathological repo — otherwise blocks the hook forever
@@ -40,24 +41,39 @@ DEFAULT_SENSOR_TIMEOUT_SECONDS = 300.0
 
 @dataclass(frozen=True)
 class Spawner:
-    """Runs a command against the project's tool bins, bounded and isolated."""
+    """Runs an argv against the project's tool bins, bounded and isolated."""
 
     project_dir: Path
     timeout: float = DEFAULT_SENSOR_TIMEOUT_SECONDS
 
-    def run(self, command: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
-        """Shell out with the project bins on PATH, an own stdin, and a deadline.
+    def run(self, argv: list[str], stdin: str = "") -> subprocess.CompletedProcess[str]:
+        """Spawn ``argv`` with the project bins on PATH, own stdin, and a deadline.
 
         ``stdin`` is always a string, never ``None``, so the child cannot inherit
         the parent's stdin — a tool that prompts would otherwise block on it.
 
-        Its own session makes the shell *and* everything it starts one process
+        Its own session makes the program *and* everything it starts one process
         group, which is what lets the deadline kill the whole command rather than
-        just the shell holding it. A group nothing else can now reach is a group
+        just the program holding it. A group nothing else can now reach is a group
         the run has to keep track of, so it is registered while it lives.
+
+        A program the system cannot find comes back as the answer a shell would
+        have given for it, so one recogniser answers for both forms of part.
+        Only a missing *program* is answered that way: ``Popen`` raises the very
+        same ``FileNotFoundError`` when the directory it was told to run in is
+        gone, and that is a broken run rather than a tool to install.
         """
+        try:
+            return self._spawned(argv, stdin)
+        except FileNotFoundError:
+            if not self.project_dir.is_dir():
+                raise
+            return command_not_found(argv)
+
+    def _spawned(self, argv: list[str], stdin: str) -> subprocess.CompletedProcess[str]:
+        """What the child printed, its group tracked for as long as it lives."""
         with subprocess.Popen(
-            ["bash", "-c", command],
+            argv,
             cwd=self.project_dir,
             env=self._path_env(),
             stdin=subprocess.PIPE,
@@ -113,69 +129,6 @@ def _bounded_output(
         kill_group(process.pid)
         raise
     return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
-
-
-def kill_group(pgid: int) -> None:
-    """Kill everything one command started, not just the shell that started it.
-
-    Each command's shell is a session leader, so its pid is also its process
-    group id and one signal reaches the whole pipeline. A group already empty
-    means it all exited between the decision and the signal, which is the
-    outcome we wanted. The shell itself is reaped by the ``Popen`` context
-    manager; the tools it started are its children, and init reaps those.
-    """
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(pgid, signal.SIGKILL)
-
-
-class _LiveGroups:
-    """Every command group this process has spawned and not yet finished with.
-
-    A ``KeyboardInterrupt`` is delivered to the main thread only, and sensors
-    spawn from worker threads — so the thread that hears the interrupt is never
-    the thread holding the process, and the worker's own handler cannot help.
-    One registry, because there is one process tree, and the thread that heard
-    the interrupt ends the commands on behalf of the threads that did not.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._pgids: set[int] = set()
-        self._interrupted = False
-
-    @contextlib.contextmanager
-    def tracking(self, pgid: int) -> Iterator[None]:
-        """Register ``pgid`` for the life of the block, killing it if it is late.
-
-        A command spawned just after the interrupt was answered would otherwise
-        run to its own deadline with nobody left waiting for its output — and
-        block the thread the interrupted main thread is about to join.
-        """
-        with self._lock:
-            self._pgids.add(pgid)
-            interrupted = self._interrupted
-        if interrupted:
-            kill_group(pgid)
-        try:
-            yield
-        finally:
-            with self._lock:
-                self._pgids.discard(pgid)
-
-    def interrupt(self) -> None:
-        """End every live command, so the threads running them unblock at once.
-
-        One way only: an answered interrupt means this process is on its way
-        out, so anything started after it is started into a run nobody reads.
-        """
-        with self._lock:
-            self._interrupted = True
-            pgids = list(self._pgids)
-        for pgid in pgids:
-            kill_group(pgid)
-
-
-LIVE_GROUPS = _LiveGroups()
 
 
 def run_part(

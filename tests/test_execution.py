@@ -1,4 +1,9 @@
-"""Unit tests for the sensor command runner's placeholder expansion."""
+"""Unit tests for a ``command`` part's placeholder expansion — the shell form.
+
+Everything here is a part spelled ``command``: shell text, every value quoted
+into it, wrapped in ``bash -c`` by the time it is spawned. The other form is
+``tests/test_argv_parts.py``.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +23,17 @@ def _execution(tmp_path: Path) -> Execution:
     return Execution(project_dir=tmp_path, scope=Scope(files=[]))
 
 
+def _shell_text(argv: list[str]) -> str:
+    """The text a ``command`` part hands ``bash -c``, checking that is the shape.
+
+    A part spelled ``command`` is shell text, so it reaches the spawn as the
+    third element of ``bash -c <text>`` — which is asserted here rather than in
+    every case, leaving each test about the expansion it is named for.
+    """
+    assert argv[:2] == ["bash", "-c"]
+    return argv[2]
+
+
 def test_expand_replaces_python_with_the_running_interpreter(tmp_path: Path) -> None:
     part = Part(
         name="line-count",
@@ -26,7 +42,7 @@ def test_expand_replaces_python_with_the_running_interpreter(tmp_path: Path) -> 
         args=[],
     )
 
-    expanded = _execution(tmp_path)._expand(part)
+    expanded = _shell_text(_execution(tmp_path)._expand(part))
 
     assert expanded == f"{shlex.quote(sys.executable)} {tmp_path}/line-count.py"
 
@@ -39,7 +55,7 @@ def test_expand_splices_the_sensor_args_in_quoted(tmp_path: Path) -> None:
         args=["--max", "2 00"],
     )
 
-    expanded = _execution(tmp_path)._expand(part)
+    expanded = _shell_text(_execution(tmp_path)._expand(part))
 
     assert expanded == "count --max '2 00'"
 
@@ -70,7 +86,7 @@ def test_an_emptied_args_override_is_no_argument_at_all(tmp_path: Path) -> None:
     dropped by a command with nowhere to put nothing."""
     part = Part(name="comment", command="node comment.js", directory=tmp_path, args=[])
 
-    assert _execution(tmp_path)._expand(part) == "node comment.js"
+    assert _shell_text(_execution(tmp_path)._expand(part)) == "node comment.js"
 
 
 def test_a_filename_can_never_execute_a_command(tmp_path: Path) -> None:
@@ -103,7 +119,7 @@ def test_a_filename_containing_a_space_stays_one_argument(tmp_path: Path) -> Non
         project_dir=tmp_path, scope=Scope(files=["src/my file.py", "src/plain.py"])
     )
 
-    expanded = execution._expand(part)
+    expanded = _shell_text(execution._expand(part))
 
     assert expanded == "'src/my file.py' src/plain.py"
 
@@ -118,7 +134,7 @@ def test_expand_carries_the_named_config_to_a_transformer(tmp_path: Path) -> Non
         config_path=tmp_path / "other.toml",
     )
 
-    expanded = execution._expand(part)
+    expanded = _shell_text(execution._expand(part))
 
     assert shlex.split(expanded) == ["run", "--config", str(tmp_path / "other.toml")]
 
@@ -127,7 +143,7 @@ def test_expand_drops_config_when_the_run_named_none(tmp_path: Path) -> None:
     """No ``--config`` must expand to nothing, not a bare ``--config`` flag."""
     part = Part(name="snooze", command="run ${config}", directory=tmp_path, args=[])
 
-    expanded = _execution(tmp_path)._expand(part)
+    expanded = _shell_text(_execution(tmp_path)._expand(part))
 
     assert shlex.split(expanded) == ["run"]
 

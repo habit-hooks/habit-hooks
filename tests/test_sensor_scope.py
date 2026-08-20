@@ -28,7 +28,7 @@ def test_sensor_files_narrow_the_expanded_file_list(tmp_path: Path) -> None:
         project_dir=tmp_path, scope=Scope(files=["src/a.py", "tests/b.py"])
     )
 
-    assert execution._expand(part) == "src/a.py"
+    assert execution._expand(part) == ["bash", "-c", "src/a.py"]
 
 
 def test_no_sensor_files_leaves_the_whole_scope(tmp_path: Path) -> None:
@@ -37,7 +37,7 @@ def test_no_sensor_files_leaves_the_whole_scope(tmp_path: Path) -> None:
         project_dir=tmp_path, scope=Scope(files=["src/a.py", "tests/b.py"])
     )
 
-    assert execution._expand(part) == "src/a.py tests/b.py"
+    assert execution._expand(part) == ["bash", "-c", "src/a.py tests/b.py"]
 
 
 def test_an_empty_scope_runs_no_sensor(tmp_path: Path) -> None:

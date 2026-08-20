@@ -8,13 +8,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..argv_budget import argument_budget, within_argument_limits
+from ..argv_budget import argument_budget, argument_cost, within_argument_limits
 from ..scope import Scope, matching
-from .command_text import expanded, quoted
+from .command_text import expanded, spelled_files, spells
 from .finding_paths import aliasing_notices, anchored
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
-from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, LIVE_GROUPS, Spawner, run_part
+from .process_groups import LIVE_GROUPS
+from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, Spawner, run_part
 
 
 @dataclass(frozen=True)
@@ -92,10 +93,10 @@ class Execution:
         non-zero, and must print its array explicitly. An empty stdout is a
         crash, whereas a literal ``[]`` is a legitimate "everything dropped".
         """
-        command = self._expand(transformer)
+        argv = self._expand(transformer)
         payload = json.dumps(findings)
         result = run_part(
-            "transformer", transformer, lambda: self._spawner.run(command, payload)
+            "transformer", transformer, lambda: self._spawner.run(argv, payload)
         )
         failure = part_failure("transformer", transformer, result)
         if result.returncode != 0 or not result.stdout.strip():
@@ -108,20 +109,20 @@ class Execution:
     def run_sensor(self, sensor: Part) -> list[dict]:
         """The sensor's findings, anchored to the project, gathered chunk by chunk.
 
-        Chunked so a work-tree-sized ``${files}`` never overflows one ``bash -c``
-        argument. Anchoring the whole concatenation once (``finding_paths.py``)
-        keeps a key that aliases across chunks a single key, and — where a
-        sensor's output enters the run, for every sensor there is — the snooze
-        index portable without any sensor having to know it.
+        Chunked so a work-tree-sized ``${files}`` never overflows one spawn.
+        Anchoring the whole concatenation once (``finding_paths.py``) keeps a
+        key that aliases across chunks a single key, and — where a sensor's
+        output enters the run, for every sensor there is — the snooze index
+        portable without any sensor having to know it.
         """
         findings: list[dict] = []
-        for command in self._sensor_commands(sensor):
-            findings.extend(self._sensor_findings(sensor, command))
+        for argv in self._sensor_commands(sensor):
+            findings.extend(self._sensor_findings(sensor, argv))
         return anchored(findings, self.project_dir, sensor.name)
 
-    def _sensor_findings(self, sensor: Part, command: str) -> list[dict]:
+    def _sensor_findings(self, sensor: Part, argv: list[str]) -> list[dict]:
         """One invocation's parsed findings, or ``SensorError`` if untrustworthy."""
-        result = run_part("sensor", sensor, lambda: self._spawner.run(command))
+        result = run_part("sensor", sensor, lambda: self._spawner.run(argv))
         failure = part_failure("sensor", sensor, result)
         if sensor_crashed(result):
             raise failure
@@ -130,21 +131,23 @@ class Execution:
         except (ValueError, json.JSONDecodeError):
             raise failure from None
 
-    def _sensor_commands(self, sensor: Part) -> list[str]:
-        """One command per file chunk the sensor's scope splits into.
+    def _sensor_commands(self, sensor: Part) -> list[list[str]]:
+        """One invocation's argv per file chunk the sensor's scope splits into.
 
-        A command that splices ``${files}`` is split so a huge list never fails
+        A recipe that splices ``${files}`` is split so a huge list never fails
         the spawn (a raw ``OSError`` ``_safe_sensor`` never caught, escaping an
         ordinary CI-sized run as a traceback); one that reads its own paths
         (``knip``, ``deptry``, ``jscpd``) runs once, not once per chunk.
 
-        The whole command ends up as one ``bash -c`` argument, so that is what
-        the budget is spent on: the paths are measured quoted, as they will be
-        spelled there, and what the rest of the command costs comes off first.
+        Each form spends the budget on what it actually carries. A ``command``
+        part's paths are quoted into one ``bash -c`` argument; an ``argv``
+        part's are arguments of their own, quoted not at all. Either way the
+        rest of the argv is paid for first, so the batch is measured against
+        what is left rather than against the whole.
         """
-        files = self._quoted_files(sensor)
-        split = "${files}" in sensor.command and files
-        budget = argument_budget() - len(self._expand_files(sensor, []))
+        files = self._spelled_files(sensor)
+        split = spells(sensor, "${files}") and files
+        budget = argument_budget() - argument_cost(self._expand_files(sensor, []))
         chunks = within_argument_limits(files, budget) if split else [files]
         return [self._expand_files(sensor, chunk) for chunk in chunks]
 
@@ -165,15 +168,15 @@ class Execution:
             for notice in aliasing_notices(findings, sensor.name)
         ]
 
-    def _expand(self, part: Part) -> str:
-        """The command over the whole scope — its transformer form and one chunk."""
-        return self._expand_files(part, self._quoted_files(part))
+    def _expand(self, part: Part) -> list[str]:
+        """The argv over the whole scope — its transformer form and one chunk."""
+        return self._expand_files(part, self._spelled_files(part))
 
-    def _quoted_files(self, part: Part) -> list[str]:
-        return quoted(self._scoped_files(part))
+    def _spelled_files(self, part: Part) -> list[str]:
+        return spelled_files(part, self._scoped_files(part))
 
-    def _expand_files(self, part: Part, quoted_files: list[str]) -> str:
-        return expanded(part, quoted_files, self.config_path)
+    def _expand_files(self, part: Part, files: list[str]) -> list[str]:
+        return expanded(part, files, self.config_path)
 
     def _scoped_files(self, part: Part) -> list[str]:
         """The run's scope, narrowed to this sensor's own ``files`` if it has any.

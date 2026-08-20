@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..cli import ToolError
+from ..cli import ConfigError, ToolError
 from ..config import Config
 from ..config_schema import read_toml
 from ..resolve import Resolver
@@ -45,12 +45,14 @@ class PluginLoader:
                 f"habit-sensors: no {kind[:-1]} {name!r} in {plugins} or the core"
             )
         spec = read_toml(path)
+        command, argv = _recipe(kind, name, spec)
         if kind != "sensors":
-            return Part(name, spec["command"], path.parent)
+            return Part(name, path.parent, command, argv)
         return Part(
             name,
-            spec["command"],
             path.parent,
+            command,
+            argv,
             self._sensor_setting(name, spec, "args") or [],
             self._sensor_setting(name, spec, "files"),
         )
@@ -68,3 +70,30 @@ class PluginLoader:
     def _disabled(self, sensor: str) -> bool:
         override = self.config.sensors.get(sensor)
         return bool(override and override.disabled)
+
+
+def _recipe(kind: str, name: str, spec: dict) -> tuple[str | None, list[str] | None]:
+    """What the part runs: exactly one of ``command`` and ``argv``.
+
+    The two are not interchangeable and cannot be combined. An ``argv`` is
+    spawned as it stands, a ``command`` is text ``bash`` reads, and a spec
+    saying both leaves which one runs to whichever the code happened to look at
+    first — while one saying neither is a part that states what it is and never
+    what it does. Both earn the treatment #102 gives a config key nothing
+    consumes: a refusal that names the part, rather than a default nobody chose
+    or the ``KeyError`` traceback a missing ``command`` used to be (#114).
+    """
+    command, argv = spec.get("command"), spec.get("argv")
+    if (command is None) != (argv is None):
+        return command, argv
+    spelled = (
+        "spells both 'command' and 'argv'"
+        if command is not None
+        else "spells neither 'command' nor 'argv'"
+    )
+    raise ConfigError(
+        f"{kind[:-1]} {name!r} {spelled} — a part runs one or the other: 'argv' "
+        "is a list of arguments spawned as it stands, which is the only form "
+        "there is where no POSIX shell exists; 'command' is a shell string, for "
+        "the syntax a list cannot carry, such as a pipe into jq"
+    )
