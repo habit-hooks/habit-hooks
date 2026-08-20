@@ -42,10 +42,25 @@ def venv_bin_dir(venv_dir: Path) -> Path:
 
     CPython's venv module puts ``python`` and every installed console script
     under ``bin`` everywhere except Windows, where it uses ``Scripts`` instead
-    — the one fact both ``tool_search_path`` below and an installed-run test
-    harness need, so both ask here rather than each spelling it separately.
+    — the one fact ``tool_search_path`` below and :func:`venv_executable` both
+    need, so both ask here rather than each spelling it separately.
     """
     return venv_dir / ("Scripts" if host_platform.is_windows() else "bin")
+
+
+def venv_executable(venv_dir: Path, name: str) -> Path:
+    """The path to one of a venv's executables — its interpreter, or a console
+    script it installed.
+
+    Where a venv puts an executable is one fact with two halves: the directory
+    (:func:`venv_bin_dir`) and the file's name — ``python`` and every console
+    script CPython's venv module installs gain a ``.exe`` suffix on Windows and
+    keep the bare name everywhere else. A caller that pairs ``venv_bin_dir``
+    with a bare name itself only has the first half, which is exactly what
+    handed ``uv`` a ``python`` that Windows does not have.
+    """
+    suffix = ".exe" if host_platform.is_windows() else ""
+    return venv_bin_dir(venv_dir) / f"{name}{suffix}"
 
 
 def tool_search_path(project_dir: Path) -> str:
