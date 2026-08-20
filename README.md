@@ -141,8 +141,8 @@ Detectors are **not** bundled: a plugin spawns the real tool, or reads it as a l
 | Plugin | Detectors | Install |
 | ------ | --------- | ------- |
 | **generic** | [`jscpd`](https://github.com/kucherenko/jscpd) — the line counter is built in | `npm install --save-dev jscpd` |
-| **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry), `jq` | `pip install ruff deptry` (`jq` from your system package manager) |
-| **typescript** | `node`, [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), [`ts-morph`](https://ts-morph.com/), `jq` | `npm install --save-dev eslint knip ts-morph` (`node` and `jq` from your system package manager) |
+| **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry) | `pip install ruff deptry` |
+| **typescript** | `node`, [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), [`ts-morph`](https://ts-morph.com/) | `npm install --save-dev eslint knip ts-morph` (`node` from your system package manager) |
 | **php** | `php` — [phpmd](https://phpmd.org/) ships bundled as a phar | nothing beyond a PHP runtime |
 | **java** | [`pmd`](https://pmd.github.io/) | `brew install pmd` |
 

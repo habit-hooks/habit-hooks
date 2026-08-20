@@ -26,6 +26,8 @@ NODE = '{ name = "node", kind = "command", install = "brew install node" }'
 TS_MORPH = (
     '{ name = "ts-morph", kind = "node-module", install = "npm i -D ts-morph" }'
 )
+ESLINT = '{ name = "eslint", kind = "node-module", install = "npm install --save-dev eslint" }'
+KNIP = '{ name = "knip", kind = "node-module", install = "npm install --save-dev knip" }'
 
 NODE_LOG = "node.log"
 
@@ -171,3 +173,28 @@ def test_node_is_asked_to_resolve_the_module_from_the_project_itself(
     asked, asked_in = (bin_dir / NODE_LOG).read_text(encoding="utf-8").splitlines()
     assert 'require.resolve("ts-morph")' in asked
     assert Path(asked_in).resolve() == toolless_project.resolve()
+
+
+def test_eslint_and_knip_resolve_as_node_modules_not_commands(
+    toolless_project: Path,
+) -> None:
+    """#133: both spawn through ``project_tool.cjs``, which finds the package in
+    ``node_modules`` — a global install on the system ``PATH`` no longer clears them."""
+    _needing(toolless_project, NODE, ESLINT, KNIP)
+    write_stub(toolless_project / "node_modules" / ".bin", "node")
+
+    assert _missing(toolless_project) == []
+
+
+def test_eslint_and_knip_missing_are_named_with_their_npm_install(
+    toolless_project: Path,
+) -> None:
+    _needing(toolless_project, NODE, ESLINT, KNIP)
+    write_stub(toolless_project / "node_modules" / ".bin", "node", exit_code=1)
+
+    missing = plan(toolless_project).missing_tools
+
+    assert [(d.name, d.install) for d in missing] == [
+        ("eslint", "npm install --save-dev eslint"),
+        ("knip", "npm install --save-dev knip"),
+    ]

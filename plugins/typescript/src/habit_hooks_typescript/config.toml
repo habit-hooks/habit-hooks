@@ -13,11 +13,16 @@ transformers = []
 # detector cannot be looked for without it. habit-sensors only puts the project's
 # node_modules/.bin on PATH, so node itself is the system's.
 #
-# ts-morph is read as a library rather than spawned, so being on PATH says
-# nothing about it.
+# eslint, knip and ts-morph are all `node-module`, not `command`: none of the
+# three is ever spawned by name. eslint and knip run through
+# `sensors/project_tool.cjs`, which finds the package under the project's own
+# node_modules and runs its bin script with `process.execPath` — a `command`
+# detector asks the system PATH, which a global install satisfies and the run
+# can no longer reach (issue #133). ts-morph is read as a library rather than
+# spawned at all, so being on PATH never said anything about it either.
 detectors = [
   { name = "node", kind = "command", install = "brew install node" },
-  { name = "eslint", kind = "command", install = "npm install --save-dev eslint" },
-  { name = "knip", kind = "command", install = "npm install --save-dev knip" },
+  { name = "eslint", kind = "node-module", install = "npm install --save-dev eslint" },
+  { name = "knip", kind = "node-module", install = "npm install --save-dev knip" },
   { name = "ts-morph", kind = "node-module", install = "npm install --save-dev ts-morph" },
 ]
