@@ -10,7 +10,9 @@ A part spells one of two recipes, and this is where the difference is spent:
   shell: on Windows ``bash`` is usually the WSL launcher, which answers from
   another filesystem entirely.
 * ``command = "..."`` is text for ``bash -c``, and buys syntax a list cannot
-  carry — the ``ruff`` and ``eslint`` sensors pipe their tool through ``jq``.
+  carry — the ``ruff`` and ``eslint`` sensors pipe their tool through ``jq`` —
+  at the price of a shell to read it, which is why a platform without one
+  refuses the part rather than spawning it (``posix_shell``).
   Everything spliced into that text is quoted first, a path most of all: it
   comes from the work tree, so an unquoted ``${files}`` lets a filename execute
   its own contents.

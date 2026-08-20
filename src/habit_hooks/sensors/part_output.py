@@ -98,15 +98,17 @@ def _missing_tool(kind: str, part: Part, command: str) -> SensorError:
     """
     return SensorError(
         f"{kind} {part.name!r} needs the {command!r} command, which is not "
-        f"installed — install it, or {_switch_off(kind, part.name)}"
+        f"installed — install it, or {switch_off(kind, part.name)}"
     )
 
 
-def _switch_off(kind: str, name: str) -> str:
+def switch_off(kind: str, name: str) -> str:
     """How to stop running the part, spelled in config the reader can edit.
 
     Only a sensor has a `disabled` switch of its own; a transformer runs because
-    the root `transformers` list names it, so that list is what to edit.
+    the root `transformers` list names it, so that list is what to edit. Shared
+    with ``posix_shell``, whose refusal ends the same way: a part that cannot
+    run here, and the one key its reader can do something about.
     """
     if kind == "sensor":
         return f"disable the sensor with [sensors.{name}] disabled = true"

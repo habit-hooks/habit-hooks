@@ -11,13 +11,17 @@ surfaced as the ``SensorError`` every other failure already is.
 
 The deadline is why this is ``Popen`` and not ``subprocess.run``: ``run`` kills
 the program it started and nothing else, while a part is often a pipeline
-(``ruff ... | jq ...``) whose tools are that program's children, not ours.
-Giving each spawn its own session is what makes one signal reach all of it —
-and it also takes it out of ours, so nothing that used to signal us
-collectively reaches it any more. ``process_groups`` is how the run signals
-them deliberately, and a CI runner that kills only our process tree now leaves a
-command running to its own deadline where a same-group child used to die with
-the tree.
+(``ruff ... | jq ...``) or a helper spawning its own tool, whose processes are
+that program's children, not ours. Giving each spawn a process group of its own
+is what makes the whole command one thing the deadline can end — and it also
+takes it out of ours, so nothing that used to signal us collectively reaches it
+any more. ``live_commands`` is how the run ends them deliberately, on either
+platform, and a CI runner that kills only our process tree now leaves a command
+running to its own deadline where a same-group child used to die with the tree.
+
+``run_part`` is also where a part whose recipe this platform cannot read is
+stopped before it spawns at all (``posix_shell``), as the one part failing that
+it is.
 """
 
 from __future__ import annotations
@@ -29,9 +33,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..project_paths import tool_search_path
+from . import posix_shell
+from .live_commands import LIVE_COMMANDS, its_own_process_group, kill_command
 from .model import Part
 from .part_output import command_not_found, part_spawn_failure, part_timeout
-from .process_groups import LIVE_GROUPS, kill_group
 
 # Seconds one invocation may run before it is killed. A wedged tool — waiting on
 # input, or churning on a pathological repo — otherwise blocks the hook forever
@@ -52,10 +57,11 @@ class Spawner:
         ``stdin`` is always a string, never ``None``, so the child cannot inherit
         the parent's stdin — a tool that prompts would otherwise block on it.
 
-        Its own session makes the program *and* everything it starts one process
-        group, which is what lets the deadline kill the whole command rather than
-        just the program holding it. A group nothing else can now reach is a group
-        the run has to keep track of, so it is registered while it lives.
+        Its own process group holds the program *and* everything it starts, which
+        is what lets the deadline end the whole command rather than just the
+        program holding it — as far as each platform's own answer reaches
+        (``live_commands``). A command nothing else can now reach is one the run
+        has to keep track of, so it is registered while it lives.
 
         A program the system cannot find comes back as the answer a shell would
         have given for it, so one recogniser answers for both forms of part.
@@ -88,8 +94,8 @@ class Spawner:
             # lost, not a silent one.
             encoding="utf-8",
             errors="replace",
-            start_new_session=True,
-        ) as process, LIVE_GROUPS.tracking(process.pid):
+            **its_own_process_group(),
+        ) as process, LIVE_COMMANDS.tracking(process.pid):
             return _bounded_output(process, stdin, self.timeout)
 
     def _path_env(self) -> dict:
@@ -118,15 +124,15 @@ def _bounded_output(
 
     The ``TimeoutExpired`` travels on untouched — it carries the partial output
     ``part_timeout`` quotes back, as the raw bytes it has always been — but the
-    group dies first, so nothing the command started is still running once the
-    hook has returned. An interrupt on this thread ends it the same way; the
-    sensors run on threads that never receive one, and ``LIVE_GROUPS`` is what
-    answers for those.
+    command dies first, so nothing it started is still running once the hook has
+    returned. An interrupt on this thread ends it the same way; the sensors run
+    on threads that never receive one, and ``LIVE_COMMANDS`` is what answers for
+    those.
     """
     try:
         stdout, stderr = process.communicate(stdin, timeout=timeout)
     except (subprocess.TimeoutExpired, KeyboardInterrupt):
-        kill_group(process.pid)
+        kill_command(process.pid)
         raise
     return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
 
@@ -140,7 +146,15 @@ def run_part(
     becomes the same notice + failed run any other spawn failure produces. A
     spawn the operating system refuses outright is that failure one step
     earlier, and raises an ``OSError`` nothing between here and ``main`` caught.
+
+    A recipe this platform has no shell for is that failure one step earlier
+    again — known before anything is spawned, and told as the same kind of
+    failure so one broken part never costs the run the others' findings. This is
+    where it is asked because it is the boundary that knows both the part and
+    whether it is a sensor or a transformer, which is what decides how to say
+    "switch it off".
     """
+    posix_shell.refuse_where_there_is_none(kind, part)
     try:
         return run()
     except subprocess.TimeoutExpired as expiry:

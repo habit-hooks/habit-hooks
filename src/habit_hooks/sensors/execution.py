@@ -12,9 +12,9 @@ from ..argv_budget import argument_budget, argument_cost, within_argument_limits
 from ..scope import Scope, matching
 from .command_text import expanded, spelled_files, spells
 from .finding_paths import aliasing_notices, anchored
+from .live_commands import LIVE_COMMANDS
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
-from .process_groups import LIVE_GROUPS
 from .spawn import DEFAULT_SENSOR_TIMEOUT_SECONDS, Spawner, run_part
 
 
@@ -66,7 +66,7 @@ class Execution:
             try:
                 return list(pool.map(self._safe_sensor, scoped))
             except KeyboardInterrupt:
-                LIVE_GROUPS.interrupt()
+                LIVE_COMMANDS.interrupt()
                 raise
 
     def apply_transformers(
