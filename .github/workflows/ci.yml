@@ -5,7 +5,17 @@ on:
   pull_request:
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Windows is a supported platform, so it is gated the same as Linux rather
+    # than checked by hand — every POSIX assumption in this tool (a `bash -c`
+    # spawn, a `.venv/bin`, a backslash quoted for a shell, an argv budget
+    # measured against ARG_MAX) reads as correct on a Mac and breaks there.
+    # `fail-fast: false` because one platform's failure is not the other's, and
+    # cancelling the second run hides half the answer.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -37,17 +47,30 @@ jobs:
         run: |
           corepack enable pnpm
           pnpm install --frozen-lockfile
-      - name: Install pmd
-        # The java plugin's sensor and its spec cases need the real PMD on PATH.
-        # PMD publishes no checksum beside the zip (only a GPG signature), and a
-        # checksum fetched from the same origin as the artifact proves nothing
-        # anyway — so the digest is pinned here, next to the version it belongs
-        # to. Bumping PMD means replacing both lines together.
+      # The java plugin's sensor and its spec cases need the real PMD on PATH.
+      # PMD publishes no checksum beside the zip (only a GPG signature), and a
+      # checksum fetched from the same origin as the artifact proves nothing
+      # anyway — so the digest is pinned here, next to the version it belongs
+      # to. Bumping PMD means replacing all three lines that carry it.
+      - name: Install pmd (Linux)
+        if: runner.os == 'Linux'
         run: |
           curl -fsSLo /tmp/pmd.zip https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.26.0/pmd-dist-7.26.0-bin.zip
           echo "9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9  /tmp/pmd.zip" | sha256sum -c -
           unzip -q /tmp/pmd.zip -d /tmp/pmd
           echo "/tmp/pmd/pmd-bin-7.26.0/bin" >> "$GITHUB_PATH"
+      - name: Install pmd (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.26.0/pmd-dist-7.26.0-bin.zip'
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\pmd.zip"
+          $digest = (Get-FileHash "$env:RUNNER_TEMP\pmd.zip" -Algorithm SHA256).Hash.ToLower()
+          if ($digest -ne '9f55cb7ff0e9f9a66dd2f005eaa370e84c8a4cd971b134aa14a930c4a283ebc9') {
+            throw "pmd checksum mismatch: $digest"
+          }
+          Expand-Archive "$env:RUNNER_TEMP\pmd.zip" -DestinationPath "$env:RUNNER_TEMP\pmd"
+          "$env:RUNNER_TEMP\pmd\pmd-bin-7.26.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Test
         run: uv run pytest
       # Dogfooding: habit-hooks gates its own source. Without this the tool can
