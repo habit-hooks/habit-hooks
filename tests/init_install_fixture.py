@@ -16,13 +16,23 @@ from pathlib import Path
 
 import pytest
 from plugin_fixture import write_plugin
+from toml_text import toml_string
 
 RAN = "ran.log"
 PYTHON = shlex.quote(sys.executable)
 
-FIRST = f'{{ name = "wobble-one", kind = "command", install = "{PYTHON} mark.py one" }}'
-SECOND = f'{{ name = "wobble-two", kind = "command", install = "{PYTHON} mark.py two" }}'
-FAILING = f'{{ name = "wobble-bad", kind = "command", install = "{PYTHON} fail.py" }}'
+FIRST = (
+    f'{{ name = "wobble-one", kind = "command", '
+    f'install = {toml_string(f"{PYTHON} mark.py one")} }}'
+)
+SECOND = (
+    f'{{ name = "wobble-two", kind = "command", '
+    f'install = {toml_string(f"{PYTHON} mark.py two")} }}'
+)
+FAILING = (
+    f'{{ name = "wobble-bad", kind = "command", '
+    f'install = {toml_string(f"{PYTHON} fail.py")} }}'
+)
 
 
 class Terminal(io.StringIO):

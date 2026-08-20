@@ -14,6 +14,7 @@ import pytest
 
 from habit_hooks import mapper
 from plugin_fixture import write_plugin, write_project_config
+from toml_text import toml_string
 
 _GUIDE = """\
 import sys, json
@@ -34,7 +35,7 @@ def test_a_plugin_shipped_runner_executes_its_guide(
         tmp_path,
         "fixt",
         {
-            "config.toml": f'[runners]\npy = "{sys.executable}"',
+            "config.toml": f"[runners]\npy = {toml_string(sys.executable)}",
             "guides/oversized-file.py": _GUIDE,
         },
     )

@@ -45,7 +45,10 @@ def test_every_shipped_part_that_can_spell_argv_does() -> None:
         spec = read_toml(spec_path)
         if "argv" in spec:
             continue
-        location = (str(spec_path.parent.relative_to(REPO_ROOT)), spec_path.stem)
+        location = (
+            spec_path.parent.relative_to(REPO_ROOT).as_posix(),
+            spec_path.stem,
+        )
         if location in SHELL_IS_LOAD_BEARING:
             continue
         offenders.append(spec_path)

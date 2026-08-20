@@ -18,6 +18,7 @@ import pytest
 from habit_hooks import init_command
 from habit_hooks.init_command import run
 from init_install_fixture import FIRST, PYTHON, answering, needing, ran
+from toml_text import toml_string
 
 
 def test_a_quoted_argument_reaches_the_command_as_one_piece(
@@ -35,7 +36,7 @@ def test_a_quoted_argument_reaches_the_command_as_one_piece(
     needing(
         init_project,
         f'{{ name = "wobble-quoted", kind = "command", '
-        f'install = "{PYTHON} mark.py {quoted}" }}',
+        f'install = {toml_string(f"{PYTHON} mark.py {quoted}")} }}',
     )
     monkeypatch.chdir(init_project)
     answering("y\n", monkeypatch)

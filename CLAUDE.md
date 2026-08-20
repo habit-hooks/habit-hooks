@@ -485,7 +485,10 @@ copies. `platform_probe.A_SHELL_TO_RUN_IT_WITH` is the other half: some POSIX
 behaviour (a shell must never let a filename execute its own contents) can
 only be shown by really running a shell recipe, which `off_windows` alone does
 not conjure onto a machine that has none — that stays a `skipif`, a question
-about the host rather than the platform seam.
+about the host rather than the platform seam. `A_MACHINE_THAT_SPELLS_A_COMMAND_ITSELF`
+and `A_MACHINE_THAT_DOES_NOT` are that same `skipif` for the same reason:
+whether a bare `jscpd` names `jscpd.CMD` is `shutil.which`'s answer, keyed off
+`sys.platform` inside the stdlib, where no seam of ours reaches.
 
 Without pinning, a test reads its expected answer off the host it happens to
 run on: green on the author's Mac, red the moment the Windows leg of CI runs
@@ -706,3 +709,43 @@ Two things about a release that are silent when forgotten (agent decision):
   to its `main`. `brew test-bot` builds bottles either way, but `publish.yml`
   (`brew pr-pull`) attaches them from a PR number — pushed straight to main,
   1.2.1 shipped with no bottles and every `brew install` builds from source.
+
+### A spawn never adds `.cmd` to a bare command name, so the name is resolved first
+
+Windows' `CreateProcess` appends `.exe` to a bare command name and nothing else,
+while `shutil.which` applies the whole of `PATHEXT`. Every Node tool a plugin
+wraps (`knip`, `eslint`, `jscpd`) is installed as a `.cmd` shim and `pmd` as a
+`.bat`, so `missing_tools` clears each of them and anything spawning them by
+name then answers `jscpd: command not found` with the tool sitting right there.
+`project_paths.tool_executable` is the single lookup both sides ask, and
+`sensors/spawn.Spawner._runnable` turns a part's bare `argv[0]` into that file
+before spawning it (agent decision) — the same code path on both platforms,
+because off Windows it names the very file the spawn's own search would have
+reached. Only a **bare** name is resolved: a path (`${python}`,
+`${dir}/helper.py`) is read against the directory the command runs in, which is
+the project and not this process's cwd, and every argument after the first is an
+argument whatever it looks like.
+
+**This is not the whole of the bug it was found in.** No shipped sensor spells a
+wrapped tool as its part's `argv[0]` — every one is `argv = ["${python}",
+"${dir}/<helper>.py", ...]` or `["node", "...cjs", ...]`, and the helper then
+spawns `jscpd`/`pmd`/`deptry`/`phpmd`/`knip` itself. Those spawns hit the same
+`CreateProcess` rule and are still unfixed. A helper inherits `PATH` =
+`tool_search_path` from `spawn._path_env`, so its own `shutil.which` is the same
+answer and not a second one; `knip.cjs` needs more than that, because Node's
+`spawnSync` refuses a `.cmd` outright without `shell: true` (its CVE-2024-27980
+mitigation).
+
+### `TimeoutExpired` carries no partial output at all on Windows
+
+A killed tool's own words are the whole value of the timeout notice, and they do
+not come back from the exception: POSIX hands over the partial reads, but on
+Windows each pipe is drained by a thread sitting in a single `read()` that
+returns only at EOF, so the buffer is still empty when the deadline passes.
+`sensors/deadline.py` therefore reads the pipe *after* the kill — the second
+`communicate()` from `subprocess`'s own docs — which is one answer for both
+platforms and the fuller one, since anything printed between the deadline and
+the kill is in it too. That read is bounded as well (`LAST_WORDS_TIMEOUT_SECONDS`):
+something the kill could not reach can still hold the far end open, and waiting
+on that forever is the hang the deadline exists to stop. When it does, the
+original expiry stands, which is why `part_output._as_text` still takes bytes.

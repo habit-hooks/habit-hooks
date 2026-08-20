@@ -19,6 +19,13 @@ refusing the part, but does not conjure a shell onto a machine that has none.
 Skipping there is a question about the host, not about what the code decided,
 so it stays a ``skipif`` rather than another platform branch to get wrong.
 
+Resolving a command's name to a file is the same kind of question. Which
+filenames a machine runs for a bare ``jscpd`` — ``jscpd.CMD`` on Windows, and
+``jscpd`` alone off it — is that machine's own rule, put to ``shutil.which``
+rather than decided anywhere in this tool, so there is no seam ``on_windows``
+could flip. The two hosts answer for themselves, and each half of the story
+runs on the one that can tell it.
+
 The recorders below stand in for the two ways a command is ended. Neither can be
 let run: ``os.killpg`` would signal a real process group — pid 4321 is somebody
 — and ``taskkill`` does not exist off Windows at all.
@@ -37,6 +44,16 @@ from habit_hooks.sensors import live_commands
 A_SHELL_TO_RUN_IT_WITH = pytest.mark.skipif(
     os.name == "nt",
     reason="showing a shell recipe run takes a machine with a shell on it",
+)
+
+A_MACHINE_THAT_SPELLS_A_COMMAND_ITSELF = pytest.mark.skipif(
+    os.name != "nt",
+    reason="only Windows adds an extension of its own to a bare command name",
+)
+
+A_MACHINE_THAT_DOES_NOT = pytest.mark.skipif(
+    os.name == "nt",
+    reason="everywhere else a command is the filename it is, and a shebang runs",
 )
 
 
@@ -61,11 +78,19 @@ def recorded_spawns(monkeypatch: pytest.MonkeyPatch) -> list[tuple[list[str], di
 
 
 def recorded_signals(monkeypatch: pytest.MonkeyPatch) -> list[tuple[int, int]]:
-    """Every process group ``live_commands`` would signal, and with what."""
+    """Every process group ``live_commands`` would signal, and with what.
+
+    ``raising=False``: Windows' own ``os`` has no ``killpg`` to replace, and
+    ``monkeypatch.setattr`` refuses to patch an attribute that does not exist.
+    The POSIX branch is only ever reached with ``host_platform.is_windows()``
+    pinned false, so this stand-in is what makes that branch — not the real
+    host platform — testable everywhere.
+    """
     signals: list[tuple[int, int]] = []
     monkeypatch.setattr(
         live_commands.os,
         "killpg",
         lambda pgid, number: signals.append((pgid, number)),
+        raising=False,
     )
     return signals

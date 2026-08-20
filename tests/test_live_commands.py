@@ -62,7 +62,10 @@ def test_off_windows_a_group_already_gone_is_not_an_error(
     wanted, so it must not raise from inside a handler reporting a timeout."""
     off_windows(monkeypatch)
     monkeypatch.setattr(
-        live_commands.os, "killpg", _raising(ProcessLookupError("no such process"))
+        live_commands.os,
+        "killpg",
+        _raising(ProcessLookupError("no such process")),
+        raising=False,
     )
 
     assert kill_command(4321) is None

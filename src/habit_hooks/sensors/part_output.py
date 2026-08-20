@@ -149,8 +149,9 @@ def part_spawn_failure(kind: str, part: Part, refusal: OSError) -> SensorError:
 def _as_text(output: str | bytes | None) -> str:
     """A killed part's output as text, whatever the spawn was told to decode.
 
-    ``TimeoutExpired`` carries raw bytes even from a ``text=True`` spawn: the
-    partial reads never reach the decoder. Undecodable bytes are replaced rather
+    ``deadline.py`` reads the killed command's pipe and hands over text, but the
+    expiry it falls back to where that pipe will not close carries the raw bytes
+    ``TimeoutExpired`` has always held. Undecodable bytes are replaced rather
     than raised on, because this runs inside the handler reporting the failure.
     """
     if isinstance(output, bytes):

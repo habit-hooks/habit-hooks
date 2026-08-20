@@ -14,6 +14,7 @@ answer would have a setup clear a tool the run still cannot find.
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path, PurePath
 
 from . import host_platform
@@ -73,6 +74,34 @@ def tool_search_path(project_dir: Path) -> str:
     node = project_dir / "node_modules" / ".bin"
     venv = venv_bin_dir(project_dir / ".venv")
     return os.pathsep.join([str(node), str(venv), os.environ.get("PATH", "")])
+
+
+def tool_executable(name: str, project_dir: Path) -> str | None:
+    """The file this project runs for the bare command ``name``, or ``None``.
+
+    The single place a command's name becomes a file, because the two sides of
+    that question must never come to different answers: ``missing_tools.py``
+    clears a tool by asking it, and ``sensors/spawn.py`` spawns the very file
+    it answered with.
+
+    Leaving the name for the spawn to look up is what made them differ.
+    ``subprocess`` spawns through ``CreateProcess`` on Windows, which appends
+    ``.exe`` to a bare name and nothing else, while this appends every
+    extension the machine runs (``PATHEXT``) — so ``knip``, ``eslint`` and
+    ``jscpd``, which npm installs as ``.cmd`` shims, and ``pmd``, a ``.bat``,
+    are each cleared by the setup and then not found by anything that spawns
+    them by name.
+
+    ``shutil.which`` is asked rather than copied: which filenames a machine
+    runs for a bare name, and in what order, is that machine's own question,
+    and a second copy of the answer is one that can drift from it. That does
+    mean taking its answers whole — on Windows it searches this process's own
+    directory first, as ``cmd.exe`` does — so the answer is made absolute
+    before it leaves: it names the file that was actually found, and cannot
+    come to mean another one in a spawn that runs somewhere else.
+    """
+    found = shutil.which(name, path=tool_search_path(project_dir))
+    return None if found is None else os.path.abspath(found)
 
 
 def _under(target: str, root: str) -> str | None:

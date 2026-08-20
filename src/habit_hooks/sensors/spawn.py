@@ -2,12 +2,15 @@
 
 Every sensor and transformer arrives here as an argument list, already built by
 ``command_text`` — including the ``bash -c`` around a part that wanted a shell,
-which is that module's decision and not this one's. Two things keep an
-unusual-but-real run from turning into a hang or a lost run: a deadline (a
-wedged tool must not block the git hook forever) and an own empty stdin (the
-child must never inherit the parent's — a ``pre-push`` hook carries refs
-there). ``run_part`` adds the third at the caller's boundary: a spawn failure
-surfaced as the ``SensorError`` every other failure already is.
+which is that module's decision and not this one's. Three things keep an
+unusual-but-real run from turning into a hang or a lost run: a deadline
+(``deadline.py`` — a wedged tool must not block the git hook forever), an own
+empty stdin (the child must never inherit the parent's — a ``pre-push`` hook
+carries refs there), and a program named by the file this project actually runs
+for it rather than by a name the platform is left to look up its own way
+(``project_paths.tool_executable``). ``run_part`` adds a fourth at the caller's
+boundary: a spawn failure surfaced as the ``SensorError`` every other failure
+already is.
 
 The deadline is why this is ``Popen`` and not ``subprocess.run``: ``run`` kills
 the program it started and nothing else, while a part is often a pipeline
@@ -32,16 +35,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..project_paths import tool_search_path
+from ..project_paths import tool_executable, tool_search_path
 from . import posix_shell
-from .live_commands import LIVE_COMMANDS, its_own_process_group, kill_command
+from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS, bounded_output
+from .live_commands import LIVE_COMMANDS, its_own_process_group
 from .model import Part
 from .part_output import command_not_found, part_spawn_failure, part_timeout
-
-# Seconds one invocation may run before it is killed. A wedged tool — waiting on
-# input, or churning on a pathological repo — otherwise blocks the hook forever
-# with no output; a finite ceiling makes it return.
-DEFAULT_SENSOR_TIMEOUT_SECONDS = 300.0
 
 
 @dataclass(frozen=True)
@@ -70,11 +69,35 @@ class Spawner:
         gone, and that is a broken run rather than a tool to install.
         """
         try:
-            return self._spawned(argv, stdin)
+            return self._spawned(self._runnable(argv), stdin)
         except FileNotFoundError:
             if not self.project_dir.is_dir():
                 raise
             return command_not_found(argv)
+
+    def _runnable(self, argv: list[str]) -> list[str]:
+        """``argv`` with its program named by the file this project runs for it.
+
+        A bare command name is the only thing in question. Left as a name it is
+        looked up by whatever the spawn uses, which on Windows is not the
+        lookup the tool was cleared by — so this asks the one that cleared it
+        (``project_paths.tool_executable``) and hands the spawn its answer.
+        Anything already carrying a directory is a file and not a name: an
+        absolute interpreter from ``${python}``, a helper's own path. So is
+        every argument after the first, whatever it looks like — only the
+        program is being spawned.
+
+        A name reaching no file is handed over as it stands rather than refused
+        here. The spawn then fails exactly as it always did, which leaves the
+        one guard in :meth:`run` reading the one ``FileNotFoundError`` it was
+        written for — and a project directory that is gone still says so,
+        instead of being reported as a tool somebody should install.
+        """
+        program = argv[0]
+        if os.path.dirname(program):
+            return argv
+        found = tool_executable(program, self.project_dir)
+        return argv if found is None else [found, *argv[1:]]
 
     def _spawned(self, argv: list[str], stdin: str) -> subprocess.CompletedProcess[str]:
         """What the child printed, its group tracked for as long as it lives."""
@@ -96,7 +119,7 @@ class Spawner:
             errors="replace",
             **its_own_process_group(),
         ) as process, LIVE_COMMANDS.tracking(process.pid):
-            return _bounded_output(process, stdin, self.timeout)
+            return bounded_output(process, stdin, self.timeout)
 
     def _path_env(self) -> dict:
         return {
@@ -115,26 +138,6 @@ class Spawner:
             # PYTHONSAFEPATH (`python -P`) removes. Empty is off; "0" is on.
             "PYTHONSAFEPATH": "",
         }
-
-
-def _bounded_output(
-    process: subprocess.Popen[str], stdin: str, timeout: float
-) -> subprocess.CompletedProcess[str]:
-    """What it printed, killing the whole command if it ran past its deadline.
-
-    The ``TimeoutExpired`` travels on untouched — it carries the partial output
-    ``part_timeout`` quotes back, as the raw bytes it has always been — but the
-    command dies first, so nothing it started is still running once the hook has
-    returned. An interrupt on this thread ends it the same way; the sensors run
-    on threads that never receive one, and ``LIVE_COMMANDS`` is what answers for
-    those.
-    """
-    try:
-        stdout, stderr = process.communicate(stdin, timeout=timeout)
-    except (subprocess.TimeoutExpired, KeyboardInterrupt):
-        kill_command(process.pid)
-        raise
-    return subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
 
 
 def run_part(

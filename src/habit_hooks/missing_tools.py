@@ -2,11 +2,11 @@
 
 A plugin declares the external tools its sensors reach for
 (:mod:`habit_hooks.detectors`); this is the asking. Each kind is asked the way a
-run will ask it — a command along ``project_paths.tool_search_path``, the very
-PATH ``habit-sensors`` spawns against, and a module of node itself, because a
-package read as a library is not answered by a binary of that name. A tool
-cleared here that a run cannot find is the support question setting a project up
-exists to end.
+run will ask it — a command through ``project_paths.tool_executable``, the very
+call ``habit-sensors`` resolves one with before it spawns it, and a module of
+node itself, because a package read as a library is not answered by a binary of
+that name. A tool cleared here that a run cannot find is the support question
+setting a project up exists to end.
 
 Separate from :mod:`habit_hooks.initialise`, which decides what setting a
 project up comes to: what a project is planned to run and what stands in the way
@@ -16,42 +16,39 @@ of it are two questions, and only this one spawns anything.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
 from attrs import frozen
 
 from .detectors import COMMAND_KIND, NODE_MODULE_KIND, Detector
-from .project_paths import tool_search_path
+from .project_paths import tool_executable
 
 NODE = "node"
 
 # Seconds node gets to say whether it resolves a module. The node asked is the
 # project's own ``node_modules/.bin`` — a shim the project wrote — and a wedged
 # one must not block the hook this stands in front of, for the reason
-# ``sensors.spawn`` gives every command it runs a deadline.
+# ``sensors.deadline`` gives every command a run spawns a ceiling.
 NODE_RESOLVE_TIMEOUT_SECONDS = 30.0
 
 
 @frozen
 class _Tools:
-    """What every detector is asked about: where this project looks for a tool,
-    the node that answers for its modules, and whether the plugins declared that
-    node themselves — asked once, because every detector asks the same."""
+    """What every detector is asked about: the project whose tools are in
+    question, the node that answers for its modules, and whether the plugins
+    declared that node themselves — asked once, because every detector asks the
+    same."""
 
     project_dir: Path
-    search_path: str
     node: str | None
     node_declared: bool
 
     @classmethod
     def under(cls, project_dir: Path, declared: list[Detector]) -> _Tools:
-        search_path = tool_search_path(project_dir)
         return cls(
             project_dir,
-            search_path,
-            shutil.which(NODE, path=search_path),
+            tool_executable(NODE, project_dir),
             any(_is_node(detector) for detector in declared),
         )
 
@@ -82,7 +79,7 @@ def _is_missing(detector: Detector, tools: _Tools) -> bool:
     """
     if detector.kind == NODE_MODULE_KIND:
         return _module_is_missing(detector.name, tools)
-    return shutil.which(detector.name, path=tools.search_path) is None
+    return tool_executable(detector.name, tools.project_dir) is None
 
 
 def _module_is_missing(module: str, tools: _Tools) -> bool:

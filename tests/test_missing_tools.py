@@ -11,10 +11,10 @@ say at all is ``test_detector_schema.py``.
 
 from __future__ import annotations
 
-import stat
 from pathlib import Path
 
 import pytest
+from executable_stub import write_recording_tool, write_stub, write_wedged_tool
 from platform_probe import off_windows
 
 from habit_hooks import missing_tools
@@ -27,17 +27,7 @@ TS_MORPH = (
     '{ name = "ts-morph", kind = "node-module", install = "npm i -D ts-morph" }'
 )
 
-# Builtins and parameter expansion only: the PATH this runs on is empty by
-# design, so a stub reaching for `dirname` would fail before it recorded anything.
-RECORDING_NODE = """#!/bin/sh
-printf '%s\\n' "$*" >> "${0%/*}/node.log"
-pwd >> "${0%/*}/node.log"
-"""
-
-# A node that never answers. `sleep` is spelled absolutely because the PATH this
-# runs on is empty, and `exec`ed so the deadline reaches the sleep itself rather
-# than the shell holding it.
-WEDGED_NODE = "#!/bin/sh\nexec /bin/sleep 5\n"
+NODE_LOG = "node.log"
 
 
 def _needing(project_dir: Path, *entries: str) -> Path:
@@ -46,18 +36,6 @@ def _needing(project_dir: Path, *entries: str) -> Path:
     declared = f"detectors = [{', '.join(entries)}]"
     write_plugin(project_dir, "python", {"config.toml": declared})
     return project_dir
-
-
-def _executable(bin_dir: Path, name: str, body: str) -> None:
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    tool = bin_dir / name
-    tool.write_text(body, encoding="utf-8")
-    tool.chmod(tool.stat().st_mode | stat.S_IEXEC)
-
-
-def _stub(bin_dir: Path, name: str, exit_code: int = 0) -> None:
-    """An executable ``name`` that does nothing but exit ``exit_code``."""
-    _executable(bin_dir, name, f"#!/bin/sh\nexit {exit_code}\n")
 
 
 def _missing(project_dir: Path) -> list[str]:
@@ -87,7 +65,7 @@ def test_a_command_in_the_project_s_python_bin_is_not_missing(
     """
     off_windows(monkeypatch)
     _needing(toolless_project, JQ)
-    _stub(toolless_project / ".venv" / "bin", "jq")
+    write_stub(toolless_project / ".venv" / "bin", "jq")
 
     assert _missing(toolless_project) == []
 
@@ -97,7 +75,7 @@ def test_a_command_in_the_project_s_node_bin_is_not_missing(
 ) -> None:
     """The other half of the path a run spawns against."""
     _needing(toolless_project, JQ)
-    _stub(toolless_project / "node_modules" / ".bin", "jq")
+    write_stub(toolless_project / "node_modules" / ".bin", "jq")
 
     assert _missing(toolless_project) == []
 
@@ -131,14 +109,14 @@ def test_a_module_node_resolves_from_the_project_is_not_missing(
     """A package read as a library is not answered by a binary of that name, so
     node is asked rather than the ``PATH``."""
     _needing(toolless_project, NODE, TS_MORPH)
-    _stub(toolless_project / "node_modules" / ".bin", "node")
+    write_stub(toolless_project / "node_modules" / ".bin", "node")
 
     assert _missing(toolless_project) == []
 
 
 def test_a_module_node_cannot_resolve_is_missing(toolless_project: Path) -> None:
     _needing(toolless_project, NODE, TS_MORPH)
-    _stub(toolless_project / "node_modules" / ".bin", "node", exit_code=1)
+    write_stub(toolless_project / "node_modules" / ".bin", "node", exit_code=1)
 
     assert _missing(toolless_project) == ["ts-morph"]
 
@@ -173,7 +151,7 @@ def test_a_node_that_never_answers_is_not_waited_on(
     project wrote — and a wedged one must not block the hook this stands in
     front of. An unanswered module is a missing one."""
     _needing(toolless_project, NODE, TS_MORPH)
-    _executable(toolless_project / "node_modules" / ".bin", "node", WEDGED_NODE)
+    write_wedged_tool(toolless_project / "node_modules" / ".bin", "node")
     monkeypatch.setattr(missing_tools, "NODE_RESOLVE_TIMEOUT_SECONDS", 0.1)
 
     assert _missing(toolless_project) == ["ts-morph"]
@@ -186,10 +164,10 @@ def test_node_is_asked_to_resolve_the_module_from_the_project_itself(
     would look, so a module resolvable only from somewhere else stays missing."""
     _needing(toolless_project, NODE, TS_MORPH)
     bin_dir = toolless_project / "node_modules" / ".bin"
-    _executable(bin_dir, "node", RECORDING_NODE)
+    write_recording_tool(bin_dir, "node", NODE_LOG)
 
     plan(toolless_project)
 
-    asked, asked_in = (bin_dir / "node.log").read_text(encoding="utf-8").splitlines()
+    asked, asked_in = (bin_dir / NODE_LOG).read_text(encoding="utf-8").splitlines()
     assert 'require.resolve("ts-morph")' in asked
     assert Path(asked_in).resolve() == toolless_project.resolve()
