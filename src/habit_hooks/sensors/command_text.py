@@ -18,8 +18,10 @@ A part spells one of two recipes, and this is where the difference is spent:
   its own contents.
 
 **A placeholder is either a string or a list, and the argv form tells them
-apart.** ``${python}`` and ``${dir}`` are strings: they are substituted inside
-an element, so ``"${dir}/line-count.py"`` stays one argument. ``${files}``,
+apart.** ``${python}``, ``${dir}`` and ``${detector:<name>}`` — the file this
+project runs for one of its plugins' declared tools (``named_tools``) — are
+strings: they are substituted inside an element, so ``"${dir}/line-count.py"``
+stays one argument, and a tool's own path stays the one value it is. ``${files}``,
 ``${args}`` and ``${config}`` are lists: an element that is exactly one of them
 becomes zero or more arguments in its place. An element that merely contains
 one — ``"--paths=${files}"`` — is refused rather than joined, because joining a
@@ -40,6 +42,7 @@ from pathlib import Path
 
 from ..cli import ConfigError
 from .model import Part
+from .named_tools import spelled_for_a_shell, spelled_plainly
 
 LIST_PLACEHOLDERS = ("${files}", "${args}", "${config}")
 
@@ -104,16 +107,16 @@ def _element_arguments(
         return lists[element]
     _refuse_embedded_list_placeholder(part, element)
     return [
-        element.replace("${python}", sys.executable).replace(
-            "${dir}", str(part.directory)
-        )
+        spelled_plainly(part, element)
+        .replace("${python}", sys.executable)
+        .replace("${dir}", str(part.directory))
     ]
 
 
 def _shell_form(part: Part, files: list[str], config_path: Path | None) -> str:
     """``part.command`` with every value quoted for the shell about to read it."""
     return (
-        (part.command or "")
+        spelled_for_a_shell(part, part.command or "")
         .replace("${python}", shlex.quote(sys.executable))
         .replace("${dir}", shlex.quote(str(part.directory)))
         .replace("${args}", shlex.join(part.args))

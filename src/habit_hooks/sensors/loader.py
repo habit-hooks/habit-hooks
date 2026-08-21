@@ -3,13 +3,14 @@ per-sensor args and disable overrides — the loading half of the ETL."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..cli import ConfigError, ToolError
 from ..config import Config
 from ..config_schema import read_toml
 from ..resolve import Resolver
 from .model import Part, Plugin
+from .named_tools import DeclaredTools, files_for
 
 
 @dataclass(frozen=True)
@@ -46,16 +47,36 @@ class PluginLoader:
             )
         spec = read_toml(path)
         command, argv = _recipe(kind, name, spec)
-        if kind != "sensors":
-            return Part(name, path.parent, command, argv)
-        return Part(
-            name,
-            path.parent,
-            command,
-            argv,
-            self._sensor_setting(name, spec, "args") or [],
-            self._sensor_setting(name, spec, "files"),
-        )
+        part = Part(name, path.parent, command, argv)
+        if kind == "sensors":
+            part = replace(
+                part,
+                args=self._sensor_setting(name, spec, "args") or [],
+                files=self._sensor_setting(name, spec, "files"),
+            )
+        return self._with_its_tools(kind, part)
+
+    def _with_its_tools(self, kind: str, part: Part) -> Part:
+        """``part`` knowing the file this project runs for each tool it names.
+
+        The tools are the whole run's — every active plugin's declarations
+        (``Config.plugin_detectors``) — rather than the declaring plugin's own,
+        for two reasons. It is the same list a setup clears a project's tools
+        against, so a tool a project was told it has is one its sensors can be
+        handed. And a root transformer belongs to no plugin at all: it is
+        resolved against the run's plugins as a whole (``sensors.run_sensors``),
+        so it has none of its own to ask.
+
+        The cost is that a plugin naming a tool it forgot to declare still runs
+        wherever another enabled plugin declares it, and breaks only for the
+        consumer who enables that one plugin —
+        ``test_a_plugin_declares_the_tools_it_names`` is the gate for that.
+
+        Asked as the config loads, so a recipe naming a tool no plugin declares
+        is refused before anything is spawned.
+        """
+        tools = DeclaredTools(self.config.plugin_detectors, self.resolver.project_dir)
+        return replace(part, detectors=files_for(part, kind[:-1], tools))
 
     def _sensor_setting(self, name: str, spec: dict, key: str) -> list[str] | None:
         """The project's ``[sensors.<name>]`` override for ``key``, else the spec's.
@@ -87,7 +108,7 @@ def _recipe(kind: str, name: str, spec: dict) -> tuple[str | None, list[str] | N
     the same register. It reads as a recipe right up to the spawn, where the
     first element it does not have is the program — an ``IndexError`` traceback
     out of the layer whose whole job is that other people's programs fail as
-    notices.
+    notices. What an ``argv`` is made of is the fourth.
     """
     command, argv = spec.get("command"), spec.get("argv")
     if argv == []:
@@ -97,6 +118,7 @@ def _recipe(kind: str, name: str, spec: dict) -> tuple[str | None, list[str] | N
             "names no command at all; give it the program and its arguments, "
             "or spell a 'command' string instead"
         )
+    _refuse_an_argv_that_is_not_arguments(kind, name, argv)
     if (command is None) != (argv is None):
         return command, argv
     spelled = (
@@ -109,4 +131,37 @@ def _recipe(kind: str, name: str, spec: dict) -> tuple[str | None, list[str] | N
         "is a list of arguments spawned as it stands, which is the only form "
         "there is where no POSIX shell exists; 'command' is a shell string, for "
         "the syntax a list cannot carry, such as a pipe into jq"
+    )
+
+
+def _refuse_an_argv_that_is_not_arguments(
+    kind: str, name: str, argv: object
+) -> None:
+    """Stop a part whose ``argv`` is not a list of things a spawn could carry.
+
+    Every element is an argument handed to a program as it stands, so the whole
+    has to be a list and every one of its elements a string. Neither mistake
+    used to be answered here: a number among them was a ``TypeError`` traceback
+    at exit 1 — the code reserved for an enforced finding, so a run reads a
+    mistyped spec as a smell in the code — and a bare string was not answered at
+    all. That one is the mistake that hides, because a string is iterable and
+    nothing stumbles over it: ``argv = "ruff"`` spawns four arguments of one
+    character each, and the run reports needing the ``'r'`` command. Both are the
+    first-contact class #114 refuses to answer with anything but a sentence.
+    """
+    if argv is None:
+        return
+    if not isinstance(argv, list):
+        raise ConfigError(
+            f"{kind[:-1]} {name!r} spells {argv!r} as its 'argv' — an argv is a "
+            "list, the program first and one element per argument after it; put "
+            "it in brackets, or spell a 'command' string instead"
+        )
+    unspellable = [element for element in argv if not isinstance(element, str)]
+    if not unspellable:
+        return
+    raise ConfigError(
+        f"{kind[:-1]} {name!r} spells {unspellable[0]!r} in its 'argv' — every "
+        "element is an argument handed to a program as it stands, so each has "
+        "to be a string; quote it, or spell a 'command' string instead"
     )

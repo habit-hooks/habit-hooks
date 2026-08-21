@@ -32,6 +32,20 @@ class Part:
     # A sensor's own discovery globs: when set, the run's scope is narrowed to
     # this subset for this sensor alone. ``None`` means "the whole scope".
     files: list[str] | None = None
+    # The file this project runs for each tool the recipe names with
+    # ``${detector:<name>}``, or ``None`` where that tool is not installed
+    # (``named_tools``). Only the tools it names, never its plugin's others.
+    detectors: dict[str, str | None] = field(default_factory=dict)
+
+    @property
+    def missing_detector(self) -> str | None:
+        """The first tool this part names that this project cannot run.
+
+        A part handed no file for a tool has nothing to spawn, so the spawn
+        boundary answers for it as the missing command it is (``spawn.run_part``).
+        """
+        absent = (name for name, file in self.detectors.items() if file is None)
+        return next(absent, None)
 
     @property
     def command_line(self) -> str:

@@ -175,12 +175,20 @@ def run_part(
     whether it is a sensor or a transformer, which is what decides how to say
     "switch it off".
 
+    A tool the project cannot run is that failure earlier again, and answers in
+    the shell's own words for a command nobody installed — because that is what
+    it is. The part named one of its plugin's declared tools (``named_tools``)
+    and this project has no file for it, so there is nothing to spawn and the
+    one recogniser that already names a missing command names this one too.
+
     An argument a batch file's own shell would read as syntax is refused deeper
     down, where the program has become a file and can be recognised as one
     (``batch_shell``). That refusal knows everything about itself except which
     part earned it, so this is where the part's name goes on the front of it.
     """
     posix_shell.refuse_where_there_is_none(kind, part)
+    if part.missing_detector is not None:
+        return command_not_found([part.missing_detector])
     try:
         return run()
     except batch_shell.UnreadableArgument as refusal:
