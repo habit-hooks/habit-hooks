@@ -329,6 +329,25 @@ and for the same reason as `config` → `config_schema` and `mapper` →
 `rendering`. Under size pressure again, move a whole concern across this line
 rather than drawing a new one.
 
+### How an argv is run is `spawn.py`; what a broken part becomes is `broken_part.py` (agent decision)
+
+`spawn.py` runs an argument list: the project's tool bins on PATH, a process
+group of its own, UTF-8, the deadline, and a bare `argv[0]` resolved to the file
+this machine runs for it. It knows an argv and never whose it is.
+`broken_part.py` is the boundary that does — it refuses a part before anything
+is spawned (`posix_shell`, and a tool the project cannot run) and turns every
+spawn failure into the `SensorError` a notice is made from, named for the part
+that earned it.
+
+Neither imports the other: `run_part` takes a callable rather than a `Spawner`,
+so `broken_part` imports `posix_shell`, `batch_shell`, `part_output`, `model`
+while `spawn` imports `project_paths`, `deadline`, `live_commands`,
+`batch_shell`, `part_output`, and `execution` is the one module that imports
+both. It is the same split, and the same 200-line `oversized-file` gate behind
+it, as `config` → `config_schema`, `mapper` → `rendering` and `part_output` →
+`diagnosis`. Under size pressure again, move a whole concern across this line
+rather than drawing a new one.
+
 ### jscpd resolves a config's relative `path` against the config file, not cwd (agent decision)
 
 When `jscpd --config <abs path>` loads a config, its `path: ["src"]` resolves

@@ -10,13 +10,14 @@ from pathlib import Path
 
 from ..argv_budget import argument_budget, argument_cost, within_argument_limits
 from ..scope import Scope, matching
+from .broken_part import run_part
 from .command_text import expanded, spelled_files, spells
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS
 from .finding_paths import aliasing_notices, anchored
 from .live_commands import LIVE_COMMANDS
 from .model import Part, Run, SensorError
 from .part_output import parse_findings, part_failure, sensor_crashed
-from .spawn import Spawner, run_part
+from .spawn import Spawner
 
 
 @dataclass(frozen=True)

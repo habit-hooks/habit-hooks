@@ -26,8 +26,8 @@ refusal ends with the one thing they can do about it: switch that part off.
 
 A tool that is declared, a command, and simply **not installed** is neither of
 those: it is the ordinary missing tool every first run meets. So it resolves to
-``None`` here and stays the notice + failed run ``part_output`` already answers a
-missing command with (``spawn.run_part``).
+``None`` here and stays the notice + failed run ``part_output`` already answers
+a missing command with (``broken_part.run_part``).
 """
 
 from __future__ import annotations
@@ -113,8 +113,8 @@ def _filled_in(part: Part, text: str, spell: Callable[[str], str]) -> str:
 
     A tool it cannot run is left standing. The argv is still built, but it is
     never spawned: the part fails first as the missing command it is
-    (``Part.missing_detector``, ``spawn.run_part``), so there is nothing here for
-    a bare name to be any use to.
+    (``Part.missing_detector``, ``broken_part.run_part``), so there is nothing
+    here for a bare name to be any use to.
     """
     for name, file in part.detectors.items():
         if file is not None:

@@ -42,7 +42,8 @@ class Part:
         """The first tool this part names that this project cannot run.
 
         A part handed no file for a tool has nothing to spawn, so the spawn
-        boundary answers for it as the missing command it is (``spawn.run_part``).
+        boundary answers for it as the missing command it is
+        (``broken_part.run_part``).
         """
         absent = (name for name, file in self.detectors.items() if file is None)
         return next(absent, None)

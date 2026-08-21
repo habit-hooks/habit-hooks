@@ -46,9 +46,10 @@ CMD_SYNTAX = frozenset('&|<>^"%\n\r')
 class UnreadableArgument(SensorError):
     """An argument the shell behind a batch file would read as its own syntax.
 
-    It names no part, because the spawn knows none: ``spawn.run_part`` prefixes
-    the part where it does know, the way ``cli._named`` prefixes a binary onto a
-    ``ConfigError``, so one wording serves the part's spawn and a bare one.
+    It names no part, because the spawn knows none: ``broken_part.run_part``
+    prefixes the part where it does know, the way ``cli._named`` prefixes a
+    binary onto a ``ConfigError``, so one wording serves the part's spawn and a
+    bare one.
     """
 
 

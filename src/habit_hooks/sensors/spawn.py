@@ -8,9 +8,9 @@ unusual-but-real run from turning into a hang or a lost run: a deadline
 empty stdin (the child must never inherit the parent's — a ``pre-push`` hook
 carries refs there), and a program named by the file this project actually runs
 for it rather than by a name the platform is left to look up its own way
-(``project_paths.tool_executable``). ``run_part`` adds a fourth at the caller's
-boundary: a spawn failure surfaced as the ``SensorError`` every other failure
-already is.
+(``project_paths.tool_executable``). What any of them failing then becomes is
+``broken_part.py``, which knows the part this argv belongs to where nothing
+here does.
 
 The deadline is why this is ``Popen`` and not ``subprocess.run``: ``run`` kills
 the program it started and nothing else, while a part is often a pipeline
@@ -21,32 +21,20 @@ takes it out of ours, so nothing that used to signal us collectively reaches it
 any more. ``live_commands`` is how the run ends them deliberately, on either
 platform, and a CI runner that kills only our process tree now leaves a command
 running to its own deadline where a same-group child used to die with the tree.
-
-``run_part`` is also where a part whose recipe this platform cannot read is
-stopped before it spawns at all (``posix_shell``), as the one part failing that
-it is — and where an argument the shell behind a batch file would read as its
-own syntax is named against the part that carried it (``batch_shell``).
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..project_paths import tool_executable, tool_search_path
-from . import batch_shell, posix_shell
+from . import batch_shell
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS, bounded_output
 from .live_commands import LIVE_COMMANDS, its_own_process_group
-from .model import Part, SensorError
-from .part_output import (
-    command_not_found,
-    no_project_to_run_in,
-    part_spawn_failure,
-    part_timeout,
-)
+from .part_output import command_not_found, no_project_to_run_in
 
 
 @dataclass(frozen=True)
@@ -156,44 +144,3 @@ class Spawner:
             # PYTHONSAFEPATH (`python -P`) removes. Empty is off; "0" is on.
             "PYTHONSAFEPATH": "",
         }
-
-
-def run_part(
-    kind: str, part: Part, run: Callable[[], subprocess.CompletedProcess[str]]
-) -> subprocess.CompletedProcess[str]:
-    """``run()``'s result, its spawn failures raised as the ``SensorError`` they are.
-
-    A wedged tool that never returns must not block the hook: its deadline
-    becomes the same notice + failed run any other spawn failure produces. A
-    spawn the operating system refuses outright is that failure one step
-    earlier, and raises an ``OSError`` nothing between here and ``main`` caught.
-
-    A recipe this platform has no shell for is that failure one step earlier
-    again — known before anything is spawned, and told as the same kind of
-    failure so one broken part never costs the run the others' findings. This is
-    where it is asked because it is the boundary that knows both the part and
-    whether it is a sensor or a transformer, which is what decides how to say
-    "switch it off".
-
-    A tool the project cannot run is that failure earlier again, and answers in
-    the shell's own words for a command nobody installed — because that is what
-    it is. The part named one of its plugin's declared tools (``named_tools``)
-    and this project has no file for it, so there is nothing to spawn and the
-    one recogniser that already names a missing command names this one too.
-
-    An argument a batch file's own shell would read as syntax is refused deeper
-    down, where the program has become a file and can be recognised as one
-    (``batch_shell``). That refusal knows everything about itself except which
-    part earned it, so this is where the part's name goes on the front of it.
-    """
-    posix_shell.refuse_where_there_is_none(kind, part)
-    if part.missing_detector is not None:
-        return command_not_found([part.missing_detector])
-    try:
-        return run()
-    except batch_shell.UnreadableArgument as refusal:
-        raise SensorError(f"{kind} {part.name!r} {refusal}") from None
-    except subprocess.TimeoutExpired as expiry:
-        raise part_timeout(kind, part, expiry) from None
-    except OSError as refusal:
-        raise part_spawn_failure(kind, part, refusal) from None

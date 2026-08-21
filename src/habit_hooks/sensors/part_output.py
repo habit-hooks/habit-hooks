@@ -72,9 +72,9 @@ def no_project_to_run_in(project_dir: Path) -> FileNotFoundError:
     is: what a reader can act on is the one thing this run knows and the system
     does not say.
 
-    It stays a ``FileNotFoundError``, because ``spawn.run_part`` turns every
-    ``OSError`` into the notice + failed run that a broken part deserves — a
-    checkout deleted mid-run must not surface as a traceback.
+    It stays a ``FileNotFoundError``, because ``broken_part.run_part`` turns
+    every ``OSError`` into the notice + failed run that a broken part deserves
+    — a checkout deleted mid-run must not surface as a traceback.
     """
     return FileNotFoundError(
         errno.ENOENT, f"the project directory is gone: {project_dir}"
