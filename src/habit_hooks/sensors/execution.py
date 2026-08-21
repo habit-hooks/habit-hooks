@@ -97,8 +97,9 @@ class Execution:
         """
         argv = self._expand(transformer)
         payload = json.dumps(findings)
+        tools = transformer.tools_that_read_its_arguments
         result = run_part(
-            "transformer", transformer, lambda: self._spawner.run(argv, payload)
+            "transformer", transformer, lambda: self._spawner.run(argv, payload, tools=tools)
         )
         failure = part_failure("transformer", transformer, result)
         if result.returncode != 0 or not result.stdout.strip():
@@ -124,7 +125,8 @@ class Execution:
 
     def _sensor_findings(self, sensor: Part, argv: list[str]) -> list[dict]:
         """One invocation's parsed findings, or ``SensorError`` if untrustworthy."""
-        result = run_part("sensor", sensor, lambda: self._spawner.run(argv))
+        tools = sensor.tools_that_read_its_arguments
+        result = run_part("sensor", sensor, lambda: self._spawner.run(argv, tools=tools))
         failure = part_failure("sensor", sensor, result)
         if sensor_crashed(result):
             raise failure

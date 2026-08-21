@@ -49,6 +49,27 @@ class Part:
         return next(absent, None)
 
     @property
+    def tools_that_read_its_arguments(self) -> list[str]:
+        """The files this part hands its own arguments on to, one process in.
+
+        A sensor rarely spawns the tool it wraps itself: it is a helper that
+        spawns it, handed the file for each tool its recipe names
+        (``named_tools``). So a batch file among these decides how the arguments
+        will be read exactly as ``argv[0]`` does, and the spawn answers for both
+        alike (``batch_shell``). No shipped sensor names a tool yet, so this is
+        empty for every one of them.
+
+        Empty where the recipe is a ``command`` too: its arguments are words
+        inside text a POSIX shell splits, not the two elements ``bash -c``
+        carries, so there is no argument here to answer for. A tool it names and
+        has *not* got is :attr:`missing_detector`'s answer, and the part never
+        spawns either.
+        """
+        if self.argv is None:
+            return []
+        return [file for file in self.detectors.values() if file is not None]
+
+    @property
     def command_line(self) -> str:
         """The part's recipe as a message about it should quote it back.
 

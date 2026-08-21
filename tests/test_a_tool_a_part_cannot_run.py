@@ -23,7 +23,7 @@ import pytest
 from bare_machine import project_with_no_tools
 from detector_declarations import JSCPD, PMD, declaring
 from executable_stub import write_stub
-from plugin_fixture import loader_for, one_sensor, write_plugin, write_project_config
+from plugin_fixture import one_sensor, one_transformer
 
 from habit_hooks.scope import Scope
 from habit_hooks.sensors.execution import Execution
@@ -40,21 +40,6 @@ def _run(project: Path, part: Part) -> Run:
     """What running ``part`` over one file comes to."""
     scope = Scope(files=["src/a.py"])
     return Execution(project_dir=project, scope=scope).run_sensors([part])
-
-
-def _one_transformer(project: Path, recipe: str, plugin_toml: str) -> Part:
-    """The single transformer of a fixture plugin, as a run's loader builds it.
-
-    Resolved against the run's plugins rather than any one of them, which is how
-    a root transformer is reached (``sensors.run_sensors``).
-    """
-    write_project_config(project, 'plugins = ["fixt"]')
-    write_plugin(
-        project,
-        "fixt",
-        {"config.toml": f"sensors = []\n{plugin_toml}", "transformers/t.toml": recipe},
-    )
-    return loader_for(project).resolve_part(["fixt"], "transformers", "t")
 
 
 def test_a_part_naming_no_tool_answers_for_none_of_its_plugins_tools(
@@ -125,7 +110,7 @@ def test_a_transformer_naming_one_is_told_how_to_drop_a_transformer(
     has no ``[sensors.<name>]`` switch of its own — it runs because the root
     ``transformers`` list names it, so that list is the action it is given."""
     project = project_with_no_tools(tmp_path, monkeypatch)
-    part = _one_transformer(project, _recipe("${detector:jscpd}"), declaring(JSCPD))
+    part = one_transformer(project, _recipe("${detector:jscpd}"), declaring(JSCPD))
     execution = Execution(project_dir=project, scope=Scope(files=[]))
 
     _, notices = execution.apply_transformers([part], [])

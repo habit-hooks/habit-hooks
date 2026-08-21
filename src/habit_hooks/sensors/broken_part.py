@@ -19,9 +19,10 @@ there is nothing to spawn: it answers in the shell's own words for a command
 nobody installed, because that is what it is, and the one recogniser that
 already names a missing command names this one too. An argument the shell
 behind a batch file would read as its own syntax is refused deeper down, where
-the program has become a file and can be recognised as one (``batch_shell``);
-that refusal knows everything about itself except which part earned it, so this
-is where the part's name goes on the front of it.
+every program the arguments reach has become a file and can be recognised as
+one — the part's own, and the tools it hands them on to (``batch_shell``); that
+refusal knows everything about itself except which part earned it, so this is
+where the part's name goes on the front of it.
 
 Two more end a spawn that had started. A wedged tool that never returns must
 not block the hook: its deadline becomes the same notice + failed run any other

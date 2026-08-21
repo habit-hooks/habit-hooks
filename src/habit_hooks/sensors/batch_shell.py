@@ -23,6 +23,18 @@ anyone ships passes an argument carrying any of these characters, so the cost is
 nothing, and a refusal is the ordinary named part failure rather than a command
 somebody else chose.
 
+**Every program these arguments reach is asked, not only the one being spawned.**
+No sensor anyone ships names its wrapped tool as its own ``argv[0]``: each is a
+helper that spawns it, so PMD's ``pmd.bat`` and the ``jscpd.CMD`` npm installs
+are a process further in than the spawn, where a guard reading ``argv[0]`` alone
+sees nothing. A recipe reaches that program by naming it (``named_tools``) and
+forwarding its arguments to it; no shipped sensor names one yet, so what is
+guarded here is still guarded for them by their plugin's own ``tool_spawn``
+copy. A tool counts as a
+program only where a plugin declared it and this project resolved it to a file
+(``Part.tools_that_read_its_arguments``) — an argument that merely ends ``.bat``
+is a source file out of the work tree, and data.
+
 **The program's own name decides this, never the platform.** The extension is
 what sends a spawn through ``cmd.exe``, and it is the whole of what is knowable
 here; nothing off Windows installs a tool as a ``.bat``, so there is no run this
@@ -53,16 +65,17 @@ class UnreadableArgument(SensorError):
     """
 
 
-def refuse_unreadable_arguments(argv: list[str]) -> None:
-    """Stop ``argv`` before it spawns when its program's shell would read it."""
-    unreadable = cmd_syntax(argv[0], argv[1:])
-    if unreadable is None:
-        return
-    raise UnreadableArgument(
-        f"cannot pass {unreadable!r} to {argv[0]!r}: a batch file is run by "
-        "cmd.exe, which would read that as its own syntax rather than as text "
-        "— rename the file, or keep it out of the scope with [files]"
-    )
+def refuse_unreadable_arguments(programs: list[str], arguments: list[str]) -> None:
+    """Stop ``arguments`` before a batch file among ``programs`` reads one."""
+    for program in programs:
+        unreadable = cmd_syntax(program, arguments)
+        if unreadable is not None:
+            raise UnreadableArgument(
+                f"cannot pass {unreadable!r} to {program!r}: a batch file is run "
+                "by cmd.exe, which would read that as its own syntax rather than "
+                "as text — rename the file, or keep it out of the scope with "
+                "[files]"
+            )
 
 
 def cmd_syntax(program: str, arguments: list[str]) -> str | None:

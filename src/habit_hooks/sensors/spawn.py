@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,11 +45,20 @@ class Spawner:
     project_dir: Path
     timeout: float = DEFAULT_SENSOR_TIMEOUT_SECONDS
 
-    def run(self, argv: list[str], stdin: str = "") -> subprocess.CompletedProcess[str]:
+    def run(
+        self, argv: list[str], stdin: str = "", tools: Sequence[str] = ()
+    ) -> subprocess.CompletedProcess[str]:
         """Spawn ``argv`` with the project bins on PATH, own stdin, and a deadline.
 
         ``stdin`` is always a string, never ``None``, so the child cannot inherit
         the parent's stdin — a tool that prompts would otherwise block on it.
+
+        ``tools`` are the other programs these arguments reach: a helper spawns
+        the tool it was handed one process further in and forwards them to it,
+        so a batch file among them reads them just as the program being spawned
+        would (``batch_shell``, ``Part.tools_that_read_its_arguments``). Which
+        of them a part has is the part's own to answer; this end knows an argv
+        and the programs it runs, never whose argv it is.
 
         Its own process group holds the program *and* everything it starts, which
         is what lets the deadline end the whole command rather than just the
@@ -66,13 +76,13 @@ class Spawner:
         (``part_output.no_project_to_run_in``).
         """
         try:
-            return self._spawned(self._runnable(argv), stdin)
+            return self._spawned(self._runnable(argv, tools), stdin)
         except FileNotFoundError:
             if not self.project_dir.is_dir():
                 raise no_project_to_run_in(self.project_dir) from None
             return command_not_found(argv)
 
-    def _runnable(self, argv: list[str]) -> list[str]:
+    def _runnable(self, argv: list[str], tools: Sequence[str]) -> list[str]:
         """``argv`` with its program named by the file this project runs for it.
 
         A bare command name is the only thing in question. Left as a name it is
@@ -94,7 +104,8 @@ class Spawner:
         arguments: a ``.bat`` or ``.cmd`` program is run by ``cmd.exe``, whose
         syntax nothing here quotes for (``batch_shell``). Both ways of arriving
         at a program pass through the refusal, since a part may name a batch
-        file by its path just as easily as by its name.
+        file by its path just as easily as by its name — and so do the ``tools``
+        this argv goes on to spawn, which are already files when they arrive.
         """
         found = (
             None
@@ -102,7 +113,7 @@ class Spawner:
             else tool_executable(argv[0], self.project_dir)
         )
         runnable = argv if found is None else [found, *argv[1:]]
-        batch_shell.refuse_unreadable_arguments(runnable)
+        batch_shell.refuse_unreadable_arguments([runnable[0], *tools], runnable[1:])
         return runnable
 
     def _spawned(self, argv: list[str], stdin: str) -> subprocess.CompletedProcess[str]:

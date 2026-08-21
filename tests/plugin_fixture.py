@@ -41,6 +41,21 @@ def loader_for(project_dir: Path) -> PluginLoader:
     return PluginLoader(Resolver.discover(project_dir), config)
 
 
+def one_transformer(project_dir: Path, recipe: str, plugin_toml: str = "") -> Part:
+    """The single transformer of a fixture plugin, as a run's loader builds it.
+
+    Resolved against the run's plugins rather than any one of them, which is how
+    a root transformer is reached (``sensors.run_sensors``).
+    """
+    write_project_config(project_dir, 'plugins = ["fixt"]')
+    write_plugin(
+        project_dir,
+        "fixt",
+        {"config.toml": f"sensors = []\n{plugin_toml}", "transformers/t.toml": recipe},
+    )
+    return loader_for(project_dir).resolve_part(["fixt"], "transformers", "t")
+
+
 def one_sensor(project_dir: Path, sensor_toml: str, plugin_toml: str = "") -> Part:
     """The single sensor of a fixture plugin, as a run's loader builds it.
 
