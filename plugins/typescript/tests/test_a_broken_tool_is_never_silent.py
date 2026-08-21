@@ -20,7 +20,9 @@ LINES, which does nothing at all to the single line ``eslint -f json`` emits.
 
 ``project_tool_probe`` is how the seam is asked; what it is asked about is
 here. That its two callers really ask is
-``test_both_node_sensors_refuse_alike.py``.
+``test_both_node_sensors_refuse_alike.py``, and what it makes of a tool cut
+down while reporting — a different fact on each platform — is
+``test_a_tool_killed_mid_report.py``.
 """
 
 from __future__ import annotations
@@ -31,25 +33,6 @@ from project_tool_probe import a_project_whose_tool, ask_the_seam, judge
 
 SAYS_NOTHING = "process.exit(2);\n"
 COMPLAINS = 'process.stderr.write("knip.json: line 3 is nonsense\\n");\nprocess.exit(2);\n'
-
-# Comfortably past a pipe's own 64KB buffer, so the report really is in flight
-# rather than sitting in the tool. Nothing here needs the megabytes the OOM
-# killer would really have let through: what matters is that the complaint does
-# not grow with it.
-PARTIAL_REPORT_BYTES = 100_000
-
-# A tool the OOM killer reached on a big repository, after it had flushed most
-# of a report: a large half-written stdout, a stderr holding nothing but
-# whitespace, and no exit code at all. `fs.writeSync` rather than
-# `process.stdout.write` so the bytes are really in the pipe before the signal
-# lands — a write still queued in the tool would make this case pass for the
-# wrong reason.
-KILLED_MID_REPORT = (
-    'const fs = require("node:fs");\n'
-    f'fs.writeSync(1, "[".padEnd({PARTIAL_REPORT_BYTES}, "x"));\n'
-    'fs.writeSync(2, "  \\n");\n'
-    'process.kill(process.pid, "SIGKILL");\n'
-)
 
 # A run `spawnSync` could not complete: no exit code, an error naming the node
 # it spawned rather than the tool, and whatever the tool got out before it went.
@@ -96,26 +79,6 @@ def test_a_tool_that_failed_without_a_word_is_named_along_with_its_exit(
 
     assert answer["broke"] is True
     assert answer["complaint"] == "wordless: exited 2 without a word of its own\n"
-
-
-def test_a_tool_killed_mid_report_is_named_along_with_the_signal(
-    tmp_path: Path,
-) -> None:
-    """The complaint stays one sentence, whatever the tool had already printed.
-
-    A killed tool leaves no exit code, so it has to be described by its signal;
-    its whitespace-only stderr is not words; and the report it was halfway
-    through is not a diagnosis. Carrying that report instead would put every
-    flushed byte into a reading agent's context, and it arrives as one line, so
-    nothing downstream can trim it.
-    """
-    project = a_project_whose_tool(tmp_path, "culled", KILLED_MID_REPORT)
-
-    answer = ask_the_seam(project, "culled")
-
-    assert answer["printed"] == PARTIAL_REPORT_BYTES, "the fixture never flushed"
-    assert answer["broke"] is True
-    assert answer["complaint"] == "culled: killed by SIGKILL without a word of its own\n"
 
 
 def test_a_tool_that_diagnosed_itself_is_quoted_in_its_own_words(

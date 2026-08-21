@@ -22,9 +22,27 @@ SENSORS = Path(__file__).parents[1] / "src" / "habit_hooks_typescript" / "sensor
 
 FAILS_WITHOUT_A_WORD = "process.exit(2);\n"
 
+# The one sentence both sensors owe a run whose output they cannot read.
+UNREADABLE = (
+    "{tool}: exited 1, and what it printed is not a report this sensor can read\n"
+)
+
 # A tool that thinks it succeeded and printed nothing at all. Both sensors ask
 # their tool for JSON, and `JSON.parse("")` is a SyntaxError.
 SUCCEEDS_WITHOUT_A_WORD = "process.exit(0);\n"
+
+# Half an array on stdout and exit 1. This is what a tool killed mid-report
+# looks like to its parent on Windows, where there are no signals and
+# `TerminateProcess` leaves an ordinary exit code — and 1 is the very code
+# eslint and knip use for "I found something to report", so nothing about the
+# run says it died. Written as a stub rather than a real kill so both
+# platforms answer the same case; the kill itself is
+# `test_a_tool_killed_mid_report.py`.
+PRINTS_HALF_A_REPORT = (
+    'const fs = require("node:fs");\n'
+    'fs.writeSync(1, \'[{"filePath":"/p/src/a.ts","messa\');\n'
+    "process.exit(1);\n"
+)
 
 
 def test_the_eslint_sensor_says_which_tool_failed(tmp_path: Path) -> None:
@@ -72,3 +90,28 @@ def test_an_eslint_that_reported_nothing_at_all_is_a_diagnosis_not_a_traceback(
 
     assert result.returncode != 0
     assert result.stderr == "eslint: exited 0 without a word of its own\n"
+
+
+def test_a_knip_whose_report_was_cut_short_is_a_diagnosis_not_a_traceback(
+    tmp_path: Path,
+) -> None:
+    """A report that is present and unreadable, which "without a word of its
+    own" would be a lie about — it printed plenty. Left to reach `JSON.parse`
+    it was an unhandled `SyntaxError` and a Node stack trace."""
+    project = a_project_whose_tool(tmp_path, "knip", PRINTS_HALF_A_REPORT)
+
+    result = run(["node", str(SENSORS / "knip.cjs")], project)
+
+    assert result.returncode != 0
+    assert result.stderr == UNREADABLE.format(tool="knip")
+
+
+def test_an_eslint_whose_report_was_cut_short_is_a_diagnosis_not_a_traceback(
+    tmp_path: Path,
+) -> None:
+    project = a_project_whose_tool(tmp_path, "eslint", PRINTS_HALF_A_REPORT)
+
+    result = run(["node", str(SENSORS / "eslint.cjs"), "--", "src/a.ts"], project)
+
+    assert result.returncode != 0
+    assert result.stderr == UNREADABLE.format(tool="eslint")

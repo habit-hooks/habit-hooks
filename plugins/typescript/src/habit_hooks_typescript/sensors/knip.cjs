@@ -266,30 +266,20 @@ function configMarksProduction(file) {
   );
 }
 
-function report(result) {
-  return JSON.parse(result.stdout);
-}
-
-// A run there is no report to read: broken, or a knip that exited cleanly
-// having printed nothing at all. `JSON.parse("")` is a SyntaxError, so that
-// second case reached the runner as a Node traceback rather than a diagnosis —
-// #142 one branch over. `eslint.cjs` asks the same question inline before it
-// parses, and both answer it in the seam's words.
-//
-// It stays out of `project_tool`: whether stdout should hold a JSON report is
-// the caller's business (`--reporter json` is knip's flag, not the spawner's),
-// where whether the run broke is the spawn's.
-//
-// The second half answers safely whatever it is handed, rather than leaning on
-// the first to have caught it: a spawn that never started has no `stdout`
-// string to trim. `broke` does catch every one of those — it reads `error` and
-// `status` and never a stream — so nothing can reach the `typeof` today, and
-// it is here for the same reason `project_tool.broke` keeps its own
-// unreachable `error` clause. Being total is what stops the order of the two
-// mattering, which no test could have told us about.
-function noReportFrom(result) {
-  if (projectTool.broke(result)) return true;
-  return typeof result.stdout !== "string" || result.stdout.trim() === "";
+// One knip pass: what it reported, or the sentence saying why there is nothing
+// to report. Exactly one of the two is set, and both answers come from the seam
+// so this sensor and `eslint.cjs` cannot drift into saying different things
+// about the same failure — which is what #142 was.
+function knipPass(args) {
+  const result = runKnip(args);
+  if (projectTool.broke(result)) {
+    return { complaint: projectTool.complaint(KNIP, result) };
+  }
+  const report = projectTool.readJsonReport(result.stdout);
+  if (report === null) {
+    return { complaint: projectTool.unreadableOutput(KNIP, result) };
+  }
+  return { report };
 }
 
 function refuse(complaint) {
@@ -300,15 +290,15 @@ function refuse(complaint) {
 function main() {
   const args = process.argv.slice(2);
   const config = configInForce(args);
-  const base = runKnip([...config.args, ...args]);
-  if (noReportFrom(base)) return refuse(projectTool.complaint(KNIP, base));
+  const base = knipPass([...config.args, ...args]);
+  if (base.complaint) return refuse(base.complaint);
   let production = null;
   if (configMarksProduction(config.file)) {
-    const pass = runKnip([...config.args, ...args, "--production"]);
-    if (noReportFrom(pass)) return refuse(projectTool.complaint(KNIP, pass));
-    production = report(pass);
+    const second = knipPass([...config.args, ...args, "--production"]);
+    if (second.complaint) return refuse(second.complaint);
+    production = second.report;
   }
-  process.stdout.write(JSON.stringify(findings(report(base), production)));
+  process.stdout.write(JSON.stringify(findings(base.report, production)));
   return 0;
 }
 

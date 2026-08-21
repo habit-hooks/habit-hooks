@@ -139,9 +139,48 @@ function howItEnded(result) {
 // so the cost is capped either way — but a reader would still be given a
 // truncated report where a reason belongs.
 function complaint(tool, result) {
-  if (spoke(result.stderr)) return result.stderr;
-  if (result.error != null) return `${tool}: ${result.error.message}\n`;
-  return `${tool}: ${howItEnded(result)} without a word of its own\n`;
+  return said(tool, result, `${howItEnded(result)} without a word of its own`);
 }
 
-module.exports = { run, broke, complaint };
+// The tool's own words if it got any out, and ours named for it if not.
+function said(tool, result, ours) {
+  if (spoke(result.stderr)) return result.stderr;
+  if (result.error != null) return `${tool}: ${result.error.message}\n`;
+  return `${tool}: ${ours}\n`;
+}
+
+// What to say when a run this seam calls FINE still left nothing to work with.
+// A tool that exited 0 or 1 has reported, as far as the spawn can tell, and
+// only its caller can find out that what it printed is not readable.
+//
+// Windows is what makes that a real failure rather than a tidy-up. It has no
+// signals: `process.kill` there is `TerminateProcess`, so a tool cut down
+// mid-report leaves an ordinary exit 1 — the same code eslint and knip use for
+// "I found something to report" — and its half-written array then reaches
+// `JSON.parse` as an unhandled `SyntaxError`. That is #142's own class one
+// branch further along, and the reason it is answered here rather than in
+// either caller.
+//
+// A tool that printed nothing at all gets the ordinary complaint: "without a
+// word of its own" is true of it, and false of one that flushed half a
+// megabyte before it died.
+function unreadableOutput(tool, result) {
+  if (!spoke(result.stdout)) return complaint(tool, result);
+  const ours = `${howItEnded(result)}, and what it printed is not a report this sensor can read`;
+  return said(tool, result, ours);
+}
+
+// The JSON a tool printed, or null when there is nothing there this sensor can
+// read — empty, cut short, or not a string at all. `JSON.parse` throwing is the
+// one failure a sensor must never let escape: the runner needs a sentence, and
+// a stack trace is the non-answer this whole seam exists to stop.
+function readJsonReport(stdout) {
+  if (typeof stdout !== "string") return null;
+  try {
+    return JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { run, broke, complaint, unreadableOutput, readJsonReport };

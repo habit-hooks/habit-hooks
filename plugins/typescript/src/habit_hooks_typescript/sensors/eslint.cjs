@@ -181,10 +181,10 @@ function main() {
   const files = argv.slice(boundary + 1).filter((file) => LINTABLE.test(file));
   if (files.length === 0) return emit([]);
   const result = lint(argv.slice(0, boundary), files);
-  if (projectTool.broke(result) || result.stdout.trim() === "") {
-    return refuse(projectTool.complaint(ESLINT, result));
-  }
-  return emit(findings(JSON.parse(result.stdout)));
+  if (projectTool.broke(result)) return refuse(projectTool.complaint(ESLINT, result));
+  const report = projectTool.readJsonReport(result.stdout);
+  if (report === null) return refuse(projectTool.unreadableOutput(ESLINT, result));
+  return emit(findings(report));
 }
 
 // Not process.exit(): stdout is a pipe under the runner and writes to it are

@@ -40,6 +40,8 @@ process.stdout.write(
     broke: projectTool.broke(result),
     complaint: projectTool.complaint(tool, result),
     printed: (result.stdout || "").length,
+    status: result.status ?? null,
+    signal: result.signal ?? null,
   }),
 );
 """

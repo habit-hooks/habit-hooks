@@ -26,6 +26,14 @@ rather than decided anywhere in this tool, so there is no seam ``on_windows``
 could flip. The two hosts answer for themselves, and each half of the story
 runs on the one that can tell it.
 
+Whether a process can be *signalled* is that kind of question too. POSIX ends
+one with a signal, so the parent reads ``status: null, signal: "SIGKILL"``;
+Windows has no signals at all, and Node's ``process.kill`` there calls
+``TerminateProcess``, leaving an ordinary ``status: 1`` and no signal — which is
+the very shape a successful findings run has. Nothing in this tool decides
+that, so there is no seam to flip: each host answers for itself, and each half
+of the story runs on the one that can tell it.
+
 ``A_MACHINE_THAT_CAN_MAKE_A_SYMLINK`` is the same kind of question one step
 further out: not what platform this is, but what this account is *allowed* to
 do on it. Windows grants symlink creation to an administrator and to Developer
@@ -83,6 +91,16 @@ def _symlinks_are_permitted_here() -> bool:
             return False
         return True
 
+
+A_MACHINE_WITH_SIGNALS = pytest.mark.skipif(
+    os.name == "nt",
+    reason="a killed process only carries a signal where the platform has them",
+)
+
+A_MACHINE_WITHOUT_SIGNALS = pytest.mark.skipif(
+    os.name != "nt",
+    reason="only Windows ends a process with TerminateProcess, leaving an exit code",
+)
 
 A_MACHINE_THAT_CAN_MAKE_A_SYMLINK = pytest.mark.skipif(
     not _symlinks_are_permitted_here(),
