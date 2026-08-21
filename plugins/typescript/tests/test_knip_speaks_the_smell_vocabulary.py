@@ -108,3 +108,34 @@ def test_dropping_an_untranslated_key_leaves_its_neighbours_alone(
 
     assert [f["smell"] for f in findings] == ["unused-file"]
     assert findings[0]["issues"][0]["key"] == "src/orphan.ts"
+
+
+def test_a_column_is_reported_under_the_name_the_contract_gives_it(
+    tmp_path: Path,
+) -> None:
+    """knip spells it `col`; every other sensor and the contract spell it `column`.
+
+    `docs/sensor-interface.spec.md` names `line` / `column` as an issue's
+    location, and forwarding knip's own spelling left that location invisible to
+    everything downstream that asks for it by name — a guide rendering a
+    position, and the mapper deciding whether two issues name one place.
+    Translating the tool's vocabulary is this sensor's job, and a field name is
+    vocabulary like any other.
+    """
+    findings = _findings(
+        tmp_path,
+        {
+            "files": [],
+            "issues": [
+                {
+                    "file": "src/a.ts",
+                    "exports": [{"name": "unused", "line": 3, "col": 14}],
+                }
+            ],
+        },
+    )
+
+    (issue,) = findings[0]["issues"]
+    assert issue["details"]["line"] == 3
+    assert issue["details"]["column"] == 14
+    assert "col" not in issue["details"]

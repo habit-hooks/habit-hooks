@@ -84,7 +84,7 @@ map-block), and the smell key each maps to.
 | `knip:classMembers`, `knip:enumMembers`           | `unused-class-member`       |
 | `knip:files`                                      | `unused-file`               |
 | `knip:exports`, `knip:types`, `knip:nsExports`, `knip:nsTypes` | `unused-export` |
-| `knip:dependencies`                               | `unused-dependency`         |
+| `knip:dependencies`, `knip:devDependencies`, `knip:optionalPeerDependencies` | `unused-dependency` |
 | `knip:production:*`                               | `test-only-dead-code`       |
 | `eslint:fatal`                                    | `parse-error`               |
 

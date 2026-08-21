@@ -63,6 +63,28 @@ const KNIP = "knip";
 const MANIFEST = "package.json";
 
 // The config this plugin ships, beside the sensors directory it runs from.
+//
+// Its `ignoreDependencies` overlooks the packages habit-hooks asked the project
+// to install: unimported, because habit-hooks is what uses them, knip called
+// every one dead weight and told the project to delete the tools it had just
+// been told to install (#143). The note lives here because JSON carries no
+// comment — `configMarksProduction` reads that file with `JSON.parse`.
+//
+// *Which* packages is deliberately not restated here.
+// `tests/test_the_shipped_knip_config_ignores_what_we_asked_for.py` derives
+// them from every plugin's declarations and fails on a list that gains a name
+// we never asked for or drops one we did — which a plugin gaining a
+// `node-module` detector will meet, and this paragraph never would.
+//
+// The trade the gate cannot see: three of those names are ours only sometimes.
+// jscpd is our footprint while the generic plugin is enabled, and the two
+// `@typescript-eslint` packages only while the project has no eslint config of
+// its own, since that is the only time the shipped one runs. No static config
+// can ask either question, so a project with its own eslint config that
+// abandons `@typescript-eslint/parser` is never told. Taken knowingly: the
+// suppression is exact rather than by prefix (`@typescript-eslint/utils` is
+// still reported), and missing one package beats telling every consumer to
+// uninstall what they just installed.
 const SHIPPED_CONFIG = path.join(__dirname, "..", "knip.json");
 
 // A file the --production pass must never call dead, because that pass ignores
@@ -124,7 +146,12 @@ function issueFrom(row, source) {
   const details = { file: row.file, source };
   if (row.name !== undefined) details.name = row.name;
   if (row.line !== undefined) details.line = row.line;
-  if (row.col !== undefined) details.col = row.col;
+  // knip spells it `col`; the sensor contract (docs/sensor-interface.spec.md)
+  // spells it `column`, as every other sensor does. Translating the tool's
+  // vocabulary is this sensor's job, and a field name is vocabulary too —
+  // forwarded raw, the position was invisible to everything downstream that
+  // asks for it by name.
+  if (row.col !== undefined) details.column = row.col;
   return { key: row.name ?? row.file, details };
 }
 

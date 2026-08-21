@@ -9,5 +9,12 @@
     "tests/**"
   ],
   "project": ["src/**/*.ts!", "src/**/*.tsx!"],
-  "ignore": ["dist/**"]
+  "ignore": ["dist/**"],
+  "ignoreDependencies": [
+    "eslint",
+    "ts-morph",
+    "@typescript-eslint/parser",
+    "@typescript-eslint/eslint-plugin",
+    "jscpd"
+  ]
 }
