@@ -98,6 +98,21 @@ uv tool install <the exact command about to be published>
 #133 and #134 without it; both reporters retested 1.3.1, and one reported a
 1.3.1 bug back as an rc failure.
 
+**`--force` is not enough either: it resolves from uv's cached index.** Anyone
+who installed the previous version minutes ago has a cache that predates the
+one just published, and uv answers `No solution found … there is no version of
+habit-hooks[typescript]==X.Y.Z` for a version sitting on PyPI. So the published
+command is
+
+```
+uv tool install --force --refresh 'habit-hooks[<extras>]==X.Y.Z'
+```
+
+and all three parts earn their place: the pin, because uv will not upgrade to a
+pre-release without one; `--force`, because it skips a tool already installed;
+`--refresh`, because its index cache does not know the release exists. rc3 was
+caught by this step, with the packages already live on PyPI.
+
 A fresh venv proves the package builds. It says nothing about the upgrade path,
 and the upgrade path is the only one a reader takes.
 
