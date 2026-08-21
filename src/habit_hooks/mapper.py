@@ -14,8 +14,16 @@ from pathlib import Path
 
 from .catalogue import incomplete_run_finding
 from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
-from .config import load_config
-from .rendering import Rendered, block, is_disabled, render_clean, render_finding
+from .config import Config, load_config
+from .merged_findings import merged
+from .rendering import (
+    Rendered,
+    block,
+    is_disabled,
+    render_clean,
+    render_finding,
+    resolve_guide,
+)
 from .resolve import Resolver
 
 EMPTY_STDIN_NOTICE = (
@@ -30,12 +38,23 @@ def write_stderr(rendered: list[Rendered]) -> None:
             sys.stderr.write(r.stderr)
 
 
+def coachable(findings: list[dict], config: Config, resolver: Resolver) -> list[dict]:
+    """The findings this run prints: what the project coaches, one per guide.
+
+    Two sensors seeing one smell are one finding by the time anything renders
+    (:mod:`habit_hooks.merged_findings`), and which guide each would render is
+    what decides who merges with whom.
+    """
+    coached = [f for f in findings if not is_disabled(f["smell"], config)]
+    return merged(coached, lambda f: resolve_guide(f, config, resolver))
+
+
 def run(
     findings: list[dict], project_dir: Path, config_path: Path | None = None
 ) -> int:
     config = load_config(project_dir, config_path)
     resolver = Resolver.discover(project_dir)
-    findings = [f for f in findings if not is_disabled(f["smell"], config)]
+    findings = coachable(findings, config, resolver)
     if not findings:
         clean = render_clean(config, resolver)
         sys.stdout.write(clean.text)

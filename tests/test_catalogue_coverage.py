@@ -5,7 +5,7 @@ with no ``guides/<smell>.md`` falls through to the one-size ``uncoached.md``,
 silently degrading the product. This test turns that gap into a build failure so
 it cannot reopen (#101).
 
-It routes each smell through the real ``rendering._resolve_guide`` against the
+It routes each smell through the real ``rendering.resolve_guide`` against the
 full installed plugin set, exactly as a live run would, and asserts the resolved
 guide is not the uncoached fallback.
 """
@@ -47,7 +47,7 @@ class Routing:
 
     def guide_for(self, smell: str, language: str | None) -> str:
         finding = {"smell": smell, "language": language, "details": {}, "issues": []}
-        return rendering._resolve_guide(finding, self.config, self.resolver).name
+        return rendering.resolve_guide(finding, self.config, self.resolver).name
 
 
 @pytest.mark.parametrize("smell", sorted(DEFAULT_SEVERITY))

@@ -144,7 +144,13 @@ def _refuse_unconfigured_runner(smell: str, guide: Path, extension: str) -> NoRe
     )
 
 
-def _resolve_guide(finding: dict, config: Config, resolver: Resolver) -> Path:
+def resolve_guide(finding: dict, config: Config, resolver: Resolver) -> Path:
+    """The guide a finding renders, off its smell and its language.
+
+    Public because the mapper asks it *before* rendering: findings that would
+    print the same guide are merged into one (:mod:`habit_hooks.merged_findings`),
+    and only this answers which those are.
+    """
     plugins = plugins_for_language(finding.get("language"), config)
     guide = resolver.first(plugins, guide_names(finding["smell"], config))
     if guide is None:
@@ -164,7 +170,7 @@ def _runner_for(config: Config, guide: Path, smell: str) -> str:
 def render_finding(finding: dict, config: Config, resolver: Resolver) -> Rendered:
     smell = finding["smell"]
     enforced = severity_of(smell, config) == ENFORCED
-    guide = _resolve_guide(finding, config, resolver)
+    guide = resolve_guide(finding, config, resolver)
     if guide.suffix == ".md":
         environment = include_environment(config.plugins, resolver)
         rendered = render_markdown(guide, finding, environment)

@@ -313,6 +313,88 @@ the repo's own 200-line `oversized-file` gate by it, which the dogfood step
 (`── smell (n issues) ──`, blank line, guide text). Format it anywhere else and
 a run's output drifts from a coached incomplete run's.
 
+### Findings that render the same guide are one finding (agent decision, issue #140)
+
+`merged_findings.merged()` is the third module across that same line: `mapper.run`
+folds findings together *before* `render_finding` sees any of them, so
+`rendering.py` still renders exactly one finding and knows nothing about this.
+Two sensors can see one smell (eslint's `max-lines` and generic's `line-count`
+both report `oversized-file`) and one sensor can report a smell many times over
+(jscpd emits a finding per clone), and the mapper prints one block per finding —
+so each of those was another copy of the same ~200-word guide.
+
+**The key is the smell AND the guide it resolves to, never the smell alone.** One
+guide printed twice is the whole waste being removed, so merging exactly what
+renders alike is correct by construction. Merging by smell alone is a
+*misrouting bug*: `high-complexity` routes to the python plugin's guide for a
+`.py` file and to generic's for a `.ts` one, and folding them together coaches a
+TypeScript file in Python (or silently drops a Python file's Python guidance,
+depending on plugin order). Keying on `language` instead fixes nothing, because
+`generic` declares none. The smell stays in the key for two reasons: a
+`[smells.<name>] guide` override can point two smells at one file and their
+banners still name them apart, and `rendering.severity_of` is per smell — keyed
+on the guide alone, a *suggested* finding could absorb an *enforced* one and
+lower the run's exit code. `merged` takes the resolution as a **callable**
+so it never learns about `Config` or `Resolver`; `rendering.resolve_guide` is
+public for that one caller, and the dependency stays one-way.
+
+Merging is the **mapper's**, never the sensors stage's: what a sensor emitted is
+the run's own record, read by `habit-snooze`, so a snooze key must not depend on
+who else saw the same file.
+
+**The merged finding's facts.** Issues concatenate in arrival order. A top-level
+key (`language`) is **first non-null** — the runner leaves it unset for
+`generic`, so a null must not out-rank a real answer. A smell-level `details`
+key is kept when only one finding states it (`line-count`'s `maxAllowed`) and
+**dropped when two state it differently**: jscpd's `lines`/`tokens` describe one
+clone pair, and publishing the first pair's numbers as the whole finding's would
+teach a wrong number where a missing key renders as nothing. No shipped guide
+reads finding-level `details` — every reference in `guides/**` is a per-issue
+value inside a loop over `issues` — but `docs/sensor-interface.spec.md` and
+`docs/habit-mapper.spec.md` both teach plugin authors to read it, and
+`render_runner` hands a fix runner the whole finding.
+
+**Deduplication is across findings only, never within one.** A sensor's own issue
+list is authoritative: it meant the seven long functions it reported. Three
+shipped sensors (`pmd`, `phpmd`, `comment`) key by file, give a line and give
+**no column**, so two of their issues on one line — `int a = 1, b = 2;`,
+`$a = 1; $b = 2;`, a block and a line comment — are one place to any identity
+built from the place alone, and only the tool's `message` tells them apart. #140
+is about two *sensors* reporting one thing, so each finding's own list is kept
+whole and only what an earlier finding already named is dropped.
+
+An issue is identified by its `key` and **the place it names**, and by nothing
+either tool said in its own voice: `source` and `message` disagree precisely
+because they are two tools. `PLACE_FIELDS` is `file`, `line`, `column`,
+`startLine`, `endLine` — the contract's own location fields plus the range
+`duplicated-code` spells instead of a line. Every one is load-bearing and has a
+test that dies without it. Widening the identity only ever keeps issues apart,
+which is the safe direction; narrowing it silently deletes findings.
+
+**Known consequence: `duplicated-code` loses its pairing.** jscpd emits a finding
+per clone pair, so three pairs merge into one six-entry list and which occurrence
+matched which is no longer visible. Accepted deliberately — the guide repeated
+per pair was the #140 complaint and the token saving is large, and arrival order
+keeps each pair adjacent in the list. Restoring the pairing means teaching the
+guide to group, not un-merging the finding.
+
+**A fix runner sees the merged finding, not the sensor's.** `render_runner` runs
+once per finding, so a runner judging what it is handed judges more issues than
+any one sensor reported — and its exit code sets whether the run blocks. Two
+`oversized-file` findings of one issue each, under a runner that fails only a
+single-issue finding, exit 1 before merging and 0 after. That is the intended
+semantics (one guide, one judgement), but it is consumer-visible, so a runner
+must be written against a whole smell rather than a single sensor's report.
+
+The other half is at the sensor: `eslint.cjs`'s `FILE_LEVEL_SMELLS` drops the
+position from a smell whose guide lists files rather than lines
+(`includes/file_level_issues.md`), because `max-lines` reports at the first line
+past the limit and `line-count` names no line at all — disagreeing there is what
+stopped the two being recognised as one observation. `parse-error` is file-level
+too and is deliberately **not** in that set: its position is where parsing really
+failed, and nothing else reports it about a file eslint can read. The keys stay,
+`null`, so an eslint issue's `details` keep one shape.
+
 ### What a failure *says* is `part_output.py`; how much of it is `diagnosis.py` (agent decision)
 
 `part_output.py` decides what a finished part's output means — which exit codes

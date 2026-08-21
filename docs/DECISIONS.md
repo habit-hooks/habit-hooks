@@ -444,7 +444,7 @@ mapping, config validation) are resolved and recorded above / in
   PHP-specific to say about an unused local.
 - **`tests/test_catalogue_coverage.py` is the gate that stops the gap
   reopening.** It routes every smell in `catalogue.DEFAULT_SEVERITY` through the
-  real `rendering._resolve_guide` against the full installed plugin set and fails
+  real `rendering.resolve_guide` against the full installed plugin set and fails
   if any renders `uncoached.md`. "Somebody notices missing coaching" is now a red
   build, not a bug report.
 - **`unused-export` stays `enforced` — deliberately, and this records why.** The

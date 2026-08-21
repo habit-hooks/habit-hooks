@@ -42,6 +42,19 @@ const SMELL_BY_RULE = new Map(
 // what this smell exists to report, so it is the one kept.
 const PARSE_ERROR = "parse-error";
 
+// A smell about the FILE, whose guide lists files rather than lines
+// (`includes/file_level_issues.md`). eslint still positions its message —
+// `max-lines` reports at the first line past the limit — but that is where its
+// counter tripped, not where the problem is, and carrying it is what stopped
+// the same file being recognised as one observation when the generic
+// `line-count` sensor reported the same smell about it (#140).
+//
+// `parse-error` is file-level too and is deliberately absent: its position is
+// where parsing actually failed, and no other sensor reports it about a file
+// eslint can read, so there is nothing to reconcile and real information to
+// lose.
+const FILE_LEVEL_SMELLS = new Set(["oversized-file"]);
+
 // The config this plugin ships, beside the sensors directory it runs from.
 const SHIPPED_CONFIG = path.join(__dirname, "..", "eslint.config.mjs");
 
@@ -102,13 +115,18 @@ function isReportable(message) {
 }
 
 function reported(file, message) {
+  const smell = smellOf(message);
+  // The keys stay whichever way, null where there is no position to give: every
+  // eslint issue's details carry them, and a key that disappears reads
+  // downstream as a different shape rather than as a missing value.
+  const positioned = !FILE_LEVEL_SMELLS.has(smell);
   return {
-    smell: smellOf(message),
+    smell,
     key: file,
     details: {
       file,
-      line: message.line ?? null,
-      column: message.column ?? null,
+      line: positioned ? (message.line ?? null) : null,
+      column: positioned ? (message.column ?? null) : null,
       message: message.message,
       source: `eslint:${message.ruleId ?? "fatal"}`,
     },
