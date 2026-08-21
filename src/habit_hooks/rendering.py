@@ -109,13 +109,26 @@ def render_markdown(guide: Path, finding: dict, environment: Environment) -> Ren
 
 
 def render_runner(guide: Path, runner: str, finding: dict) -> Rendered:
-    result = subprocess.run(
-        [runner, str(guide)],
-        input=json.dumps(finding),
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",  # sensors.spawn's policy
-    )
+    # A runner nobody installed is the same first-contact mistake as a sensor's
+    # missing tool, and #114's sweep reached the sensors stage but not here — so
+    # a typo in [runners] answered with a FileNotFoundError traceback, which
+    # `cli.run_console` does not catch. The guide is named beside the command
+    # because a project routes a smell to a runner by the guide's *extension*,
+    # so which file asked for this is the reader's next question.
+    try:
+        result = subprocess.run(
+            [runner, str(guide)],
+            input=json.dumps(finding),
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",  # sensors.spawn's policy
+        )
+    except OSError as refusal:
+        raise ToolError(
+            f"habit-mapper: guide {guide.name!r} runs through {runner!r}, which "
+            f"would not start ({refusal.strerror}) — install it, fix the "
+            f"[runners] entry, or route the smell to a .md guide"
+        ) from None
     return Rendered(
         text=result.stdout,
         blocks=result.returncode != 0,
