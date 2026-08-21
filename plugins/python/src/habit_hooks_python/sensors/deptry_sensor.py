@@ -13,28 +13,23 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tool_spawn import run_tool
 
+def run_deptry(deptry: str, report: Path) -> subprocess.CompletedProcess[str]:
+    """What deptry said, spawned as the file this sensor was handed for it.
 
-def run_deptry(report: Path) -> subprocess.CompletedProcess[str]:
-    """What deptry said, or what a shell says about a deptry nobody installed.
-
-    ``pip install habit-hooks-python`` brings neither detector with it, so this
-    is the ordinary state of a machine that has just enabled the plugin — and an
-    absent tool raised a ``FileNotFoundError`` out of here, making twenty lines
-    of Python internals the sensor's diagnosis (#114). This wrapper is what looks
-    for deptry, so it answers the way the shell would have, and that phrase is
-    what the run recognises to name the missing tool. Looking is ``tool_spawn``'s,
-    which names the file — a console script a project's own venv installed, which
-    Windows spells ``deptry.exe`` there and habit-hooks' venv may not hold at all.
+    ``sensors/deptry.toml`` names ``${detector:deptry}``, so the run resolves
+    deptry to a file before this helper starts and passes it as the first
+    argument — a console script the project's own venv installed, which
+    habit-hooks' venv may not hold at all and Windows spells ``deptry.exe``. A
+    deptry nobody installed never reaches here: the run answers for it as the
+    missing command it is, in one line rather than a traceback (#114).
     """
-    command = ["deptry", ".", "--json-output", str(report)]
-    try:
-        return run_tool(command)
-    except FileNotFoundError:
-        return subprocess.CompletedProcess(
-            command, 127, "", "deptry: command not found\n"
-        )
+    return subprocess.run(
+        [deptry, ".", "--json-output", str(report)],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def deptry_crashed(result: subprocess.CompletedProcess[str], report: Path) -> bool:
@@ -85,9 +80,10 @@ def findings(entries: list[dict]) -> list[dict]:
 
 
 def main() -> int:
+    deptry = sys.argv[1]
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "deptry-report.json"
-        result = run_deptry(report)
+        result = run_deptry(deptry, report)
         if deptry_crashed(result, report):
             if deptry_found_no_declaration(result):
                 print(json.dumps([]))

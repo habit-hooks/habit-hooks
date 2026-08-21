@@ -5,10 +5,11 @@ cases run the **actual** tool (PHPMD, bundled as a `.phar` next to the sensor)
 against a fixture with a known smell and assert the canonical finding comes out,
 mapped to the smell keys in [smell-vocabulary.md](smell-vocabulary.md).
 
-`habit-sensors` is the installed CLI; `php` is on the system `PATH`. The sensor
-runs `php phpmd.phar` with PHP error reporting silenced (PHP's deprecation
-notices would otherwise leak onto the JSON stdout) and normalises PHPMD's
-exit-2-on-violations into a clean run.
+`habit-sensors` is the installed CLI; `php` is on the system `PATH`. The plugin
+declares `php` as the one tool it needs, and the sensor is handed the file this
+project runs for it, so it runs `<php> phpmd.phar` with PHP error reporting
+silenced (PHP's deprecation notices would otherwise leak onto the JSON stdout)
+and normalises PHPMD's exit-2-on-violations into a clean run.
 
 📄.habit-hooks/config.toml
 ```toml
@@ -126,5 +127,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'phpmd' failed: '${python}' '${dir}/phpmd_sensor.py' '${files}'
+habit-sensors: sensor 'phpmd' failed: '${python}' '${dir}/phpmd_sensor.py' '${detector:php}' '${files}'
 ```

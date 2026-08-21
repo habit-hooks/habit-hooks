@@ -4,6 +4,12 @@ PHPMD exits 2 when it finds violations and 1 on a real error, so a bare pipe
 cannot tell a clean run from a crash. This wrapper runs PHPMD against the scoped
 files, treats only 0/2 as success, and shapes each rule into the canonical
 finding, mapping PHPMD rule names to smell keys.
+
+The plugin ships the phar but not the interpreter, so the sensor names
+``${detector:php}`` and its ``sys.argv[1]`` is the file this project runs for
+php — the scoped files follow it. A php nobody installed never reaches here at
+all: the part has no file for it, so the run answers with the missing-command
+notice before anything is spawned.
 """
 
 from __future__ import annotations
@@ -12,8 +18,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-
-from tool_spawn import run_tool
 
 RULE_SMELLS = {
     "ExcessiveParameterList": "too-many-parameters",
@@ -26,33 +30,31 @@ RULESETS = "codesize,unusedcode"
 SUCCESS_EXIT_CODES = (0, 2)
 
 
-def run_phpmd(files: list[str]) -> subprocess.CompletedProcess[str]:
-    """What PHPMD said, or what a shell says about a PHP nobody installed.
+def run_phpmd(php: str, files: list[str]) -> subprocess.CompletedProcess[str]:
+    """What PHPMD said, run by the ``php`` this project was handed.
 
-    The plugin ships the phar but not the interpreter, so ``php`` is the command
-    that goes missing — and an absent one raised a ``FileNotFoundError`` out of
-    here, making twenty lines of Python internals the sensor's diagnosis (#114).
-    This wrapper is what looks for php, so it answers the way the shell would
-    have, and that phrase is what the run recognises to name the missing tool.
-    Looking is ``tool_spawn``'s, which also stands between the scoped filenames
-    this passes on and a ``php`` some Windows distribution ships as a shim.
+    The file rather than the name: a name would be looked up again by the spawn,
+    and Windows' own lookup adds ``.exe`` and nothing else, where a distribution
+    may have installed php as a shim. PHP's own error reporting is silenced so
+    its deprecation notices cannot leak onto the JSON the phar prints.
     """
     phar = str(Path(__file__).with_name("phpmd.phar"))
-    command = [
-        "php",
-        "-d",
-        "error_reporting=0",
-        "-d",
-        "display_errors=0",
-        phar,
-        ",".join(files),
-        "json",
-        RULESETS,
-    ]
-    try:
-        return run_tool(command)
-    except FileNotFoundError:
-        return subprocess.CompletedProcess(command, 127, "", "php: command not found\n")
+    return subprocess.run(
+        [
+            php,
+            "-d",
+            "error_reporting=0",
+            "-d",
+            "display_errors=0",
+            phar,
+            ",".join(files),
+            "json",
+            RULESETS,
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",  # sensors.spawn's policy
+    )
 
 
 def violations(report: dict) -> list[dict]:
@@ -89,11 +91,11 @@ def findings(entries: list[dict]) -> list[dict]:
 
 
 def main() -> int:
-    files = sys.argv[1:]
+    php, files = sys.argv[1], sys.argv[2:]
     if not files:
         print("[]")
         return 0
-    result = run_phpmd(files)
+    result = run_phpmd(php, files)
     if result.returncode not in SUCCESS_EXIT_CODES:
         sys.stderr.write(result.stderr or result.stdout)
         return 2

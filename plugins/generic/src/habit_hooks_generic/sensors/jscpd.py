@@ -8,6 +8,10 @@ into a finding.
 The config it runs under is the project's whenever the project has one: the
 plugin's bundled ``.jscpd.json`` arrives as ``--fallback-config`` and is reached
 for only when jscpd's own discovery would come up empty.
+
+jscpd itself arrives as the first argument, already resolved to a file: the
+sensor's recipe names it (``${detector:jscpd}`` in ``jscpd.toml``) and the run
+hands over what this project runs for that name.
 """
 
 from __future__ import annotations
@@ -19,14 +23,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from tool_spawn import run_tool
-
 JSCPD_CONFIG = ".jscpd.json"
 PACKAGE_JSON = "package.json"
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("jscpd")
     parser.add_argument("--fallback-config", required=True)
     return parser.parse_args(argv)
 
@@ -82,21 +85,21 @@ def config_arguments(fallback: str, project: Path) -> list[str]:
     return ["--config", fallback, *scan_paths(fallback)]
 
 
-def run_jscpd(arguments: list[str], output: Path) -> subprocess.CompletedProcess[str]:
-    """What jscpd said, or what a shell says about a jscpd nobody installed.
+def run_jscpd(
+    jscpd: str, arguments: list[str], output: Path
+) -> subprocess.CompletedProcess[str]:
+    """What jscpd said, spawned as the file it was handed rather than by name.
 
-    This wrapper is what looks for jscpd — ``tool_spawn`` turns its name into
-    the file this project runs for it, which is the only spelling Windows can
-    spawn a ``jscpd.CMD`` shim by. An absent tool raised a ``FileNotFoundError``
-    out of here and twenty lines of Python internals became the sensor's
-    diagnosis (#114), so it answers the way the shell would have instead — and
-    that phrase is what the run recognises to name the missing tool.
+    A project that has no jscpd never reaches here: the run resolves the name
+    the recipe holds, and a name it cannot resolve fails the sensor as the
+    missing command it is, before anything is spawned.
     """
-    command = ["jscpd", "--reporters", "json", "--output", str(output)]
-    try:
-        return run_tool([*command, *arguments])
-    except FileNotFoundError:
-        return subprocess.CompletedProcess(command, 127, "", "jscpd: command not found\n")
+    return subprocess.run(
+        [jscpd, "--reporters", "json", "--output", str(output), *arguments],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",  # habit_hooks/sensors/spawn.py's policy
+    )
 
 
 def occurrence(side: dict) -> dict:
@@ -145,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = config_arguments(args.fallback_config, Path.cwd())
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp)
-        result = run_jscpd(arguments, output)
+        result = run_jscpd(args.jscpd, arguments, output)
         report = output / "jscpd-report.json"
         if result.returncode != 0 and not report.is_file():
             sys.stderr.write(result.stderr or result.stdout)

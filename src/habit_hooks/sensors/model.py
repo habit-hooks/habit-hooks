@@ -56,8 +56,7 @@ class Part:
         spawns it, handed the file for each tool its recipe names
         (``named_tools``). So a batch file among these decides how the arguments
         will be read exactly as ``argv[0]`` does, and the spawn answers for both
-        alike (``batch_shell``). No shipped sensor names a tool yet, so this is
-        empty for every one of them.
+        alike (``batch_shell``).
 
         Empty where the recipe is a ``command`` too: its arguments are words
         inside text a POSIX shell splits, not the two elements ``bash -c``

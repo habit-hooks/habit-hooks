@@ -789,56 +789,80 @@ The gate is `test_this_release_satisfies_the_floors_it_declares`, which asks
 `packaging`'s `SpecifierSet`/`Version` rather than reading the string — the same
 question pip asks, so it cannot answer differently.
 
-### A spawn never adds `.cmd` to a bare command name, so the name is resolved first (agent decision)
+### A sensor names the tool it wraps, and is handed the file that runs it (agent decision)
 
 Windows' `CreateProcess` appends `.exe` to a bare command name and nothing else,
 while `shutil.which` applies the whole of `PATHEXT`. Every Node tool a plugin
 wraps (`knip`, `eslint`, `jscpd`) is installed as a `.cmd` shim and `pmd` as a
 `.bat`, so `missing_tools` clears each of them and anything spawning them by
 name then answers `jscpd: command not found` with the tool sitting right there.
-`project_paths.tool_executable` is the single lookup both sides ask, and
-`sensors/spawn.Spawner._runnable` turns a part's bare `argv[0]` into that file
-before spawning it (agent decision) — the same code path on both platforms,
-because off Windows it names the very file the spawn's own search would have
-reached. Only a **bare** name is resolved: a path (`${python}`,
-`${dir}/helper.py`) is read against the directory the command runs in, which is
-the project and not this process's cwd, and every argument after the first is an
-argument whatever it looks like.
+`project_paths.tool_executable` is the single lookup everything asks.
 
-**That fixes only a part's own `argv[0]`, and no shipped sensor spells its
-wrapped tool there.** Every one is `argv = ["${python}", "${dir}/<helper>.py",
-...]` or `["node", "...cjs", ...]`, and the helper then spawns
-`jscpd`/`pmd`/`deptry`/`phpmd`/`knip`/`eslint` itself, one process further in —
-where the tools that actually go missing on Windows go missing. That spawn now
-goes through one of two seams, split by language, and they cannot be merged
-into one:
+**A part's own `argv[0]` is only half of it, and the half no shipped sensor
+uses.** Every one is `argv = ["${python}", "${dir}/<helper>.py", ...]` or
+`["node", "...cjs", ...]`, and the helper spawns `jscpd`/`pmd`/`php`/`deptry`/
+`ruff` itself, one process further in — where the tools that actually go missing
+on Windows go missing. `sensors/spawn.Spawner._runnable` still resolves a bare
+`argv[0]`, since off Windows it names the very file the spawn's own search would
+have reached; only a **bare** name is resolved, because a path (`${python}`,
+`${dir}/helper.py`) is read against the directory the command runs in, and every
+argument after the first is an argument whatever it looks like.
 
-- **The four Python plugins** (generic, java, php, python) share
-  `sensors/tool_spawn.py` — byte-identical copies. It runs `shutil.which(name)`
-  along the `PATH` habit-hooks hands the helper (the same `tool_search_path` a
-  part's own resolution asks, so it is not a second answer to that question),
-  then spawns whatever file that resolves to. It is four copies rather than one
-  shared module because every plugin's `pyproject.toml` declares
-  `dependencies = []`: none may import `habit-hooks`, or each other, so a
-  helper cannot reach a shared implementation living in the core or in a
-  sibling plugin — four copies is what "no dependency" costs, and
-  `tests/test_helpers_spawn_by_file.py::test_every_plugin_carries_the_same_copy`
-  is the gate that keeps them from drifting apart unnoticed.
-- **The TypeScript plugin** uses `sensors/project_tool.cjs` instead: it finds
-  the package under the project's own `node_modules`, reads its `bin` entry,
-  and runs that file with `process.execPath` — never spawned by name at all.
+The other process gets there by **naming the tool in the recipe**:
+`${detector:<name>}` (`sensors/named_tools.py`) expands to the file
+`tool_executable` answers with, for a tool the plugin declared in its
+`config.toml` `detectors` — the same list `missing_tools` cleared, so a tool a
+project was told it has is a file its sensors can be handed. Every shipped
+Python-plugin sensor that wraps a tool spells it — `line-count` wraps none —
+and each helper reads that file from `sys.argv[1]`, always the first argument
+after the script, so the five stay symmetric. Three things follow from the core
+holding it, rather than a helper:
 
-They cannot be unified. `shutil.which` finding a `.cmd` shim is no use to Node:
-`spawnSync` has refused to run a `.cmd` or `.bat` outright since its
-CVE-2024-27980 mitigation (`IsWindowsBatchFile` in `spawn_sync.cc`), still
-unconditional in Node 22 — and the `--security-revert` flag that once bypassed
-it was itself removed in Node 22.0.0, so there is no escape left to take.
-`shell: true` is not the way round it either: it hands the argv to `cmd.exe` to
-reparse, and a sensor's arguments are filenames straight out of a checked-out
-branch, which this repo treats as hostile (`tool_spawn.py`'s own batch-file
-guard exists for exactly that reason). Nor can Python take the Node route the
-other way: `CreateProcess` appends only `.exe` to a bare name, so a `.cmd` shim
-is reached only by looking it up first — which is what `shutil.which` is for.
+- A tool that is declared and simply absent is answered **before** the spawn
+  (`broken_part.run_part`), as the notice + failed run a missing command has
+  always been. A helper never sees it, so a helper cannot get it wrong.
+- Every program the arguments reach is asked whether `cmd.exe` would read them
+  (`batch_shell`), the named tool included — the guard that matters for `pmd.bat`.
+- A name no active plugin declares, or one declared `node-module`, is refused
+  when the config loads. Run-wide rather than per-plugin, because a root
+  transformer has no plugin of its own;
+  `tests/test_a_plugin_declares_the_tools_it_names.py` reads each plugin's own
+  specs against its own declarations so that breadth cannot hide a missing
+  declaration.
+
+This replaced four byte-identical `sensors/tool_spawn.py` copies — one per Python
+plugin, because every plugin's `pyproject.toml` declares `dependencies = []` and
+none may import `habit-hooks` or a sibling. That constraint is unchanged and is
+why the answer is a placeholder the core expands rather than a shared module: a
+recipe is data, and data crosses a boundary an import cannot.
+
+**The TypeScript plugin keeps `sensors/project_tool.cjs`**, and cannot use any of
+this. Its wrapped tools are `node-module` detectors, never spawned by name at
+all (`node` itself is a `command`, and is every one of its sensors' `argv[0]`):
+it finds the package under the project's own `node_modules`, reads its `bin`
+entry, and runs that file with `process.execPath`. `shutil.which` finding a
+`.cmd` shim is no use to Node — `spawnSync` has refused to run a `.cmd` or
+`.bat` outright since its CVE-2024-27980 mitigation (`IsWindowsBatchFile` in
+`spawn_sync.cc`), still unconditional in Node 22, and the `--security-revert`
+flag that once bypassed it was removed in Node 22.0.0. `shell: true` is not the
+way round it either: it hands the argv to `cmd.exe` to reparse, and a sensor's
+arguments are filenames straight out of a checked-out branch, which this repo
+treats as hostile.
+
+**What was given up.** A helper guards the whole command at the real spawn; the
+core can only guard what it can see, which is the part's own arguments. What a
+helper synthesises out of them is not covered — and some of that *is*
+branch-controlled: phpmd's `",".join(files)`, pmd's `-d <file>` per file, ruff's
+spliced `*files`. They are safe because the core checked each of those paths
+individually, against the named tool, before the helper reshaped them
+(`model.Part.tools_that_read_its_arguments`, `batch_shell`), and neither joining
+with a comma nor prefixing a flag can introduce a `cmd.exe` syntax character that
+was not already there. So a helper argument built from branch data still needs
+that question asked of it — do not read this as "helpers never touch branch
+data". What is genuinely unchecked is what never came from the branch at all:
+install paths, temp dirs, and a `path` read out of the config in force — jscpd's
+`--output <tempdir>`, pmd's ruleset path, phpmd's phar. That is why the trade is
+worth taking, but it is a trade and not a free win.
 
 ### `TimeoutExpired` carries no partial output at all on Windows
 

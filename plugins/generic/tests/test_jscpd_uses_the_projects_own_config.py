@@ -22,7 +22,6 @@ from pathlib import Path
 
 from jscpd_sensor import (
     A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG,
-    requires_jscpd,
     run_sensor,
     write_clones,
     write_json,
@@ -54,49 +53,59 @@ def _scanned(result) -> set[str]:
 
 
 @A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG
-def test_the_projects_own_jscpd_json_replaces_ours(tmp_path: Path) -> None:
-    requires_jscpd()
+def test_the_projects_own_jscpd_json_replaces_ours(tmp_path: Path, jscpd: str) -> None:
     project = _project(tmp_path)
     write_json(project / ".jscpd.json", {"path": ["lib"], "minLines": 5})
 
-    result = run_sensor(project, ["--fallback-config", str(_bundled_config(tmp_path))])
+    result = run_sensor(
+        project, jscpd, ["--fallback-config", str(_bundled_config(tmp_path))]
+    )
 
     assert result.returncode == 0, result.stderr
     assert _scanned(result) == {"lib"}
 
 
 @A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG
-def test_a_jscpd_key_in_package_json_replaces_ours(tmp_path: Path) -> None:
+def test_a_jscpd_key_in_package_json_replaces_ours(
+    tmp_path: Path, jscpd: str
+) -> None:
     """jscpd's other config home, so it has to be ours too."""
-    requires_jscpd()
     project = _project(tmp_path)
     write_json(project / "package.json", {"jscpd": {"path": ["lib"], "minLines": 5}})
 
-    result = run_sensor(project, ["--fallback-config", str(_bundled_config(tmp_path))])
+    result = run_sensor(
+        project, jscpd, ["--fallback-config", str(_bundled_config(tmp_path))]
+    )
 
     assert result.returncode == 0, result.stderr
     assert _scanned(result) == {"lib"}
 
 
-def test_a_package_json_without_a_jscpd_key_is_not_a_config(tmp_path: Path) -> None:
+def test_a_package_json_without_a_jscpd_key_is_not_a_config(
+    tmp_path: Path, jscpd: str
+) -> None:
     """Nearly every JS project has one; almost none of them configure jscpd."""
-    requires_jscpd()
     project = _project(tmp_path)
     write_json(project / "package.json", {"name": "example", "private": True})
 
-    result = run_sensor(project, ["--fallback-config", str(_bundled_config(tmp_path))])
+    result = run_sensor(
+        project, jscpd, ["--fallback-config", str(_bundled_config(tmp_path))]
+    )
 
     assert result.returncode == 0, result.stderr
     assert _scanned(result) == {"src"}
 
 
-def test_a_package_json_jscpd_cannot_parse_falls_back_to_ours(tmp_path: Path) -> None:
+def test_a_package_json_jscpd_cannot_parse_falls_back_to_ours(
+    tmp_path: Path, jscpd: str
+) -> None:
     """jscpd warns and carries on rather than dying, and so must the sensor."""
-    requires_jscpd()
     project = _project(tmp_path)
     (project / "package.json").write_text("{ not json", encoding="utf-8")
 
-    result = run_sensor(project, ["--fallback-config", str(_bundled_config(tmp_path))])
+    result = run_sensor(
+        project, jscpd, ["--fallback-config", str(_bundled_config(tmp_path))]
+    )
 
     assert result.returncode == 0, result.stderr
     assert _scanned(result) == {"src"}

@@ -41,12 +41,13 @@ def _vendored_sensor(project: Path) -> Path:
 
 
 def test_a_vendored_sensor_reports_a_smell_with_no_package_around_it(
-    tmp_path: Path,
+    tmp_path: Path, pmd: str
 ) -> None:
     (tmp_path / "Billing.java").write_text(FIVE_PARAMETER_METHOD, encoding="utf-8")
+    sensor = _vendored_sensor(tmp_path)
 
     result = subprocess.run(
-        [sys.executable, "-S", str(_vendored_sensor(tmp_path)), "--", "Billing.java"],
+        [sys.executable, "-S", str(sensor), pmd, "--", "Billing.java"],
         cwd=tmp_path,
         capture_output=True,
         encoding="utf-8",

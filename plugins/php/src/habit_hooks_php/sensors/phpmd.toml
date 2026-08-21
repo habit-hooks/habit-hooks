@@ -1,1 +1,1 @@
-argv = ["${python}", "${dir}/phpmd_sensor.py", "${files}"]
+argv = ["${python}", "${dir}/phpmd_sensor.py", "${detector:php}", "${files}"]

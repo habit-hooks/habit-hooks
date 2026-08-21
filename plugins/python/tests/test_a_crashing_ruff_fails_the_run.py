@@ -36,14 +36,14 @@ def test_any_other_exit_code_is_a_crash(returncode: int) -> None:
     assert ruff_crashed(_result(returncode)) is True
 
 
-def test_a_broken_ruff_toml_fails_the_run(tmp_path: Path) -> None:
+def test_a_broken_ruff_toml_fails_the_run(tmp_path: Path, ruff: str) -> None:
     (tmp_path / "ruff.toml").write_text(
         "this is not = valid ruff config\n", encoding="utf-8"
     )
     (tmp_path / "app.py").write_text("import os\n", encoding="utf-8")
 
     result = subprocess.run(
-        [sys.executable, str(SENSOR), "app.py"],
+        [sys.executable, str(SENSOR), ruff, "app.py"],
         cwd=tmp_path,
         capture_output=True,
         encoding="utf-8",

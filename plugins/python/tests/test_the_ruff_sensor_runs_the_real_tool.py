@@ -18,9 +18,9 @@ SENSOR = (
 )
 
 
-def _run(project: Path, *files: str) -> subprocess.CompletedProcess[str]:
+def _run(project: Path, ruff: str, *files: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(SENSOR), *files],
+        [sys.executable, str(SENSOR), ruff, *files],
         cwd=project,
         capture_output=True,
         encoding="utf-8",
@@ -28,23 +28,25 @@ def _run(project: Path, *files: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_a_clean_file_is_a_clean_run(tmp_path: Path) -> None:
+def test_a_clean_file_is_a_clean_run(tmp_path: Path, ruff: str) -> None:
     (tmp_path / "clean.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
 
-    result = _run(tmp_path, "clean.py")
+    result = _run(tmp_path, ruff, "clean.py")
 
     assert result.returncode == 0
     assert result.stderr == ""
     assert json.loads(result.stdout) == []
 
 
-def test_a_real_violation_comes_out_as_the_mapped_smell(tmp_path: Path) -> None:
+def test_a_real_violation_comes_out_as_the_mapped_smell(
+    tmp_path: Path, ruff: str
+) -> None:
     (tmp_path / "billing.py").write_text(
         "import os\n\n\ndef charge():\n    unused = 1\n    return 0\n",
         encoding="utf-8",
     )
 
-    result = _run(tmp_path, "billing.py")
+    result = _run(tmp_path, ruff, "billing.py")
 
     assert result.returncode == 0
     findings = json.loads(result.stdout)
@@ -54,10 +56,10 @@ def test_a_real_violation_comes_out_as_the_mapped_smell(tmp_path: Path) -> None:
     }
 
 
-def test_ruff_maps_a_syntax_error_to_parse_error(tmp_path: Path) -> None:
+def test_ruff_maps_a_syntax_error_to_parse_error(tmp_path: Path, ruff: str) -> None:
     (tmp_path / "broken.py").write_text("def broken(:\n    return 1\n", encoding="utf-8")
 
-    result = _run(tmp_path, "broken.py")
+    result = _run(tmp_path, ruff, "broken.py")
 
     assert result.returncode == 0
     findings = json.loads(result.stdout)

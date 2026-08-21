@@ -1,1 +1,1 @@
-argv = ["${python}", "${dir}/jscpd.py", "--fallback-config", "${dir}/../.jscpd.json"]
+argv = ["${python}", "${dir}/jscpd.py", "${detector:jscpd}", "--fallback-config", "${dir}/../.jscpd.json"]

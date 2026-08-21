@@ -1,10 +1,9 @@
 """Running the shipped jscpd sensor against a throwaway project.
 
-Shared by the two suites that drive the real tool: what the sensor *decides*
-(whose config is in play) and what it *concludes* (a run that failed is not a
-clean one). Both need jscpd on PATH, so both need the same skip and the same
-spawn, and neither is a spec case — a spec case runs in a temp project where
-jscpd is not installed.
+Shared by the suites that drive the real tool: what the sensor *decides* (whose
+config is in play), what it *concludes* (a run that failed is not a clean one),
+and which jscpd it spawns. They all need the same spawn, and the ``jscpd``
+fixture in ``conftest.py`` answers for the tool itself.
 """
 
 from __future__ import annotations
@@ -17,9 +16,10 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-SENSOR = _REPO_ROOT / "plugins/generic/src/habit_hooks_generic/sensors/jscpd.py"
-JSCPD_BIN = _REPO_ROOT / "node_modules" / ".bin"
+SENSOR = (
+    Path(__file__).resolve().parents[1]
+    / "src/habit_hooks_generic/sensors/jscpd.py"
+)
 
 CLONED_BLOCK = (
     "export function {name}(x: number, y: number) {{\n"
@@ -53,30 +53,21 @@ A_JSCPD_THAT_CAN_SCAN_FROM_A_CONFIG = pytest.mark.skipif(
 )
 
 
-def requires_jscpd() -> None:
-    if not (JSCPD_BIN / "jscpd").exists():
-        pytest.skip("jscpd is not installed at the repo root (pnpm install)")
-
-
 def run_sensor(
-    project: Path, arguments: list[str], path: str | None = None
+    project: Path, jscpd: str, arguments: list[str]
 ) -> subprocess.CompletedProcess[str]:
-    """The sensor's own run, from ``project``, with the real jscpd on PATH.
+    """The sensor's own run, from ``project``, handed ``jscpd`` to spawn.
 
-    ``path`` replaces that PATH outright, which is how the missing-tool case
-    proves what the sensor says when jscpd is nowhere to be found (#114).
+    The sensor names its tool (``${detector:jscpd}``) and a run resolves that to
+    a file before spawning it, so the file arrives first among its arguments.
+    This stands in for the run, and hands it over the same way.
     """
-    environment = dict(os.environ)
-    environment["PATH"] = (
-        path if path is not None else f"{JSCPD_BIN}{os.pathsep}{environment['PATH']}"
-    )
     return subprocess.run(
-        [sys.executable, str(SENSOR), *arguments],
+        [sys.executable, str(SENSOR), jscpd, *arguments],
         cwd=project,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
-        env=environment,
     )
 
 

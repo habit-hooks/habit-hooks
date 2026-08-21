@@ -24,8 +24,6 @@ import json
 import subprocess
 import sys
 
-from tool_spawn import run_tool
-
 SELECTED_CODES = "C901,PLR0913,PLR0915,F841,F401,BLE001"
 
 CODE_SMELLS = {
@@ -45,32 +43,21 @@ CODE_SMELLS = {
 TOOL_EXIT_CODES = (0, 1)
 
 
-def run_ruff(files: list[str]) -> subprocess.CompletedProcess[str]:
-    """What ruff said, or what a shell says about a ruff nobody installed.
+def run_ruff(ruff: str, files: list[str]) -> subprocess.CompletedProcess[str]:
+    """What ruff said, spawned as the file this sensor was handed for it.
 
-    ``pip install habit-hooks-python`` brings neither wrapped tool with it, so
-    this is the ordinary state of a machine that has just enabled the plugin —
-    and an absent tool raised a ``FileNotFoundError`` out of here, making
-    twenty lines of Python internals the sensor's diagnosis (#114). This
-    wrapper is what looks for ruff, so it answers the way the shell would
-    have, and that phrase is what the run recognises to name the missing
-    tool. Looking is ``tool_spawn``'s, which names the file — ``ruff.exe`` or
-    a ``.cmd`` shim on Windows, neither of which a bare ``["ruff", ...]``
-    spawn reliably reaches there.
+    ``sensors/ruff.toml`` names ``${detector:ruff}``, so the run resolves ruff
+    to a file before this helper starts and passes it as the first argument —
+    the ``ruff.exe`` a bare ``["ruff", ...]`` spawn misses on Windows. A ruff
+    nobody installed never reaches here at all: the run answers for it as the
+    missing command it is, in one line rather than a traceback (#114).
     """
-    command = [
-        "ruff",
-        "check",
-        "--output-format=json",
-        f"--select={SELECTED_CODES}",
-        *files,
-    ]
-    try:
-        return run_tool(command)
-    except FileNotFoundError:
-        return subprocess.CompletedProcess(
-            command, 127, "", "ruff: command not found\n"
-        )
+    return subprocess.run(
+        [ruff, "check", "--output-format=json", f"--select={SELECTED_CODES}", *files],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def ruff_crashed(result: subprocess.CompletedProcess[str]) -> bool:
@@ -113,8 +100,9 @@ def findings(entries: list[dict]) -> list[dict]:
 
 
 def main() -> int:
-    files = sys.argv[1:]
-    result = run_ruff(files)
+    ruff = sys.argv[1]
+    files = sys.argv[2:]
+    result = run_ruff(ruff, files)
     if ruff_crashed(result):
         sys.stderr.write(result.stderr)
         return 2

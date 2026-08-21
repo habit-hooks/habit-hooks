@@ -27,13 +27,12 @@ somebody else chose.
 No sensor anyone ships names its wrapped tool as its own ``argv[0]``: each is a
 helper that spawns it, so PMD's ``pmd.bat`` and the ``jscpd.CMD`` npm installs
 are a process further in than the spawn, where a guard reading ``argv[0]`` alone
-sees nothing. A recipe reaches that program by naming it (``named_tools``) and
-forwarding its arguments to it; no shipped sensor names one yet, so what is
-guarded here is still guarded for them by their plugin's own ``tool_spawn``
-copy. A tool counts as a
-program only where a plugin declared it and this project resolved it to a file
-(``Part.tools_that_read_its_arguments``) — an argument that merely ends ``.bat``
-is a source file out of the work tree, and data.
+sees nothing. A recipe reaches that program by naming it (``named_tools``), and
+every shipped sensor that wraps a spawned tool does — it is handed the file
+rather than the name. A tool counts as a program only where a plugin declared it
+and this project resolved it to a file (``Part.tools_that_read_its_arguments``) —
+an argument that merely ends ``.bat`` is a source file out of the work tree, and
+data.
 
 **The program's own name decides this, never the platform.** The extension is
 what sends a spawn through ``cmd.exe``, and it is the whole of what is knowable

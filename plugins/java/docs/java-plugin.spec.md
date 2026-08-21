@@ -211,5 +211,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'pmd' failed: '${python}' '${dir}/pmd_sensor.py' '${args}' -- '${files}'
+habit-sensors: sensor 'pmd' failed: '${python}' '${dir}/pmd_sensor.py' '${detector:pmd}' '${args}' -- '${files}'
 ```

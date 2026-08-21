@@ -4,9 +4,8 @@
 part's own program. No shipped sensor spells its tool there: each is a helper of
 its own, and the tool it spawns — PMD's ``pmd.bat``, npm's ``jscpd.CMD`` —
 reads those arguments one process further in, where reading ``argv[0]`` alone
-sees nothing at all. A recipe reaches that program by naming it
-(``${detector:<name>}``); no shipped sensor names one yet, so what is guarded
-here is still guarded for them by their plugin's own ``tool_spawn`` copy.
+sees nothing at all. Every one of them reaches that program by naming it
+(``${detector:<name>}``), which is what this file is about.
 
 Only a tool the config declared and this project resolved to a file counts as a
 program here. A scoped source file called ``build.bat`` is data, and refusing an

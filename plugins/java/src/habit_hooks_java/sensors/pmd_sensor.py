@@ -17,11 +17,12 @@ as another ``-R`` value (``-R ruleset.xml file.java`` analyses nothing), so the
 wrapper uses the short forms ``-R`` and per-file ``-d``, which do not. Verified
 against PMD 7.26.0.
 
-The sensor's own argv spells ``${args} -- ${files}``, so ``sys.argv[1:]``
-carries both halves of ``[sensors.pmd] args`` on one side of a literal ``--``
-and the scoped files on the other — that is what lets a project pass any PMD
-flag (``--aux-classpath``, ``--minimum-priority``, ...) through untouched
-instead of every argv token becoming a bogus ``-d`` file argument.
+The sensor's own argv spells ``${detector:pmd} ${args} -- ${files}``, so
+``sys.argv[1]`` is the file to run PMD by and ``sys.argv[2:]`` carries both
+halves of ``[sensors.pmd] args`` on one side of a literal ``--`` and the scoped
+files on the other — that is what lets a project pass any PMD flag
+(``--aux-classpath``, ``--minimum-priority``, ...) through untouched instead of
+every argv token becoming a bogus ``-d`` file argument.
 """
 
 from __future__ import annotations
@@ -32,7 +33,6 @@ import sys
 from pathlib import Path
 
 from pmd_ruleset import ruleset_of
-from tool_spawn import run_tool
 
 RULE_SMELLS = {
     "ExcessiveParameterList": "too-many-parameters",
@@ -54,22 +54,22 @@ METHOD_LEVEL_PREFIXES = ("The method", "The constructor")
 SUCCESS_EXIT_CODES = (0, 4)
 
 
-def run_pmd(arguments: list[str]) -> subprocess.CompletedProcess[str]:
-    """What PMD said, or what a shell says about a PMD nobody installed.
+def run_pmd(pmd: str, arguments: list[str]) -> subprocess.CompletedProcess[str]:
+    """What PMD said, run as the file this sensor was handed.
 
-    The plugin does not ship the distribution, so ``pmd`` is the command that
-    goes missing — and an absent one raised a ``FileNotFoundError`` out of
-    here, making twenty lines of Python internals the sensor's diagnosis
-    (#114). This wrapper is what looks for pmd, so it answers the way the
-    shell would have, and that phrase is what the run recognises to name the
-    missing tool. Looking is ``tool_spawn``'s: PMD ships ``pmd.bat``, which
-    Windows finds by a lookup and cannot spawn by name.
+    ``pmd`` is a file and never a name to look up. The plugin declares the tool
+    its sensor reaches for, and the run resolves that declaration to the very
+    file the setup cleared it by before spawning this helper — which is how the
+    ``pmd.bat`` PMD ships is reached on Windows, where a spawn adds ``.exe`` to
+    a bare name and nothing else. A PMD nobody installed never reaches here: the
+    sensor fails first, named, as the missing command it is.
     """
-    command = ["pmd", "check", "--no-cache", "--format", "json"]
-    try:
-        return run_tool([*command, *arguments])
-    except FileNotFoundError:
-        return subprocess.CompletedProcess(command, 127, "", "pmd: command not found\n")
+    return subprocess.run(
+        [pmd, "check", "--no-cache", "--format", "json", *arguments],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",  # one invalid byte must not take the sensor down
+    )
 
 
 def split_argv(argv: list[str]) -> tuple[list[str], list[str]]:
@@ -130,14 +130,14 @@ def findings(entries: list[dict]) -> list[dict]:
 
 
 def main() -> int:
-    argv = sys.argv[1:]
+    pmd, argv = sys.argv[1], sys.argv[2:]
     if not argv:
         print("[]")
         return 0
     pmd_args, files = split_argv(argv)
     ruleset, remaining_args = ruleset_of(pmd_args, Path.cwd())
     file_args = [token for file in files for token in ("-d", file)]
-    result = run_pmd(["-R", str(ruleset), *remaining_args, *file_args])
+    result = run_pmd(pmd, ["-R", str(ruleset), *remaining_args, *file_args])
     if result.returncode not in SUCCESS_EXIT_CODES:
         sys.stderr.write(processing_errors(result.stdout) or result.stderr or result.stdout)
         return 2

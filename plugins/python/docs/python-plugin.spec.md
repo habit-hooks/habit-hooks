@@ -337,7 +337,7 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'deptry' failed: '${python}' '${dir}/deptry_sensor.py'
+habit-sensors: sensor 'deptry' failed: '${python}' '${dir}/deptry_sensor.py' '${detector:deptry}'
 ```
 
 ## A crashing ruff fails the run, never reports clean
@@ -388,5 +388,5 @@ habit-sensors --all 2>&1 >/dev/null | sed -n 1p
 
 🖥️ ❌ 1
 ```text
-habit-sensors: sensor 'ruff' failed: '${python}' '${dir}/ruff_sensor.py' '${files}'
+habit-sensors: sensor 'ruff' failed: '${python}' '${dir}/ruff_sensor.py' '${detector:ruff}' '${files}'
 ```
