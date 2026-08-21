@@ -1,5 +1,67 @@
 # Changelog
 
+## 1.4.0rc3
+
+Reported by @imalliaras (#142) and @FrankRaiser (#140, #143). None of them is a
+Windows bug: all three reproduce on any platform, and were found there only
+because that is where these two were running.
+
+### Fixed
+
+- **A sensor no longer dies without a word when its tool has a lot to say.**
+  Node caps a captured stream at 1 MB unless told otherwise, and the eslint
+  sensor never told it otherwise: past that, the spawn came back with no exit
+  status, a truncated report and an empty stderr, and the sensor forwarded the
+  empty stderr. The whole notice was a command line. Around 100 files with
+  findings is enough to cross it, on any platform (#142). What a project tool's
+  run answered — how much of it there may be, whether it broke, and what to say
+  about it — is now one seam's question rather than each caller's, so the two
+  callers cannot answer it differently again. A complaint can no longer be empty.
+
+- **`--all` no longer scans what git ignores.** Every git-derived mode asks git
+  and so had never seen a build artifact; a whole-project run walked the
+  directory tree and measured everything it found. One project, two universes:
+  a real pnpm monorepo held 321 tracked `.ts`/`.tsx` files and 843 on disk, and
+  its owner had to hand-write `!**/dist/**` into `[files]` before a run was
+  usable (#142). A project git cannot answer for — outside a repository, on a
+  machine with no git, or one that is itself ignored by the repository around it
+  — still measures what is on disk, because a run that silently scans nothing is
+  worse than one that over-scans. A submodule's files leave the scope, as they
+  always had from every git-derived mode, and the run now says which submodule
+  rather than quietly measuring less.
+
+- **A scan that measured nothing says so.** A `[files]` that matches no file —
+  because it is too narrow, or because git ignores the tree it was written for —
+  used to render the clean guide over a run that had read nothing at all.
+
+- **A smell is coached once, not once per sensor that saw it.** Two sensors can
+  report one smell — eslint's `max-lines` and the line counter both mean
+  `oversized-file` — and the mapper printed a block per finding, so the same
+  ~200-word guide arrived twice (#140). Findings that resolve to the same guide
+  are now one finding. A sensor's own issue list is never thinned: two unused
+  variables declared on one line are still two.
+
+- **habit-hooks no longer reports its own tools as unused dependencies.** It
+  asks a project to install `eslint`, `knip`, `ts-morph`, `jscpd` and the two
+  `@typescript-eslint` packages, and then reported all of them as declared and
+  imported nowhere (#143). The shipped knip config overlooks them. A project
+  with its own knip config is unaffected, as it is for every other setting.
+
+- **A failing tool's own words are bounded within a line, not only across
+  lines.** The notice quoted back at most 20 lines and any number of bytes, and
+  `eslint -f json` is one line however many megabytes it holds — so a sensor
+  that died mid-report put the whole report into a coding agent's context. Both
+  ends of a long line now survive, with the middle named.
+
+- **A `[runners]` command nobody installed answers in one line.** Routing a smell
+  to an executable guide instead of a Markdown one, and naming a command that is
+  not there, printed a Python stack trace — the same first-contact mistake #114
+  answered everywhere else, in the one place that sweep did not reach.
+
+- **The knip sensor reports a column under the name the contract gives it.**
+  knip spells it `col`; every other sensor and `docs/sensor-interface.spec.md`
+  spell it `column`, so the position was invisible to anything asking by name.
+
 ## 1.4.0rc2
 
 Native Windows support. Reported by @FrankRaiser (#133) and @imalliaras (#134),

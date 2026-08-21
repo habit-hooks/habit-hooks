@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks-python"
-version = "1.4.0rc2"
+version = "1.4.0rc3"
 description = "The Python Habit Hooks plugin"
 readme = "README.md"
 license = "MIT"
