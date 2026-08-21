@@ -742,6 +742,52 @@ better than pinning it at all: nothing platform-specific is left to assert.
 
 ## Gotchas
 
+### Two agents running pytest in one checkout fail each other's tests
+
+Two suites keep their working state *inside the checkout* rather than in a
+per-test temp dir, so a second concurrent `uv run pytest` walks into the middle
+of the first one's run:
+
+- the spec harness runs every case in the shared `<repo>/.spec-runs/`
+  (`conftest.py::_case_root`), and
+- `tests/wheelhouse.py` builds the released wheels and installs them into
+  throwaway venvs, which `test_installed_wheel_smoke.py` and
+  `test_installed_plugin_packaging.py` then run.
+
+Both go red under concurrency and both pass on an unchanged re-run — 15 spec
+failures in one session, 6 packaging failures in another, none of them real. A
+**unit** failure in `tests/` is always real; a failure in either of those two is
+not evidence until it survives a re-run in a quiet tree. Give each agent its own
+worktree (`git worktree add ../habit-hooks-<task> -b <task> main`) when more than
+one will run the suite, and note that inside a worktree the jscpd gotcha below
+makes `uv run habit-hooks --all` prove nothing about duplication.
+
+### A throwaway git fixture names its directory, or it commits to THIS repo
+
+`GIT_CEILING_DIRECTORIES` is not the guard for a scratch script. It stops git
+walking *up* to find a repository — and a script whose working directory is
+already this checkout never needs it to. `git init` on an existing repository is
+a harmless re-init, so nothing refuses; the `git add -A` and `git commit` that
+follow land on the real thing. It has happened: 45 files of four agents'
+uncommitted work swept into a commit titled `init`, and the dogfood
+`.habit-hooks/config.toml` overwritten by the fixture's own.
+
+The shape that does it is a multi-line `bash` command where only the first line
+is guarded:
+
+    cd $SCRATCH/proj && git init -q && ...   # cd fails, the line is skipped
+    git add -A && git commit -m init         # no guard: runs HERE
+
+So: **every git command in a fixture spells `git -C <dir>`**, and a fixture
+never runs a bare `git` after a `cd`. A failed `cd` then targets nothing instead
+of targeting this repository. `git add -A` outside a `-C` is the specific thing
+to never write.
+
+Recovery, if it happens again: `git reset --mixed <the real HEAD>` keeps every
+change as a working-tree modification and loses nothing, because the accidental
+commit was `git add -A` and therefore captured everything. Then restore whatever
+the script overwrote from HEAD.
+
 ### A git-backed spec case without a ceiling can rewrite THIS repo
 
 The spec harness runs each case in `<repo>/.spec-runs/tmpXXXX/`, inside this
