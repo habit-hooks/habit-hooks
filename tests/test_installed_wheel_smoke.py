@@ -7,9 +7,9 @@ directory on disk — against a fixture with a known smell. A genuine finding mu
 come out, never the plugin-not-found error.
 
 What each *plugin* had to bring with it is ``test_installed_plugin_packaging``.
-Building and installing is ``installed_env``, the install itself ``conftest``,
-and the projects ``installed_projects``; this module is only what an installed
-run must produce.
+Building and installing is ``wheelhouse``, the install itself ``conftest``, the
+environment a run lands in ``installed_env``, and the projects
+``installed_projects``; this module is only what an installed run must produce.
 """
 
 from __future__ import annotations
@@ -19,14 +19,9 @@ from pathlib import Path
 
 import pytest
 from habit_hooks.project_paths import venv_executable
-from installed_env import (
-    build_wheels,
-    install_by_name,
-    installed_packages,
-    run_and_collect_findings,
-    without_python_on_path,
-)
+from installed_env import run_and_collect_findings, without_python_on_path
 from installed_projects import MAX_ALLOWED_LINES, OVERSIZED_LINES, oversized_project
+from wheelhouse import build_wheels, install_by_name, installed_packages
 
 # A plugin no wheel in this repo provides, so "you configured a plugin that is
 # not there" keeps meaning that however many plugins we ship.

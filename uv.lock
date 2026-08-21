@@ -74,7 +74,7 @@ wheels = [
 
 [[package]]
 name = "habit-hooks"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
@@ -112,6 +112,7 @@ dev = [
     { name = "habit-hooks-python" },
     { name = "habit-hooks-typescript" },
     { name = "markdown-it-py" },
+    { name = "packaging" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -142,33 +143,34 @@ dev = [
     { name = "habit-hooks-python", editable = "plugins/python" },
     { name = "habit-hooks-typescript", editable = "plugins/typescript" },
     { name = "markdown-it-py", specifier = ">=3" },
+    { name = "packaging", specifier = ">=24" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.15.20" },
 ]
 
 [[package]]
 name = "habit-hooks-generic"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "plugins/generic" }
 
 [[package]]
 name = "habit-hooks-java"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "plugins/java" }
 
 [[package]]
 name = "habit-hooks-php"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "plugins/php" }
 
 [[package]]
 name = "habit-hooks-python"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "plugins/python" }
 
 [[package]]
 name = "habit-hooks-typescript"
-version = "1.3.1"
+version = "1.4.0rc1"
 source = { editable = "plugins/typescript" }
 
 [[package]]

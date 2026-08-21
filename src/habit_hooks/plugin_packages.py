@@ -25,11 +25,12 @@ from . import resolve
 CORE_DISTRIBUTION = "habit-hooks"
 
 # A plugin's distribution, as a requirement of the core names it:
-# ``habit-hooks-generic~=1.0`` is the ``generic`` plugin.
+# ``habit-hooks-generic<2,>=1.4.dev0`` is the ``generic`` plugin.
 PLUGIN_REQUIREMENT = re.compile(rf"{CORE_DISTRIBUTION}-([a-z0-9-]+)")
 
 # What marks a requirement that arrives only when the brackets ask for it —
-# ``habit-hooks-python~=1.0; extra == 'python'`` — which is what brackets are for.
+# ``habit-hooks-python<2,>=1.4.dev0; extra == 'python'`` — which is what brackets
+# are for.
 EXTRA_MARKER = "extra =="
 
 

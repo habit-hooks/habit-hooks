@@ -730,17 +730,45 @@ its leg of the publish matrix fails while the rest succeed.
 
 Two things about a release that are silent when forgotten (agent decision):
 
-- The core floors each plugin at the release's own minor, so every `~=` pin in
-  the core's `pyproject.toml` moves on a minor bump.
+- The core floors each plugin at the release's own minor, so every plugin
+  specifier in the core's `pyproject.toml` moves on a minor bump.
   `pip install -U habit-hooks` upgrades a dependency only when the new core
   stops being satisfied by the installed one, so a floor left behind hands
   someone the new core with last release's plugins — where nearly every fix
-  lives. `tests/test_the_plugin_floor_tracks_the_release.py` gates both halves:
-  the floor tracks the version, and the plugins ship at it.
+  lives. `tests/test_the_plugin_floor_tracks_the_release.py` gates all three
+  halves: the floor tracks the version, the release satisfies its own floors,
+  and the plugins ship at it.
 - The `habit-hooks/homebrew-tap` bump belongs in a **pull request**, not a push
   to its `main`. `brew test-bot` builds bottles either way, but `publish.yml`
   (`brew pr-pull`) attaches them from a PR number — pushed straight to main,
   1.2.1 shipped with no bottles and every `brew install` builds from source.
+
+### A `~=<minor>` floor cannot ship a release candidate (agent decision, #133/#134)
+
+The floor is spelled `habit-hooks-<plugin>>=1.4.dev0,<2`, never `~=1.4`, and the
+reason only shows up at a tag. `~=1.4` **is** `>=1.4, ==1.*`, and by PEP 440
+ordering `1.4.0rc1` sorts *below* `1.4` — so a release candidate declares floors
+its own plugins cannot satisfy, and `pip install habit-hooks==1.4.0rc1` dies
+with `Could not find a version that satisfies the requirement
+habit-hooks-generic~=1.4` while `1.4.0rc1` is sitting in the listed versions.
+
+**No pre-release flag lifts it.** `--pre`, `--prerelease=allow` and
+`UV_PRERELEASE` were all measured and all ineffective: they are policy over
+*which candidates a resolver may consider*, and this is the specifier's own
+ordering excluding the version outright. Reach for the spelling, never a flag.
+
+`>=1.4.dev0,<2` loosens **only** the release candidates of `1.4.0` itself.
+Compared version by version against `~=1.4`, the two answers differ on
+`1.4.dev0`, `1.4.0a1` and `1.4.0rc1` and agree everywhere else: `1.3.1` and
+`1.3.2rc1` are still refused, `1.4.1rc1` and `1.5.0rc1` were already admitted by
+`~=1.4`, and `2.0.0rc1` is still refused (PEP 440 forbids `<V` matching a
+pre-release of `V` itself). The same spelling serves the rc and the final
+release, so nothing is rewritten between them — which is the point, since a
+floor rewritten at the tag is a floor nobody tests.
+
+The gate is `test_this_release_satisfies_the_floors_it_declares`, which asks
+`packaging`'s `SpecifierSet`/`Version` rather than reading the string — the same
+question pip asks, so it cannot answer differently.
 
 ### A spawn never adds `.cmd` to a bare command name, so the name is resolved first (agent decision)
 

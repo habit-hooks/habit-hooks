@@ -1,15 +1,16 @@
-"""Exercise habit-hooks as an *installed* tool rather than from the source tree.
+"""Run habit-hooks as an *installed* tool, and build the environment it sees.
 
-Builds this repo's wheels, installs them into a throwaway venv, and constructs
-the environment an installed run sees. That is the only way to catch the class
-of bug where everything works from a checkout and nothing works once packaged:
-plugins located by walking a sibling directory, package data that never made it
-into the wheel, a helper invoked as bare ``python``.
+Getting an install is ``wheelhouse``; this module is what happens next —
+running the installed console script against a project, and constructing the
+machine such a run lands on. Between them they catch the class of bug where
+everything works from a checkout and nothing works once packaged: plugins
+located by walking a sibling directory, package data that never made it into
+the wheel, a helper invoked as bare ``python``.
 
 The tests that assert what such a run must produce live in
 ``test_installed_wheel_smoke.py`` (the core finding its plugins) and
 ``test_installed_plugin_packaging.py`` (each plugin bringing what its sensors
-need); this module only gets them an install.
+need).
 """
 
 from __future__ import annotations
@@ -21,16 +22,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from habit_hooks.project_paths import venv_executable
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-
-
-def require_uv() -> str:
-    uv = shutil.which("uv")
-    if uv is None:
-        pytest.skip("uv is not on PATH")
-    return uv
 
 
 def require_tool(name: str) -> str:
@@ -44,51 +35,6 @@ def require_tool(name: str) -> str:
     if tool is None:
         pytest.skip(f"{name} is not on PATH")
     return tool
-
-
-def _uv_run(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [require_uv(), *args],
-        check=True,
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",  # sensors.spawn's policy
-    )
-
-
-def build_wheels(out_dir: Path, packages: tuple[str, ...]) -> None:
-    for package in packages:
-        subprocess.run(
-            [require_uv(), "build", "--wheel", "--package", package, "--out-dir", str(out_dir)],
-            cwd=REPO_ROOT,
-            check=True,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",  # sensors.spawn's policy
-        )
-
-
-def install_wheels(venv: Path, wheels_dir: Path) -> Path:
-    """Install every built wheel explicitly; returns the installed habit-sensors."""
-    _uv_run("venv", str(venv))
-    wheels = [str(path) for path in sorted(wheels_dir.glob("*.whl"))]
-    _uv_run("pip", "install", "--python", str(venv_executable(venv, "python")), *wheels)
-    return venv_executable(venv, "habit-sensors")
-
-
-def install_by_name(venv: Path, wheels_dir: Path, name: str) -> Path:
-    """Install one package *by name* off a local wheelhouse, so its declared
-    dependencies resolve the way a real ``pip install habit-hooks`` would."""
-    _uv_run("venv", str(venv))
-    _uv_run(
-        "pip", "install", "--python", str(venv_executable(venv, "python")),
-        "--find-links", str(wheels_dir), name,
-    )
-    return venv_executable(venv, "python")
-
-
-def installed_packages(python: Path) -> str:
-    return _uv_run("pip", "list", "--python", str(python)).stdout
 
 
 def run_and_collect_findings(

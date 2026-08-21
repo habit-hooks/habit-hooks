@@ -29,8 +29,8 @@ from pathlib import Path
 import pytest
 from habit_hooks import plugin_install, resolve
 from habit_hooks.plugin_install import UV_TOOL_RECEIPT, VENV_CONFIG
-from installed_env import build_wheels, install_wheels
 from plugin_fixture import write_plugin
+from wheelhouse import build_wheels, install_wheels
 
 # Every distribution this repo releases. A plugin left out of this tuple is a
 # plugin whose packaging nothing checks — which is how a Node helper that could

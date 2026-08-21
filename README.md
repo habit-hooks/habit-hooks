@@ -78,7 +78,8 @@ Steps 3 and 4 are per project.
 
 ### 1. Install habit-hooks
 
-A Python package, requires Python 3.11+:
+A Python package, requires Python 3.11+. macOS, Linux and native Windows — no WSL, no Git Bash, no shell of
+any kind:
 
 ```sh
 uv tool install habit-hooks

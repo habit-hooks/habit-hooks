@@ -1,6 +1,6 @@
 [project]
 name = "habit-hooks"
-version = "1.3.1"
+version = "1.4.0rc1"
 description = "Turn best-practice coding advice into AI habits — structural code-smell coaching for AI agents"
 readme = "README.md"
 license = "MIT"
@@ -38,23 +38,27 @@ requires-python = ">=3.11"
 # stops being satisfied by the installed one, so a floor that stays behind
 # leaves someone on the new core with last release's plugins — which is where
 # nearly every fix lives.
+# `>=1.4.dev0,<2` rather than `~=1.4`, which differs only in refusing the
+# release candidates of 1.4.0 itself: `1.4.0rc1` sorts *below* `1.4` by PEP 440
+# ordering, so an rc cannot satisfy its own floors and no pre-release flag lifts
+# it. See CLAUDE.md, "A `~=<minor>` floor cannot ship a release candidate".
 dependencies = [
     "jinja2>=3",
     "pathspec>=0.12",
     "attrs>=23",
-    "habit-hooks-generic~=1.3",
+    "habit-hooks-generic>=1.4.dev0,<2",
 ]
 
 [project.optional-dependencies]
-python = ["habit-hooks-python~=1.3"]
-typescript = ["habit-hooks-typescript~=1.3"]
-php = ["habit-hooks-php~=1.3"]
-java = ["habit-hooks-java~=1.3"]
+python = ["habit-hooks-python>=1.4.dev0,<2"]
+typescript = ["habit-hooks-typescript>=1.4.dev0,<2"]
+php = ["habit-hooks-php>=1.4.dev0,<2"]
+java = ["habit-hooks-java>=1.4.dev0,<2"]
 all = [
-    "habit-hooks-python~=1.3",
-    "habit-hooks-typescript~=1.3",
-    "habit-hooks-php~=1.3",
-    "habit-hooks-java~=1.3",
+    "habit-hooks-python>=1.4.dev0,<2",
+    "habit-hooks-typescript>=1.4.dev0,<2",
+    "habit-hooks-php>=1.4.dev0,<2",
+    "habit-hooks-java>=1.4.dev0,<2",
 ]
 
 [project.urls]
@@ -90,6 +94,8 @@ habit-hooks-java = { workspace = true }
 dev = [
     "pytest>=8",
     "markdown-it-py>=3",
+    # The floor gate asks pip's own question of this repo's own specifiers.
+    "packaging>=24",
     "ruff>=0.15.20",
     "deptry>=0.25.1",
     "habit-hooks-generic",

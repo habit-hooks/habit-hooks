@@ -1,5 +1,65 @@
 # Changelog
 
+## 1.4.0rc1
+
+Native Windows support. Reported by @FrankRaiser (#133) and @imalliaras (#134),
+neither of whom could get a run to complete.
+
+### Fixed
+
+- **habit-hooks runs on native Windows.** Every sensor was spawned through
+  `bash -c`, which Windows has not got — and where `bash` does resolve there it
+  is usually `C:\Windows\System32\bash.exe`, the WSL launcher, which answers
+  about a different filesystem. Nine of the eleven shipped sensors and
+  transformers never needed a shell; the other two only needed one to reach
+  `jq`. All eleven now spell `argv` and are spawned directly.
+
+- **Nothing decodes in the console's codepage any more.** Every guide, config
+  and spec file this tool reads is UTF-8 and now says so. On a cp1252 console
+  the first guide it rendered killed the run with a `UnicodeDecodeError` (#133);
+  the same bug hit any non-UTF-8 locale, including `LC_ALL=C` on Linux. The
+  streams it writes are UTF-8 too, so a printed block's box-drawing characters
+  cannot fail on the way out.
+
+- **A tool installed as `.cmd` or `.bat` is found.** Windows appends only `.exe`
+  to a bare command name, so `jscpd.CMD`, `knip.cmd` and `pmd.bat` were cleared
+  at setup and unreachable at run time. One lookup now answers both questions.
+
+- **`init` no longer offers an install it cannot run.** Its install command went
+  through `shell=True`, which on Windows is `cmd.exe`, and `cmd.exe` does not
+  understand the quotes in `uv tool install 'habit-hooks[python]'`.
+
+- **A wedged sensor still says why.** Windows raises its timeout carrying no
+  output at all, so the notice quoted back nothing where the tool had explained
+  itself.
+
+### Changed
+
+- **`jq` is no longer a dependency of any plugin.** The `ruff` and `eslint`
+  sensors piped their tool through it; both are now helpers beside their spec,
+  like every other sensor here. The only install hint we could offer was
+  `brew install jq`.
+
+- **A sensor spec may spell `argv = [...]`.** It is spawned as written, with no
+  shell, and it is the only form that runs on native Windows. `command = "..."`
+  remains for a plugin needing syntax a list cannot carry, and is refused off
+  POSIX rather than spawned into a shell that is not there.
+
+- **`eslint` and `knip` are found in the project, not on `PATH`.** They are
+  resolved from `node_modules` and run through Node directly, so a globally
+  installed copy is no longer used — the shipped eslint config could never have
+  worked with one, since it resolves its plugins from the project. `init` names
+  `npm install --save-dev eslint knip` when they are missing.
+
+- **An argument that `cmd.exe` would read as syntax is refused.** A `.bat` or
+  `.cmd` is run through `cmd.exe`, and sensor arguments are filenames out of
+  whatever branch is checked out.
+
+### Known limits
+
+- The executable documentation under `docs/` is POSIX shell and is skipped on
+  Windows (#137). The tool's own test suite runs there in full.
+
 ## 1.3.1
 
 Discoverability and documentation. No behaviour changes.
