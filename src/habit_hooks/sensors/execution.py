@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..argv_budget import argument_budget, argument_cost, within_argument_limits
-from ..scope import Scope, matching
+from ..path_globs import matching
+from ..scope import Scope
 from .broken_part import run_part
 from .command_text import expanded, spelled_files, spells
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS

@@ -26,6 +26,13 @@ rather than decided anywhere in this tool, so there is no seam ``on_windows``
 could flip. The two hosts answer for themselves, and each half of the story
 runs on the one that can tell it.
 
+``A_MACHINE_THAT_CAN_MAKE_A_SYMLINK`` is the same kind of question one step
+further out: not what platform this is, but what this account is *allowed* to
+do on it. Windows grants symlink creation to an administrator and to Developer
+Mode and to nobody else, so the two Windows machines disagree with each other —
+which is why it is settled by trying it once here rather than by reading
+``os.name``, and why a machine that can do it runs the case wherever it is.
+
 The recorders below stand in for the two ways a command is ended. Neither can be
 let run: ``os.killpg`` would signal a real process group — pid 4321 is somebody
 — and ``taskkill`` does not exist off Windows at all.
@@ -35,6 +42,8 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -54,6 +63,35 @@ A_MACHINE_THAT_SPELLS_A_COMMAND_ITSELF = pytest.mark.skipif(
 A_MACHINE_THAT_DOES_NOT = pytest.mark.skipif(
     os.name == "nt",
     reason="everywhere else a command is the filename it is, and a shebang runs",
+)
+
+
+def _symlinks_are_permitted_here() -> bool:
+    """Whether this machine will let a test create a symlink at all.
+
+    Tried rather than inferred. Windows needs ``SeCreateSymbolicLinkPrivilege``
+    to make one — held by an administrator, and by any account with Developer
+    Mode switched on, but by nobody else — so ``os.name`` answers the wrong
+    question twice over: it would skip a privileged Windows machine that can
+    run the case perfectly well, and it says nothing about a POSIX filesystem
+    that refuses one.
+    """
+    with tempfile.TemporaryDirectory() as scratch:
+        try:
+            Path(scratch, "probe").symlink_to(scratch)
+        except (OSError, NotImplementedError):
+            return False
+        return True
+
+
+A_MACHINE_THAT_CAN_MAKE_A_SYMLINK = pytest.mark.skipif(
+    not _symlinks_are_permitted_here(),
+    reason=(
+        "creating a symlink needs SeCreateSymbolicLinkPrivilege on Windows, so "
+        "a symlinked node_modules — pnpm's ordinary layout, and the shape issue "
+        "#142 came from — is unmeasured on a machine without it (see #137 for "
+        "why a platform gap is skipped out loud rather than passed over)"
+    ),
 )
 
 

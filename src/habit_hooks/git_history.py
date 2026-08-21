@@ -1,5 +1,5 @@
-"""Ask git where a branch left its base ref, which paths differ since, and which
-files the project keeps at all.
+"""Ask git what it remembers: where a branch left its base ref, and which paths
+differ since.
 
 Two callers put the same question in the same words — a scoped run
 (``scope.py``) and a lapsing snooze (``changed_files.py``) — and they differ only
@@ -8,15 +8,21 @@ in what they make of silence. The facts live here so there is one answer:
 snooze, and a flag this module gets right cannot be missing from the other
 caller. Each caller keeps its own policy for the two silences: a directory git
 cannot place, and a ref a real repository does not have.
+
+What git says about the working tree *as it stands* — which files the project
+holds, which of them it ignores — is ``git_listing``, asked from here only to
+widen a diff with the untracked work it cannot name. How any of it is spawned is
+``git_command``'s, one module further down.
 """
 
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Collection
 from pathlib import Path
 
 from .argv_budget import within_argument_limits
+from .git_command import git, git_output, git_succeeded
+from .git_listing import untracked_paths
 
 
 def places_directory(project_dir: Path) -> bool:
@@ -26,8 +32,7 @@ def places_directory(project_dir: Path) -> bool:
     to ask. Neither is a mistake a message could help with, so each caller
     degrades rather than failing on it.
     """
-    placed = _run(project_dir, "rev-parse", "--is-inside-work-tree")
-    return placed is not None and placed.returncode == 0
+    return git_succeeded(project_dir, "rev-parse", "--is-inside-work-tree")
 
 
 def resolves(project_dir: Path, ref: str) -> str | None:
@@ -37,7 +42,7 @@ def resolves(project_dir: Path, ref: str) -> str | None:
     branch changed nothing" — a clean run over an unscanned tree.
     ``--verify --quiet`` is what tells the two apart.
     """
-    verified = _run(project_dir, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    verified = git(project_dir, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
     if verified is None or verified.returncode != 0:
         return None
     return verified.stdout.strip()
@@ -53,12 +58,12 @@ def forked_at(project_dir: Path, ref: str, tip: str) -> str:
     name, and the ref's own tip is then the only comparison there is; comparing
     against nothing would scope a run to nothing.
     """
-    return _stdout(project_dir, "merge-base", ref, "HEAD") or tip
+    return git_output(project_dir, "merge-base", ref, "HEAD") or tip
 
 
 def head_branch(project_dir: Path) -> str:
     """The branch ``HEAD`` is on, or empty when it is not on one."""
-    return _stdout(project_dir, "rev-parse", "--abbrev-ref", "HEAD")
+    return git_output(project_dir, "rev-parse", "--abbrev-ref", "HEAD")
 
 
 def empty_tree(project_dir: Path) -> str:
@@ -68,7 +73,7 @@ def empty_tree(project_dir: Path) -> str:
     spelling, and a SHA-256 repository has its own. Diffing against it is how a
     history shorter than the question gets answered with all of itself.
     """
-    return _stdout(project_dir, "hash-object", "-t", "tree", "--stdin")
+    return git_output(project_dir, "hash-object", "-t", "tree", "--stdin")
 
 
 def changed_paths(
@@ -98,49 +103,6 @@ def changed_paths(
     ]
 
 
-def untracked_paths(project_dir: Path) -> list[str]:
-    """New files git is not tracking and not ignoring, in the project's own terms.
-
-    ``git diff`` never names an untracked path, so the file just written — the one
-    most likely to carry a smell — is the file a diff-built scope cannot see.
-    """
-    return _listed_files(project_dir, "--others")
-
-
-def project_files(project_dir: Path) -> list[str]:
-    """Every file this project keeps: what git tracks, plus what it has just
-    written and does not ignore.
-
-    What a project ignores is not its own, and nothing else knows that as
-    cheaply: a ``node_modules`` full of ``.d.ts`` would otherwise answer for what
-    language a project is written in. Outside a repository — and where there is
-    no git to ask — the answer is empty, the silence every question here
-    degrades to.
-    """
-    return _listed_files(project_dir, "--cached", "--others")
-
-
-def _listed_files(project_dir: Path, *selectors: str) -> list[str]:
-    """What ``git ls-files`` names under ``selectors``, in the project's own terms.
-
-    ``--exclude-standard`` keeps ignored files out: a build artifact is neither
-    work in progress nor source. ``-z`` stops a non-ASCII name being quoted (and
-    then matching nothing), and ``--literal-pathspecs`` keeps a path a plain path
-    — the same guards the batched diff needs. Run inside ``project_dir``,
-    ``ls-files`` names paths relative to it, matching ``--relative`` on the diffs
-    they unite with.
-    """
-    named = _stdout(
-        project_dir,
-        "--literal-pathspecs",
-        "ls-files",
-        *selectors,
-        "--exclude-standard",
-        "-z",
-    )
-    return [path for path in named.split("\0") if path]
-
-
 def uncommitted_changes(project_dir: Path) -> list[str]:
     """The work in progress a commit-to-commit diff misses: staged and unstaged
     edits to tracked files, and brand-new untracked files.
@@ -159,7 +121,7 @@ def uncommitted_changes(project_dir: Path) -> list[str]:
 def _diff_names(
     project_dir: Path, revisions: Collection[str], pathspecs: Collection[str]
 ) -> list[str]:
-    named = _stdout(
+    named = git_output(
         project_dir,
         "--literal-pathspecs",
         "diff",
@@ -171,30 +133,3 @@ def _diff_names(
         *pathspecs,
     )
     return [path for path in named.split("\0") if path]
-
-
-def _run(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str] | None:
-    """``git <args>`` in the project, or ``None`` when git could not be run at all.
-
-    Every call is handed an empty stdin: ``hash-object --stdin`` needs one, and
-    no other question here reads input, so none of them can sit waiting for it.
-    """
-    try:
-        return subprocess.run(
-            ["git", *args],
-            cwd=project_dir,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",  # sensors.spawn's policy
-            input="",
-        )
-    except OSError:
-        return None
-
-
-def _stdout(project_dir: Path, *args: str) -> str:
-    """``git <args>`` output, or empty on any failure — the safe degrade."""
-    result = _run(project_dir, *args)
-    if result is None or result.returncode != 0:
-        return ""
-    return result.stdout.strip()

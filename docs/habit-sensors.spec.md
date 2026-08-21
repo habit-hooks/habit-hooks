@@ -1254,12 +1254,17 @@ command = "cat ${dir}/clean.json"
 { "compilerOptions": { "strict": true } }
 ```
 
+This project's `[files]` names `**/*.py` and it has no Python in it, so the run
+also says it measured nothing — a scan that found no files must never be
+mistaken for a scan that found no problems.
+
 ```bash
 habit-sensors --all 2>&1 >/dev/null
 ```
 
 🖥️ ✅
 ```text
+habit-sensors: nothing matched [files] — check it in .habit-hooks/config.toml, and whether git ignores the paths you expected; nothing scanned
 habit-sensors: detected typescript; the typescript plugin is installed but not enabled — add "typescript" to `plugins` in .habit-hooks/config.toml
 ```
 
@@ -1304,13 +1309,23 @@ comes from the `[scope]` config.
 
 | Flag | Scope |
 |------|-------|
-| `--all` | every file |
+| `--all` | every file the project keeps |
 | `--file <path>` | a single file |
 | `--branch [base]` | changed since this branch left `base` (default `scope.branchBase`) |
 | `--last <n>` | changed in the last `n` commits |
 | `--since <ref>` | changed since a commit |
 | `--config <path>` | use an explicit config file |
 | (none) | `scope.changedOnly` → uncommitted; else `scope.autoBranchOffMain` → vs base unless on `scope.mainBranch`; else all |
+
+"Every file the project keeps" means what git keeps: everything tracked, plus
+everything just written that is not ignored. So `dist/`, `.next/` and a tool
+cache are out of `--all` for the same reason they were always out of `--last 1`
+— no mode measures a file another mode cannot see. A submodule is another
+repository and gates itself, so its files are not scanned here either; the run
+names each one it left out on stderr, so a scan that shrank never passes for a
+scan that found nothing wrong. Outside a git repository, or with no git
+installed, `--all` falls back to walking the directory tree, because a run that
+scanned nothing must never look clean.
 
 A git-mode flag run outside a git repository errors; the config-derived modes
 fall back to scanning every file instead. A ref a *real* repository does not have
@@ -1513,6 +1528,63 @@ habit-sensors --all
 🚨
 ```text
 habit-sensors: no [files] are configured — name what to scan in .habit-hooks/config.toml; nothing scanned
+```
+
+### A whole-project scan skips what git ignores
+
+`--all` measures what the project keeps, so a build artifact it told git to
+forget is not scanned — even when `[files]` is wide enough to match it. Coaching
+a generated file helps nobody: nobody edits it, and the fix is in whatever
+generated it (#142).
+
+This case builds its own repository, for the reason the next section explains in
+full: without `git init` and a ceiling, git answers about habit-hooks itself.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["**/*.txt"]
+```
+
+📄.gitignore
+```text
+dist/
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄dist/built.txt
+```text
+built
+```
+
+```bash
+git init -q -b main . &&
+  git config user.email spec@example.com &&
+  git config user.name "Spec Runner" &&
+  git config commit.gpgsign false &&
+  git add src .gitignore &&
+  git commit -q -m baseline
+```
+
+`dist/built.txt` is on disk and matches `[files]`, so only git's opinion keeps it
+out of the scan.
+
+```bash
+habit-sensors --all | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/a.txt"]
 ```
 
 ### Git-derived scopes

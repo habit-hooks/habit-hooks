@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from git_repo import commit_file, git, repository_with_committed_file
-from habit_hooks import git_history
+from habit_hooks import git_command
 from habit_hooks.changed_files import changed_against_base
 
 
@@ -31,7 +31,7 @@ def _recorded_diffs(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
             calls.append(tuple(args))
         return spawn(args, **spawn_options)
 
-    monkeypatch.setattr(git_history.subprocess, "run", recording_run)
+    monkeypatch.setattr(git_command.subprocess, "run", recording_run)
     return calls
 
 

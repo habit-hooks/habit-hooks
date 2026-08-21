@@ -4,8 +4,10 @@ The scope flags are mutually exclusive; with none, the scope is derived from the
 ``[scope]`` config. Git-backed modes measure a branch from the same merge base a
 lapsing snooze asks ``git_history`` for, then widen the answer to the uncommitted
 work in progress — the staged and untracked files a diff alone would miss (#92).
-The picked paths are then narrowed to the files the work tree still has and
-``[files]`` calls source (pathspec/gitignore globbing, no brace expansion).
+Whole-project modes ask ``project_scan`` for the files the project keeps, which
+is git's answer too, so no mode measures a universe another one cannot see
+(#142). The picked paths are then narrowed to the files the work tree still has
+and ``[files]`` calls source (pathspec/gitignore globbing, no brace expansion).
 """
 
 from __future__ import annotations
@@ -14,13 +16,12 @@ import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import pathspec
-
-from . import git_history
+from . import git_history, project_scan
+from .path_globs import matching
 from .cli import ToolError
 from .config import Config
 from .project_paths import project_relative
-from .scope_notices import empty_scope_notices
+from .scope_notices import empty_scope_notices, submodule_notices
 
 # What to tell someone whose base ref is not in their checkout, named after
 # whatever chose the ref — the setting they can act on differs per mode.
@@ -32,8 +33,10 @@ _SINCE_FLAG = "pass --since a ref it has"
 @dataclass
 class Scope:
     files: list[str]
-    # Why a run scanned nothing, when that is worth saying out loud. Non-fatal:
-    # a `--file` hook fires on every edit, including files a project won't scan.
+    # What the reader must know about this scope that its files do not show: why
+    # it came out empty, and any submodule it left out. Non-fatal, and written to
+    # stderr — a `--file` hook fires on every edit, including files a project
+    # won't scan, and a gap in a scan is not itself a finding.
     notices: list[str] = field(default_factory=list)
 
 
@@ -43,10 +46,20 @@ def resolve_scope(args: argparse.Namespace, config: Config, project_dir: Path) -
     Discovery is opt-in (#97): with no ``[files]`` at all, every mode narrows to
     nothing and the run says why. A git mode still resolves its base ref first,
     so a typo'd ref fails loudly rather than being masked by an empty opt-in.
+
+    Two things are worth saying about a scope, and only one of them is about an
+    empty one: a submodule left out shrinks a scan that still has plenty to
+    measure, and unsaid it would render ✅ over the gap.
     """
-    picked = _selected(args, config, project_dir)
-    files = _source_files(picked, config, project_dir)
+    placed = _placed(_selected(args, config, project_dir), project_dir)
+    files = _source_files(placed, config, project_dir)
     notices = [] if files else empty_scope_notices(args.file, project_dir, config)
+    if args.file is None:
+        # Policy, not correctness: `submodule_paths` would identify a submodule
+        # given to `--file` perfectly well. But that mode answers about the one
+        # path the caller named, `_named_file_notice` already says a directory
+        # is not a file, and a second line about it would only repeat that.
+        notices = [*submodule_notices(placed, config, project_dir), *notices]
     return Scope(files, notices)
 
 
@@ -83,44 +96,41 @@ def _configured_scope(config: Config, project_dir: Path) -> list[str]:
     return _every_file(config, project_dir)
 
 
-def _source_files(paths: list[str], config: Config, project_dir: Path) -> list[str]:
+def _placed(paths: list[str], project_dir: Path) -> list[str]:
+    """Each path under the project's own name for it, dropping any outside it.
+
+    Split from the narrowing below because the notices need these too: a
+    submodule is recognised by being a directory, so it has to be recognised
+    before the step that keeps only files throws it away.
+    """
+    named = (project_relative(path, project_dir) for path in paths)
+    return [path for path in named if path]
+
+
+def _source_files(placed: list[str], config: Config, project_dir: Path) -> list[str]:
     """The paths a sensor can be asked about: files that are there, and are source.
 
-    All three narrowings belong here, not in each sensor: a path is placed in the
-    project (a hook hands ``--file`` an absolute path no relative glob matches);
-    one a branch deleted is dropped (a gone file has no smells left); and
-    ``[files]`` keeps only source, so a lockfile bump is out of a git-derived
-    scope as it is out of ``--all``. No ``[files]`` and an empty one keep nothing
-    (#97).
+    Both narrowings belong here, not in each sensor: a path a branch deleted is
+    dropped (a gone file has no smells left, and a submodule's own directory is
+    not a file either); and ``[files]`` keeps only source, so a lockfile bump is
+    out of a git-derived scope as it is out of ``--all``. No ``[files]`` and an
+    empty one keep nothing (#97).
     """
-    placed = (project_relative(path, project_dir) for path in paths)
-    present = [path for path in placed if path and (project_dir / path).is_file()]
+    present = [path for path in placed if (project_dir / path).is_file()]
     return matching(present, config.files or [])
 
 
-def matching(paths: list[str], globs: list[str]) -> list[str]:
-    """The ``paths`` kept by pathspec (gitignore) ``globs``, order preserved.
-
-    The one place a path list is filtered by a glob list: the run's ``[files]``
-    and a single sensor's own ``files`` narrowing in ``execution.py``.
-    """
-    spec = pathspec.PathSpec.from_lines("gitignore", globs)
-    return [path for path in paths if spec.match_file(path)]
-
-
 def _every_file(config: Config, project_dir: Path) -> list[str]:
-    """Every file under the project, once there is a ``[files]`` to narrow it to.
+    """Every file the project has, once there is a ``[files]`` to narrow it to.
 
-    Discovery is opt-in (#97): with none, nothing is enumerated — a default
-    install never walks ``node_modules`` or ``.venv`` only to discard the lot.
+    Discovery is opt-in (#97): with none, nothing is enumerated and git is never
+    asked — a default install must not walk ``node_modules`` only to discard it.
+    What counts as the project's own files, and why git rather than the disk
+    answers that, is ``project_scan``.
     """
     if config.files is None:
         return []
-    return sorted(
-        str(path.relative_to(project_dir))
-        for path in project_dir.rglob("*")
-        if path.is_file()
-    )
+    return project_scan.files_in(project_dir)
 
 
 def _with_work_in_progress(project_dir: Path, tracked: list[str]) -> list[str]:

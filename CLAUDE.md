@@ -154,6 +154,130 @@ is a different question from which snoozes lapse), so the widening lives in
 replaces them wholesale. That is why `config.py` imports `Resolver` — the merge
 needs the override chain, and only `files` has a plugin-supplied default.
 
+### A whole-project scan measures what git keeps, never what is on disk (human-requested by Ivett, issue #142)
+
+`project_scan.files_in()` — `scope._every_file`'s only source — asks
+`git_listing.project_files` (`git ls-files --cached --others --exclude-standard`,
+so tracked **plus** brand-new-but-not-ignored) instead of walking `rglob("*")`.
+Before #142, `--all` was the one mode that never asked git, so it alone measured
+`dist/`, `.next/` and tool caches: a real monorepo enumerated 843 `.ts`/`.tsx`
+for the 321 it keeps, and its owner had to hand-write `!**/dist/**` into
+`[files]` to get a usable run. Every git-derived mode already skipped those, so
+this is what stops one project having two universes. The narrowings after it are
+unchanged — `_source_files` still drops what the work tree lost and still applies
+`[files]` — and discovery stays opt-in, so `config.files is None` returns `[]`
+before git is asked anything.
+
+Git's silence is never "nothing to scan" (the #81 rule): outside a repository,
+with no git installed, or on any failure at all, the empty answer falls back to
+the `rglob` walk. Over-scanning is a nuisance; scanning nothing reports a whole
+tree clean unread. That `or` is also why the whole-tree cases need no guard of
+their own — a project the surrounding repository ignores outright answers empty
+and falls back on its own.
+
+**`git_listing.ignores_directory` exists for the answer that is *partial*, not
+the one that is empty.** It gives git's list up when the repository above the
+project ignores the project directory. An outer repository can force-add one
+file under a path it ignores; git then lists that file and nothing else, and a
+partial list is the shape the `or` cannot see — it looks like a real answer, so
+the run measures one file and pronounces every other file clean without reading
+it. `--no-index` is what makes the question about the ignore rules rather than
+the index: by default `check-ignore` calls a directory holding anything tracked
+"not ignored", so without it the guard stands down for exactly that project.
+
+**Ask about the project by name, and only if it is not a repository root.** The
+question was `check-ignore --no-index --quiet .`, and both halves of that were
+wrong. A repository never ignores its own root, but `*` — the allow-list opening
+that a careful `.gitignore` very often has — matches the name `.` like any
+other, so a project reported *itself* ignored and threw away a perfectly good
+file list; #142 then silently did not apply to it. So `rev-parse
+--show-toplevel` settles the root case first. Below a root the rules really are
+consulted, and `.` there resolves against the *project's own* `.gitignore`
+rather than the one deciding about the project — hence the full path,
+`check-ignore --no-index --quiet -- <project_dir>`. Seven shapes were measured
+(root ordinary / root with `*` / clean subdir / ignored subdir / subdir with its
+own `*` / own repo inside an ignored tree / no repo) and only this pairing gets
+all seven right.
+
+The gates are in `tests/test_a_scan_skips_what_git_ignores.py` (the two `*`
+cases, one per half of the fix) and
+`test_one_force_tracked_file_never_becomes_an_ignored_projects_whole_scope`,
+which is the only test that fails when the guard is dropped altogether.
+Measured, because the tempting justification is wrong: forcing
+`ignores_directory` to `False` leaves **every spec case passing**, so "our own
+`.spec-runs/` would scan nothing" does not motivate the guard, and neither does
+`test_a_project_in_somebody_elses_ignored_tree_scans_everything`, which passes
+with the guard gone.
+
+A **submodule** is the one deliberate loss: `ls-files` names it as a single
+gitlink *directory*, never the files inside. Keeping it out is right — `git diff`
+does not descend into one either, so this makes `--all` agree with the modes it
+used to contradict, and the submodule gates itself in its own repository. But a
+scope that silently shrinks and then renders ✅ is the false clean this tool
+exists to stop, so `scope_notices.submodule_notices` names each one on stderr.
+It is advisory and leaves the exit code alone, matching every other scope notice
+(a run that scanned *nothing* still exits 0). `--file` is excluded because that
+path is one the caller typed rather than one git named; a directory given to it
+is already answered by `_named_file_notice`.
+
+**Ask the index what a submodule is, never the filesystem.** A submodule is a
+gitlink, which git records with mode `160000`, so `git ls-files --stage` answers
+exactly and `.gitmodules` never has to be parsed. `Path.is_dir()` cannot answer
+it: it follows symlinks, so a *tracked symlink to a directory* (mode `120000`)
+is indistinguishable from a gitlink — and a symlinked `node_modules` is pnpm's
+ordinary layout, so the filesystem question tells an everyday JavaScript project
+that its dependency tree is a submodule. Reaching for `is_symlink()` instead
+would still be the wrong question with a luckier answer.
+
+**And say it only about a submodule whose files the run wanted.** The claim is
+"your scan is smaller than you think", which is false where `[files]` excluded
+the directory regardless — the typescript plugin's own `!**/node_modules/**` is
+the case that proved it. `_held_source_this_run_wanted` lists what the submodule
+really holds (`git ls-files` inside it) and puts those paths through `[files]`;
+matching the *directory name* would silence every notice, because a source glob
+like `**/*.py` never matches a bare directory. `scope_notices` owns **both**
+halves of that judgement even though `git_listing` knows what a gitlink is and
+`scope` owns the narrowing: a notice right about one half and wrong about the
+other is worse than none, and neither of those modules can state the thing being
+claimed. `path_globs.matching` exists so it can ask the `[files]` question
+without importing `scope`, which is its own caller.
+
+The split follows the repo's existing precedents, in one direction throughout:
+`scope` → `project_scan` → `git_listing` → `git_command`. `project_scan.py`
+holds what a project *has* against `scope.py`'s what a run *measures*.
+`git_listing.py` is what git says about the **working tree as it stands** (which
+files, which ignored) against `git_history.py`'s what git **remembers** between
+revisions — `git_history` asks it only to widen a diff with untracked work.
+`git_command.py` is **how** any of it is spawned (cwd, UTF-8, empty stdin,
+`OSError` → `None`) against **what** is asked. All three moves were forced by the
+200-line `oversized-file` gate the dogfood run enforces, and each moved a whole
+concern rather than trimming prose.
+
+**Every empty scope says why it is empty**, and a `[files]` that is set and
+matched nothing was the last silent case. A project whose `.gitignore` covers
+its own source tree keeps no files git will name, so it scanned zero files and
+rendered ✅ — a run that *measured* nothing, indistinguishable from one that
+*found* nothing, which is the #88 class. `NOTHING_MATCHED_NOTICE` names both
+possible causes, because neither is visible from the other: `[files]` may be too
+narrow, or git may be ignoring the very tree it was written for.
+
+A **non-empty** scope that lost some files is deliberately left silent. Measured
+on a project with an ordinary `.gitignore`: eight `.py` files dropped, seven of
+them `.venv`, `node_modules` and `dist`. Naming them is noise, and finding them
+at all needs the disk walk this change exists to avoid — so the empty scope,
+where the loss is total and the run is worthless, is the case worth catching.
+
+Two things `git_command` settles for every caller above it. A non-zero exit
+yields **empty**, never the output — `rev-parse --abbrev-ref HEAD` in a
+repository with no commits exits 128 *and* prints `HEAD`, so trusting stdout
+would publish that as a branch name (`tests/test_git_command.py`). And
+`files_in`'s two branches must **sort** alike: the walk builds its own strings
+from `os.sep`, and `\` and `/` sort differently, so without `as_posix()` the
+same project comes back in one order from git and another from the walk. No
+caller ever sees a backslash — `scope._placed` normalises again through
+`project_paths` — so this is about the branches being interchangeable, not about
+a spelling escaping into a finding.
+
 ### A config's schema is `config_schema.py`; finding and merging it is `config.py` (human-requested by Ivett)
 
 `config_schema.py` answers what a config **is** and may **say**: the attrs types

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from attrs import frozen
 
-from . import git_history
+from . import git_listing
 from .config import declared_detectors, load_config, project_config_path
 from .config_schema import Config
 from .detectors import Detector
@@ -95,7 +95,7 @@ class Plan:
 
 def plan(project_dir: Path) -> Plan:
     """Everything setting this project up needs decided, and nothing acted on."""
-    files = git_history.project_files(project_dir)
+    files = git_listing.project_files(project_dir)
     languages = tuple(used_languages(project_dir, files))
     config = _project_config(project_dir)
     plugins = _plugins(languages, config)
