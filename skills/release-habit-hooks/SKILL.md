@@ -42,10 +42,19 @@ plugin changed. Read every diff; classify each as consumer-facing vs internal.
   the installed one, so a plugin left behind hands someone the new core with last
   release's plugins. `tests/test_the_plugin_floor_tracks_the_release.py` gates it.
 - Bump `version` in the core's `pyproject.toml` and in every
-  `plugins/*/pyproject.toml`, **and raise each `habit-hooks-<name>~=X.Y` floor in
-  the core's `dependencies` and `optional-dependencies` to the new minor.** Then
+  `plugins/*/pyproject.toml`, **and raise each `habit-hooks-<name>` floor in the
+  core's `dependencies` and `optional-dependencies` to the new minor.** Then
   `uv lock` and confirm the lock shows the new versions. The same test gates both
   halves, so a forgotten floor fails the suite rather than shipping quietly.
+- The floor is spelled `>=X.Y.dev0,<2`, never `~=X.Y`. By PEP 440 ordering
+  `X.Y.0rc1` sorts *below* `X.Y`, so `~=X.Y` makes a release candidate declare
+  floors its own plugins cannot satisfy — and no `--pre` flag lifts it, because
+  it is the specifier excluding the version, not a policy about candidates. The
+  same spelling serves every rc and the final release, so nothing is rewritten
+  at the tag.
+- **A release candidate does not move the minor.** `X.Y.0rc1`, `rc2`, `rc3` are
+  all pre-releases of the same `X.Y.0`; only the `version` lines move between
+  them. Iterate as far as the reporters need.
 
 ## 3. Validate the changelog
 
@@ -72,7 +81,27 @@ do not tag or push yourself:
 git tag vX.Y.Z && git push origin main --tags
 ```
 
-## 5. Bump the Homebrew tap
+## 5. An install instruction is verified from an install, never from empty
+
+Anyone handed an install command already has habit-hooks — that is *why* they are
+reading it. So test the command from their state, not from an empty machine:
+
+```
+export UV_TOOL_DIR=$(mktemp -d) UV_TOOL_BIN_DIR=$(mktemp -d)
+uv tool install 'habit-hooks[typescript]'      # the version they are on now
+uv tool install <the exact command about to be published>
+"$UV_TOOL_BIN_DIR/habit-hooks" --version       # did it actually move?
+```
+
+`uv tool install` **does not upgrade an already-installed tool.** It prints
+"already installed" and exits 0. It needs `--force`. 1.4.0rc1 was announced on
+#133 and #134 without it; both reporters retested 1.3.1, and one reported a
+1.3.1 bug back as an rc failure.
+
+A fresh venv proves the package builds. It says nothing about the upgrade path,
+and the upgrade path is the only one a reader takes.
+
+## 6. Bump the Homebrew tap
 
 Only after the PyPI publish — the formula pins each artifact's URL and
 sha256 from PyPI, so the values don't exist until the release is live.
