@@ -1,9 +1,13 @@
 # Changelog
 
-## 1.4.0rc1
+## 1.4.0rc2
 
 Native Windows support. Reported by @FrankRaiser (#133) and @imalliaras (#134),
 neither of whom could get a run to complete.
+
+New in `rc2`, on top of everything `1.4.0rc1` shipped: a sensor spec names the
+tool it wraps, the `cmd.exe` argument guard reaches the tool a helper spawns,
+and a mistyped `argv` answers with a sentence.
 
 ### Fixed
 
@@ -33,6 +37,12 @@ neither of whom could get a run to complete.
   output at all, so the notice quoted back nothing where the tool had explained
   itself.
 
+- **A mistyped `argv` in a sensor spec answers with a sentence.** `argv = "ruff"`
+  is a string, and a string is iterable: it spawned four one-character arguments
+  and the run reported needing the `r` command. A non-string element raised a
+  traceback. Both are now refused by name at exit 2 — the code for a broken
+  tool — instead of exit 1, the code reserved for a finding to fix.
+
 ### Changed
 
 - **`jq` is no longer a dependency of any plugin.** The `ruff` and `eslint`
@@ -45,6 +55,16 @@ neither of whom could get a run to complete.
   remains for a plugin needing syntax a list cannot carry, and is refused off
   POSIX rather than spawned into a shell that is not there.
 
+- **A sensor spec may name the tool it wraps.** `${detector:<name>}` expands to
+  the file this project runs for a tool the plugin declared in its `detectors`,
+  so the sensor is handed a path rather than a name something has to look up
+  again. Only the first word of a spawn was ever resolved, and no shipped sensor
+  spells its wrapped tool there — each is a helper that spawns `ruff`, `deptry`,
+  `jscpd`, `pmd` or `php` one process further in, which is exactly where a
+  `.cmd` or `.bat` shim went unfound. A declared tool that is not installed is
+  now answered before the sensor is spawned, so the notice naming it no longer
+  depends on each plugin's helper producing that answer itself.
+
 - **`eslint` and `knip` are found in the project, not on `PATH`.** They are
   resolved from `node_modules` and run through Node directly, so a globally
   installed copy is no longer used — the shipped eslint config could never have
@@ -53,7 +73,9 @@ neither of whom could get a run to complete.
 
 - **An argument that `cmd.exe` would read as syntax is refused.** A `.bat` or
   `.cmd` is run through `cmd.exe`, and sensor arguments are filenames out of
-  whatever branch is checked out.
+  whatever branch is checked out. The question is asked of every program those
+  arguments reach, the tool a sensor's helper spawns included — which is where
+  `pmd.bat` and npm's `jscpd.CMD` actually are.
 
 ### Known limits
 

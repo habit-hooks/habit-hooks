@@ -104,10 +104,29 @@ files = ["**/*.lua"]                                        # optional; override
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `command` | this or `argv` | Shell command, run through `bash -c`; it must print a JSON array of findings. Take it for syntax a list cannot carry — a pipe into `jq`, `set -o pipefail` — and know that it needs a POSIX shell, which native Windows has not. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${args}` to this sensor's `args`; `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). Everything spliced in is quoted first, so a filename can never be read as syntax. |
-| `argv` | this or `command` | The argument list to spawn, with no shell in between: `argv = ["ruff", "check", "${files}"]`. Nothing is quoted, because nothing reads it as syntax — a filename with a space, a quote or a `$` in it arrives as the one argument it is. Prefer it whenever you do not need shell syntax: it is the only form that runs where there is no POSIX shell. The same placeholders serve, in two kinds. `${python}` and `${dir}` are substituted *inside* an element, so `"${dir}/count.py"` stays one argument; `${files}`, `${args}` and `${config}` each expand into arguments of their own and must therefore be an element of their own — `"--paths=${files}"` is refused rather than joined into one very long filename. |
+| `command` | this or `argv` | Shell command, run through `bash -c`; it must print a JSON array of findings. Take it for syntax a list cannot carry — a pipe into `jq`, `set -o pipefail` — and know that it needs a POSIX shell, which native Windows has not. `${files}` expands to the scoped file list; `${dir}` to this spec's directory (for bundled scripts); `${args}` to this sensor's `args`; `${python}` to the interpreter running habit-sensors (use it to invoke bundled Python scripts portably, since a bare `python` may not be on PATH); `${detector:<name>}` to the file this project runs for a tool the plugin declared (below); `${config}` to `--config <path>` when the run named one (else nothing) — see [transformers](#4-write-a-transformer). Everything spliced in is quoted first, so a filename can never be read as syntax. |
+| `argv` | this or `command` | The argument list to spawn, with no shell in between: `argv = ["ruff", "check", "${files}"]`. Nothing is quoted, because nothing reads it as syntax — a filename with a space, a quote or a `$` in it arrives as the one argument it is. Prefer it whenever you do not need shell syntax: it is the only form that runs where there is no POSIX shell. The same placeholders serve, in two kinds. `${python}`, `${dir}` and `${detector:<name>}` are substituted *inside* an element, so `"${dir}/count.py"` stays one argument; `${files}`, `${args}` and `${config}` each expand into arguments of their own and must therefore be an element of their own — `"--paths=${files}"` is refused rather than joined into one very long filename. |
 | `args` | no | Default CLI args, expanded into `command` via `${args}`. They live here, not in the plugin `config.toml` (where `sensors` as a list and `[sensors.<name>]` as a table would collide). A project replaces them via `[sensors.<name>] args`. Set them only on a `command` that spells `${args}`: args a command cannot expand stop the run rather than being dropped (below). |
 | `files` | no | Narrows the run's scope to these globs for this sensor alone — a subset of what the scope already picked, never a second discovery pass. A project replaces them via `[sensors.<name>] files`. |
+
+`${detector:<name>}` is how a sensor names the tool it wraps. It expands to the
+file this project runs for that tool — the same lookup that decides whether the
+tool is reported missing — so a Windows `.cmd` or `.bat` shim is reached, which a
+bare command name is not. The tool must be one the plugin declares in its
+`config.toml` `detectors` with `kind = "command"`: a name no active plugin
+declares, and a name declared `node-module`, are both refused as the config loads
+(exit 2), naming the sensor. A declared tool that is simply not installed stays
+the ordinary missing-tool failure — the sensor is never spawned, and the notice
+names the tool it needed, without your script having to say so.
+
+Hand that file to a bundled script rather than looking the tool up again inside
+it. Every shipped sensor that names a tool passes it as the script's first
+argument:
+
+```toml
+# src/habit_hooks_python/sensors/ruff.toml
+argv = ["${python}", "${dir}/ruff_sensor.py", "${detector:ruff}", "${files}"]
+```
 
 Whatever the command prints is taken verbatim as the sensor's findings; a clean
 run prints `[]`, never nothing ([sensor-interface.spec.md](sensor-interface.spec.md)).
