@@ -61,12 +61,6 @@ const UNSEPARATED_ARGV =
   "eslint sensor: its argv must spell '--' between the sensor's arguments and " +
   "the scoped files — see sensors/eslint.toml\n";
 
-// eslint takes the tool's usual exit code for findings (1) and reserves
-// everything above it for its own breakage; a signal leaves no code at all.
-function broke(result) {
-  return result.status === null || result.status > 1;
-}
-
 // Only eslint can say whether the project has a config, because its lookup runs
 // from each linted FILE's directory (eslint 10 `lib/config/config-loader.js`) —
 // a config below the directory habit-hooks was invoked in is eslint's answer
@@ -77,7 +71,7 @@ function broke(result) {
 // ever change, a config-less project fails loudly rather than being mis-linted
 // quietly, which is the direction to be wrong in.
 function wantedAConfig(result) {
-  return broke(result) && (result.stderr || "").includes(NO_CONFIG_FOUND);
+  return projectTool.broke(result) && (result.stderr || "").includes(NO_CONFIG_FOUND);
 }
 
 // `--no-warn-ignored` stops the commonest rule-less message being raised at all.
@@ -169,8 +163,8 @@ function main() {
   const files = argv.slice(boundary + 1).filter((file) => LINTABLE.test(file));
   if (files.length === 0) return emit([]);
   const result = lint(argv.slice(0, boundary), files);
-  if (broke(result) || result.stdout.trim() === "") {
-    return refuse(result.stderr || "");
+  if (projectTool.broke(result) || result.stdout.trim() === "") {
+    return refuse(projectTool.complaint(ESLINT, result));
   }
   return emit(findings(JSON.parse(result.stdout)));
 }

@@ -75,14 +75,73 @@ function notInstalled(tool) {
   };
 }
 
-// What `tool` printed for `args`, as `spawnSync` reports it.
-function run(tool, args, options = {}) {
+// No ceiling on what a tool may print. `spawnSync` caps each captured stream at
+// 1 MB unless told otherwise, and answers a tool that prints more with ENOBUFS:
+// a truncated stdout, a `null` status, and an error the caller has to notice.
+// Forty files of ordinary lint findings cross that, and the sensor that ran the
+// tool is then left with nothing it can parse (#142).
+//
+// The 1 MB was never a decision, only the default nobody overrode. Every other
+// place habit-hooks reads a tool's output is unbounded — the plugins' five
+// Python helpers all capture with `subprocess.run`, the core drains its pipes
+// with `Popen.communicate()`, and `comment.cjs` holds its whole ts-morph result
+// in memory — so lifting it is what makes the Node helpers behave like the rest
+// of the tool rather than a special case.
+const NO_CEILING = Infinity;
+
+// What `tool` printed for `args`, as `spawnSync` reports it. The spawn takes no
+// options from the caller: there is one right answer to each of these for every
+// tool this seam runs, and a caller free to override them is a caller free to
+// put the 1 MB ceiling back, or to ask for a Buffer, which `complaint` would
+// then read as a tool that said nothing at all.
+function run(tool, args) {
   const script = entryScript(tool, process.cwd());
   if (script === null) return notInstalled(tool);
   return spawnSync(process.execPath, [script, ...args], {
     encoding: "utf8",
-    ...options,
+    maxBuffer: NO_CEILING,
   });
 }
 
-module.exports = { run };
+// The run produced no answer worth reading. Both tools this seam runs exit 1
+// for "I found something to report" — the commonest successful run there is —
+// so breakage starts above it. A `null` status is a run that never reached an
+// exit at all: killed by a signal, or refused before it began, which sets
+// `error` as well.
+function broke(result) {
+  return result.error != null || result.status === null || result.status > 1;
+}
+
+function spoke(output) {
+  return typeof output === "string" && output.trim() !== "";
+}
+
+function howItEnded(result) {
+  if (result.signal != null) return `killed by ${result.signal}`;
+  return `exited ${result.status}`;
+}
+
+// Why the run is unusable, in words a reader can act on — never an empty
+// string, which is the bug this whole seam exists to make impossible (#142),
+// and never more than a sentence unless the tool itself wrote one.
+//
+// Only two things can be the complaint. The tool's own words, wherever it got
+// any out, because a tool that diagnosed itself is the one thing a reader can
+// act on; every tool this seam runs writes them to stderr. Otherwise this seam
+// speaks for it, and then it must say WHICH tool — `spawnSync <path> ENOBUFS`
+// names the node that was spawned, never the tool that failed. Blank stderr is
+// not words: whitespace forwarded verbatim is the empty complaint again.
+//
+// What the tool half-printed to *stdout* is never either. It is a report cut
+// off mid-write, not a diagnosis: an OOM-killed eslint hands back the first few
+// megabytes of a JSON array, which says nothing about why it died and buries the
+// one sentence that would. `sensors/diagnosis.py` bounds what any notice carries,
+// so the cost is capped either way — but a reader would still be given a
+// truncated report where a reason belongs.
+function complaint(tool, result) {
+  if (spoke(result.stderr)) return result.stderr;
+  if (result.error != null) return `${tool}: ${result.error.message}\n`;
+  return `${tool}: ${howItEnded(result)} without a word of its own\n`;
+}
+
+module.exports = { run, broke, complaint };

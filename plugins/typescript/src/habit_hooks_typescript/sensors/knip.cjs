@@ -77,17 +77,7 @@ function isTestFile(file) {
 // Windows as a `.cmd` shim, which Node refuses to spawn and a bare name never
 // reaches, and it answers there for a knip nobody installed too.
 function runKnip(args) {
-  return projectTool.run(KNIP, ["--reporter", "json", ...args], {
-    maxBuffer: 64 * 1024 * 1024,
-  });
-}
-
-function knipCrashed(result) {
-  return result.error != null || result.status === null || result.status > 1;
-}
-
-function knipFailure(result) {
-  return result.stderr || String(result.error);
+  return projectTool.run(KNIP, ["--reporter", "json", ...args]);
 }
 
 // knip 5's JSON emits per-file arrays for most issue types but object maps for
@@ -253,21 +243,42 @@ function report(result) {
   return JSON.parse(result.stdout);
 }
 
+// A run there is no report to read: broken, or a knip that exited cleanly
+// having printed nothing at all. `JSON.parse("")` is a SyntaxError, so that
+// second case reached the runner as a Node traceback rather than a diagnosis —
+// #142 one branch over. `eslint.cjs` asks the same question inline before it
+// parses, and both answer it in the seam's words.
+//
+// It stays out of `project_tool`: whether stdout should hold a JSON report is
+// the caller's business (`--reporter json` is knip's flag, not the spawner's),
+// where whether the run broke is the spawn's.
+//
+// The second half answers safely whatever it is handed, rather than leaning on
+// the first to have caught it: a spawn that never started has no `stdout`
+// string to trim. `broke` does catch every one of those — it reads `error` and
+// `status` and never a stream — so nothing can reach the `typeof` today, and
+// it is here for the same reason `project_tool.broke` keeps its own
+// unreachable `error` clause. Being total is what stops the order of the two
+// mattering, which no test could have told us about.
+function noReportFrom(result) {
+  if (projectTool.broke(result)) return true;
+  return typeof result.stdout !== "string" || result.stdout.trim() === "";
+}
+
+function refuse(complaint) {
+  process.stderr.write(complaint);
+  return 2;
+}
+
 function main() {
   const args = process.argv.slice(2);
   const config = configInForce(args);
   const base = runKnip([...config.args, ...args]);
-  if (knipCrashed(base)) {
-    process.stderr.write(knipFailure(base));
-    return 2;
-  }
+  if (noReportFrom(base)) return refuse(projectTool.complaint(KNIP, base));
   let production = null;
   if (configMarksProduction(config.file)) {
     const pass = runKnip([...config.args, ...args, "--production"]);
-    if (knipCrashed(pass)) {
-      process.stderr.write(knipFailure(pass));
-      return 2;
-    }
+    if (noReportFrom(pass)) return refuse(projectTool.complaint(KNIP, pass));
     production = report(pass);
   }
   process.stdout.write(JSON.stringify(findings(report(base), production)));

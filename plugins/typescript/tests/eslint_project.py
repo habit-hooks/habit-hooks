@@ -69,8 +69,16 @@ def run(project: Path, argv: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def messages(project: Path, config: Path) -> list[dict]:
-    """What eslint says about the project's one file under ``config``."""
+def report(
+    project: Path,
+    files: tuple[str, ...] = ("src/repository.ts",),
+    config: Path = SHIPPED_CONFIG,
+) -> str:
+    """What eslint itself prints about ``files`` under ``config``, whole.
+
+    The sensor's own answer measured against this one is how a suite asks
+    whether anything was lost on the way back from the tool.
+    """
     result = run(
         project,
         [
@@ -81,11 +89,16 @@ def messages(project: Path, config: Path) -> list[dict]:
             "--no-warn-ignored",
             "--config",
             str(config),
-            "src/repository.ts",
+            *files,
         ],
     )
     assert result.stdout, result.stderr
-    return json.loads(result.stdout)[0]["messages"]
+    return result.stdout
+
+
+def messages(project: Path, config: Path) -> list[dict]:
+    """What eslint says about the project's one file under ``config``."""
+    return json.loads(report(project, config=config))[0]["messages"]
 
 
 def sensor_argv(

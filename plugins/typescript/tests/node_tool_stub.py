@@ -34,18 +34,27 @@ process.stdout.write(fs.readFileSync(path.join(installed, "{report}"), "utf8"));
 """
 
 
-def install(project: Path, tool: str, prints: str) -> Path:
-    """``tool`` installed in ``project``, printing ``prints`` whatever it is asked."""
+def install_script(project: Path, tool: str, cli: str) -> Path:
+    """``tool`` installed in ``project`` as a package whose CLI is ``cli``.
+
+    Where the tool's own behaviour is the subject — a tool that fails, or that
+    outprints the buffer capturing it — the suite writes the CLI itself rather
+    than recording what it was asked.
+    """
     package = project / "node_modules" / tool
     (package / "bin").mkdir(parents=True)
     (package / "package.json").write_text(
         json.dumps({"name": tool, "version": "0.0.0", "bin": {tool: f"bin/{tool}.js"}}),
         encoding="utf-8",
     )
+    (package / "bin" / f"{tool}.js").write_text(cli, encoding="utf-8")
+    return package
+
+
+def install(project: Path, tool: str, prints: str) -> Path:
+    """``tool`` installed in ``project``, printing ``prints`` whatever it is asked."""
+    package = install_script(project, tool, RECORDER.format(log=ARGV_LOG, report=REPORT))
     (package / REPORT).write_text(prints, encoding="utf-8")
-    (package / "bin" / f"{tool}.js").write_text(
-        RECORDER.format(log=ARGV_LOG, report=REPORT), encoding="utf-8"
-    )
     return package
 
 
