@@ -123,9 +123,9 @@ only the plugin's sensors differ).
 TS-only smells (`explicit-any`, `var-declaration`, …) simply do not appear in
 the Python plugin. `oversized-file` has no clean ruff rule, so the Python plugin
 reuses the generic line-count sensor (its `--max` threshold, default 200).
-`deep-nesting` ships for TypeScript only (ESLint `max-depth`); the Python
-equivalent (ruff `PLR1702`) is preview/unstable, so it is deferred rather than
-opting into ruff `--preview`.
+`deep-nesting` ships for TypeScript (ESLint `max-depth`) and Java (PMD
+`AvoidDeeplyNestedIfStmts`). The Python equivalent (ruff `PLR1702`) is
+preview/unstable, so it is deferred rather than opting into ruff `--preview`.
 
 ## PHP plugin translation
 
@@ -157,6 +157,7 @@ catalogue is shared — only the plugin's sensors differ).
 |-----------------------------|-----------------------|
 | `pmd:ExcessiveParameterList` | `too-many-parameters` |
 | `pmd:CyclomaticComplexity`   | `high-complexity`     |
+| `pmd:AvoidDeeplyNestedIfStmts` | `deep-nesting`      |
 | `pmd:NcssCount`              | `oversized-function`  |
 | `pmd:UnusedLocalVariable`    | `unused-variable`     |
 | `pmd:UnnecessaryImport`      | `unused-import`       |
@@ -171,6 +172,9 @@ each — the sensor keeps only the method/constructor violations (PMD's own
 message distinguishes them) and drops the class-level ones, so a class of many
 simple methods tripping PMD's default `classReportLevel` is never coached as
 one over-complex function.
+The bundled fallback sets `AvoidDeeplyNestedIfStmts` to `problemDepth=3`
+explicitly, so the third nested `if` is the first one reported; a project-owned
+ruleset only receives that smell when it enables the PMD rule itself.
 PMD never discovers a project ruleset, so the sensor reaches for one only after
 checking the conventional locations (`src/main/resources/pmd/ruleset.xml`,
 `pmd/ruleset.xml`, `ruleset.xml`, `pmd.xml`) or a `--rulesets` in its args, then

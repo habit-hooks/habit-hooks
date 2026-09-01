@@ -8,6 +8,9 @@
   <rule ref="category/java/design.xml/ExcessiveParameterList">
     <properties><property name="minimum" value="4"/></properties>
   </rule>
+  <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+    <properties><property name="problemDepth" value="3"/></properties>
+  </rule>
   <rule ref="category/java/design.xml/CyclomaticComplexity">
     <properties><property name="methodReportLevel" value="10"/></properties>
   </rule>

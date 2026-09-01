@@ -55,7 +55,7 @@ def oversized_project(tmp_path: Path, name: str) -> Path:
 
 
 def java_project(tmp_path: Path) -> Path:
-    """A project whose one file pmd has three things to say about."""
+    """A project whose one file pmd has four things to say about."""
     project = _project(tmp_path, "java-proj", 'plugins = ["java"]\n')
     (project / JAVA_SOURCE).write_text(
         "import java.io.File;\n"
@@ -63,6 +63,13 @@ def java_project(tmp_path: Path) -> Path:
         "class Billing {\n"
         "    double charge(double a, double b, double c, double d, double e) {\n"
         "        int dead = 1;\n"
+        "        if (a > 0) {\n"
+        "            if (b > 0) {\n"
+        "                if (c > 0) {\n"
+        "                    a += 1;\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
         "        return a + b + c + d + e;\n"
         "    }\n"
         "}\n",

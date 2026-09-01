@@ -35,6 +35,7 @@ from pathlib import Path
 from pmd_ruleset import ruleset_of
 
 RULE_SMELLS = {
+    "AvoidDeeplyNestedIfStmts": "deep-nesting",
     "ExcessiveParameterList": "too-many-parameters",
     "CyclomaticComplexity": "high-complexity",
     "NcssCount": "oversized-function",

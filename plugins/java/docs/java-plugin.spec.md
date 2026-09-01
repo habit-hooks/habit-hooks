@@ -66,6 +66,71 @@ habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0]
 }
 ```
 
+## pmd sensor reports the third nested if from the bundled ruleset
+
+With no PMD ruleset in the project, the plugin's bundled fallback explicitly
+sets `AvoidDeeplyNestedIfStmts` to report depth 3. The finding points at the
+third `if` and translates the PMD rule to the shared `deep-nesting` smell.
+
+📄Nested.java
+```java
+class Nested {
+    boolean accepts(int value) {
+        if (value > 0) {
+            if (value < 10) {
+                if (value != 5) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, key: (.issues[0].key | sub(".*/"; "")), line: .issues[0].details.line, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "deep-nesting",
+  "language": "java",
+  "key": "Nested.java",
+  "line": 5,
+  "source": "pmd:AvoidDeeplyNestedIfStmts"
+}
+```
+
+## two nested ifs remain below the bundled threshold
+
+The third nested `if` is the first one PMD reports at `problemDepth=3`, so an
+otherwise equivalent two-level chain remains clean.
+
+📄Nested.java
+```java
+class Nested {
+    boolean accepts(int value) {
+        if (value > 0) {
+            if (value < 10) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
 ## pmd sensor maps a deeply-branched method to high-complexity
 
 A method whose conditions are littered with `||` exceeds PMD's cyclomatic
@@ -103,7 +168,9 @@ habit-sensors --all | jq '.[] | {smell, language, source: .issues[0].details.sou
 PMD never discovers a project ruleset, so the sensor reaches for one only where
 the Java ecosystem conventionally keeps it. A `src/main/resources/pmd/ruleset.xml`
 that lowers the parameter threshold is in force for the run — the bundled
-fallback is only the answer to "this project has none".
+fallback is only the answer to "this project has none". The source also has
+three nested `if`s, but this project ruleset omits `AvoidDeeplyNestedIfStmts`,
+so only the rule the project selected produces a finding.
 
 📄src/main/resources/pmd/ruleset.xml
 ```xml
@@ -122,6 +189,13 @@ fallback is only the answer to "this project has none".
 ```java
 class Project {
     void save(String a, String b) {
+        if (a != null) {
+            if (b != null) {
+                if (!a.equals(b)) {
+                    System.out.println(a);
+                }
+            }
+        }
     }
 }
 ```
@@ -136,6 +210,53 @@ habit-sensors --all | jq '.[] | {smell, language, key: (.issues[0].key | sub(".*
   "smell": "too-many-parameters",
   "language": "java",
   "key": "Project.java"
+}
+```
+
+## a project ruleset can enable deep nesting at its own threshold
+
+A project can opt into the same PMD rule with a different `problemDepth`. Its
+ruleset still replaces the bundled fallback as a whole; the sensor translates
+the enabled rule normally.
+
+📄pmd/ruleset.xml
+```xml
+<?xml version="1.0"?>
+<ruleset name="custom" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+ <description>report the second nested if</description>
+ <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+  <properties><property name="problemDepth" value="2"/></properties>
+ </rule>
+</ruleset>
+```
+
+📄Nested.java
+```java
+class Nested {
+    boolean accepts(int value) {
+        if (value > 0) {
+            if (value < 10) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | {smell, language, line: .issues[0].details.line, source: .issues[0].details.source}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "deep-nesting",
+  "language": "java",
+  "line": 4,
+  "source": "pmd:AvoidDeeplyNestedIfStmts"
 }
 ```
 

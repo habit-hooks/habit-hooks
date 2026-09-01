@@ -70,10 +70,15 @@ def test_installed_java_plugin_locates_its_bundled_ruleset(
 
     by_smell = {finding["smell"]: finding for finding in findings}
     assert by_smell.keys() == {
+        "deep-nesting",
         "too-many-parameters",
         "unused-import",
         "unused-variable",
     }
+    assert (
+        by_smell["deep-nesting"]["issues"][0]["details"]["source"]
+        == "pmd:AvoidDeeplyNestedIfStmts"
+    )
     for finding in findings:
         assert finding["language"] == "java"
         issue = finding["issues"][0]
