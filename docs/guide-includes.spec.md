@@ -32,13 +32,51 @@ A handful of smells do not fit either shape and so do **not** use a shared
 include; their guides list the occurrences inline:
 
 - `duplicated-code`, whose issues come in matched pairs.
-- `unused-dependency` and `unused-class-member`, which are keyed by a **name**
-  (a package, a member) rather than a location — the useful line is that name,
-  which neither shared listing renders (`file` would only repeat the manifest or
-  the class file). Their guides loop over `{{ issue.key }}` / the member name
-  directly.
+- `unused-dependency`, which is keyed by a package name rather than a location.
+- `unused-class-member`, whose producer shapes differ: TypeScript/Knip supplies
+  `details.name`, while Java/PMD supplies an opaque `details.message`. Its guide
+  renders `file:line`, then selects `details.name` when that field is defined
+  and otherwise selects `details.message`. Presence, not truthiness, decides;
+  when both fields are defined, `name` wins.
 
 The shared includes exist only for the two typical shapes.
+
+## The unused-member guide selects producer display text by field presence
+
+The language-neutral guide lives in `generic` and accepts either supported
+producer shape. It does not inspect `language` or parse PMD prose.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "unused-class-member",
+    "language": "java",
+    "details": {},
+    "issues": [
+      { "key": "field-key", "details": { "file": "src/Foo.java", "line": 7, "message": "opaque PMD field text" } },
+      { "key": "methodName", "details": { "file": "src/helper.ts", "line": 8, "name": "methodName" } },
+      { "key": "both", "details": { "file": "src/Both.java", "line": 9, "name": "structuredName", "message": "fallback text" } }
+    ]
+  }
+]
+```
+
+```bash
+habit-mapper | sed -n '/^src\//p'
+```
+
+🖥️ ❌ 1
+```text
+src/Foo.java:7  opaque PMD field text
+src/helper.ts:8  methodName
+src/Both.java:9  structuredName
+```
 
 Partials live in an `includes/` subdirectory so they never collide with a
 smell-named guide (`guides/<smell>.md`). They resolve through the **same override

@@ -66,6 +66,177 @@ habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0]
 }
 ```
 
+## bundled PMD reports unused private fields and methods
+
+The fallback ruleset enables PMD's `UnusedPrivateField` and
+`UnusedPrivateMethod` rules without changing their defaults. Both translate to
+one `unused-class-member` finding. Java issues stay keyed by file, retain PMD's
+exact message and rule source, and do not invent `details.name`. The referenced
+field and method are controls: PMD does not report them.
+
+📄Members.java
+```java
+class Members {
+    private int staleField = 1;
+    private int liveField = 2;
+    private void staleMethod() {}
+    private int liveMethod() { return liveField; }
+    int value() { return liveMethod(); }
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | select(.smell == "unused-class-member") | {smell, language, issues: [.issues[] | {key: (.key | sub(".*/"; "")), file: (.details.file | sub(".*/"; "")), line: .details.line, message: .details.message, source: .details.source, hasName: (.details | has("name"))}]}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "unused-class-member",
+  "language": "java",
+  "issues": [
+    {
+      "key": "Members.java",
+      "file": "Members.java",
+      "line": 2,
+      "message": "Avoid unused private fields such as 'staleField'.",
+      "source": "pmd:UnusedPrivateField",
+      "hasName": false
+    },
+    {
+      "key": "Members.java",
+      "file": "Members.java",
+      "line": 4,
+      "message": "Avoid unused private methods such as 'staleMethod()'.",
+      "source": "pmd:UnusedPrivateMethod",
+      "hasName": false
+    }
+  ]
+}
+```
+
+## PMD owns unused-member exclusions
+
+The fallback does not restate PMD's exclusions. An annotated field, Java's
+serialization field, and a serialization hook remain excluded by PMD while
+nearby unannotated controls still report.
+
+📄Members.java
+```java
+@interface Managed {}
+class Members implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
+    @Managed private Object injected;
+    private Object staleField;
+    private void readObject(java.io.ObjectInputStream stream)
+            throws java.io.IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+    }
+    private void staleMethod() {}
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | select(.smell == "unused-class-member") | [.issues[] | {line: .details.line, source: .details.source}]'
+```
+
+🖥️ ✅
+```json
+[
+  {
+    "line": 5,
+    "source": "pmd:UnusedPrivateField"
+  },
+  {
+    "line": 10,
+    "source": "pmd:UnusedPrivateMethod"
+  }
+]
+```
+
+## a project ruleset can omit unused-member detection
+
+A project-owned ruleset replaces the fallback. Enabling an unrelated rule does
+not inject either unused-member rule, so private members remain outside this
+run's selected PMD policy.
+
+📄ruleset.xml
+```xml
+<?xml version="1.0"?>
+<ruleset name="custom" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+ <description>no unused-member checks</description>
+ <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts"/>
+</ruleset>
+```
+
+📄Members.java
+```java
+class Members {
+    private int staleField;
+    private void staleMethod() {}
+}
+```
+
+```bash
+habit-sensors --all | jq '[.[].smell]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+## a project ruleset can enable and configure unused-member detection
+
+When the project enables the rules, their findings translate normally. PMD's
+`ignoredFieldNames` property is authoritative: `retainedByPolicy` is excluded,
+while the unlisted field and unused method report without a sensor-side filter.
+
+📄ruleset.xml
+```xml
+<?xml version="1.0"?>
+<ruleset name="custom" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+ <description>project-owned unused-member checks</description>
+ <rule ref="category/java/bestpractices.xml/UnusedPrivateField">
+  <properties>
+   <property name="ignoredFieldNames" value="retainedByPolicy"/>
+  </properties>
+ </rule>
+ <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+</ruleset>
+```
+
+📄Members.java
+```java
+class Members {
+    private int retainedByPolicy;
+    private int staleField;
+    private void staleMethod() {}
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | select(.smell == "unused-class-member") | [.issues[] | {line: .details.line, source: .details.source}]'
+```
+
+🖥️ ✅
+```json
+[
+  {
+    "line": 3,
+    "source": "pmd:UnusedPrivateField"
+  },
+  {
+    "line": 4,
+    "source": "pmd:UnusedPrivateMethod"
+  }
+]
+```
+
 ## pmd sensor reports the third nested if from the bundled ruleset
 
 With no PMD ruleset in the project, the plugin's bundled fallback explicitly
