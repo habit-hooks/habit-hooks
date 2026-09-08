@@ -30,6 +30,7 @@ TYPESCRIPT_SOURCE = "src/helper.ts"
 PYTHON_SOURCE = "billing.py"
 PHP_SOURCE = "billing.php"
 JAVA_SOURCE = "Billing.java"
+JAVA_UNUSED_MEMBER_SOURCE = "Members.java"
 RUBY_SOURCE = "billing.rb"
 
 
@@ -73,6 +74,19 @@ def java_project(tmp_path: Path) -> Path:
         "        }\n"
         "        return a + b + c + d + e;\n"
         "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    return project
+
+
+def java_unused_member_project(tmp_path: Path) -> Path:
+    """A Java project whose only findings come from the bundled unused rules."""
+    project = _project(tmp_path, "java-unused-proj", 'plugins = ["java"]\n')
+    (project / JAVA_UNUSED_MEMBER_SOURCE).write_text(
+        "class Members {\n"
+        "    private int staleField;\n"
+        "    private void staleMethod() {}\n"
         "}\n",
         encoding="utf-8",
     )

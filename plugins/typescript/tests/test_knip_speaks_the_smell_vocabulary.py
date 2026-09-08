@@ -93,7 +93,9 @@ def test_an_unused_enum_member_arrives_as_unused_class_member(tmp_path: Path) ->
     findings = _findings(tmp_path, report)
 
     assert [f["smell"] for f in findings] == ["unused-class-member"]
-    assert findings[0]["issues"][0]["key"] == "Green"
+    issue = findings[0]["issues"][0]
+    assert issue["key"] == "Green"
+    assert issue["details"]["name"] == "Green"
 
 
 def test_dropping_an_untranslated_key_leaves_its_neighbours_alone(

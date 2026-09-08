@@ -40,6 +40,8 @@ RULE_SMELLS = {
     "CyclomaticComplexity": "high-complexity",
     "NcssCount": "oversized-function",
     "UnusedLocalVariable": "unused-variable",
+    "UnusedPrivateField": "unused-class-member",
+    "UnusedPrivateMethod": "unused-class-member",
     "UnnecessaryImport": "unused-import",
     "EmptyCatchBlock": "swallowed-exception",
 }

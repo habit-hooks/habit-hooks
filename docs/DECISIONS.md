@@ -435,9 +435,12 @@ mapping, config validation) are resolved and recorded above / in
   ROSE-pattern guide in the plugin it belongs to: the language-agnostic ones
   (`unused-variable`, `unused-import`, `unused-dependency`, `unused-file`,
   `duplicate-import`) in `generic`, so every language's routing reaches them via
-  the languageless fallback; the TypeScript-specific ones (`explicit-any`,
+  the languageless fallback; the ones whose only producer was TypeScript at the
+  time (`explicit-any`,
   `redundant-type-annotation`, `loose-equality`, `var-declaration`,
-  `non-const-binding`, `unused-class-member`) in `typescript`.
+  `non-const-binding`, `unused-class-member`) in `typescript`. That ownership
+  classification was historical, not intrinsic: #164 later adds a Java
+  producer and moves `unused-class-member` to `generic` as recorded below.
 - **`unused-variable` moved from `php` to `generic` (not copied).** The prose was
   language-agnostic — nothing in it was PHP-specific — so a copy would have been
   duplication that drifts. `php` keeps no override because it has nothing
@@ -461,3 +464,30 @@ mapping, config validation) are resolved and recorded above / in
   `unused-import`, `unused-file`, `unused-dependency`, `unused-class-member` are
   all enforced). A project that wants it advisory sets
   `[smells.unused-export] severity = "suggested"`.
+
+## Java unused private members share generic coaching (#164)
+
+- **PMD remains the Java policy authority.** The bundled Java fallback enables
+  `UnusedPrivateField` and `UnusedPrivateMethod` without property overrides and
+  translates both to the existing enforced `unused-class-member` smell. A
+  project-owned ruleset still replaces the fallback wholesale, so its choice to
+  omit, enable, configure, or customize either rule is not second-guessed by a
+  sensor-side filter or reachability analysis.
+- **Java keeps its existing file-keyed adapter contract.** Each issue preserves
+  PMD's beginning line, full diagnostic in `details.message`, and distinct
+  `pmd:UnusedPrivateField` or `pmd:UnusedPrivateMethod` source. It does not parse
+  presentation text or synthesize `details.name`; multiple issues in one file
+  intentionally share the anchored file key and its snooze semantics.
+  TypeScript/Knip remains name-keyed through `key` and `details.name`.
+- **`generic` owns the one shared guide, without owning detection.** Supporting
+  Java removes the premise behind the earlier TypeScript-only placement. The
+  remediation applies equally to fields, methods, and properties, so the guide
+  moves rather than being copied. It selects a defined `details.name`, otherwise
+  `details.message`, with `name` winning when both are present. The generic
+  plugin gains no PMD, Knip, or unused-member sensor and is not enabled
+  implicitly; omitting it continues to use the ordinary uncoached fallback.
+- **A report is evidence for investigation, never an automatic deletion.** The
+  guide first rules out reflection, annotations or decorators, serialization,
+  lifecycle hooks, and other statically invisible uses. Only then does it coach
+  connecting an intended caller, extracting a cohesive unit, or removing a
+  member confirmed dead.

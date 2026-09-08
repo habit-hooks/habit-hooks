@@ -93,6 +93,11 @@ trailing `!`. The default pass produces the `knip:<key>` smells above; the gated
 (code kept alive only by a test) as `test-only-dead-code`, sourced
 `knip:production:<key>`.
 
+Knip's `unused-class-member` issues are name-keyed: both `key` and
+`details.name` carry the unused member name, alongside its file and line. That
+producer-specific shape remains distinct from Java's file-keyed PMD issues even
+though both sensors use the same canonical smell.
+
 A knip key with no row above (`binaries`, `duplicates`, `catalog`, and for now
 `unlisted`/`unresolved`) is **dropped at the sensor**. Translating a tool's key
 set into this vocabulary is the sensor's job, and a key forwarded under knip's own
@@ -157,6 +162,8 @@ catalogue is shared — only the plugin's sensors differ).
 | `pmd:AvoidDeeplyNestedIfStmts` | `deep-nesting`      |
 | `pmd:NcssCount`              | `oversized-function`  |
 | `pmd:UnusedLocalVariable`    | `unused-variable`     |
+| `pmd:UnusedPrivateField`     | `unused-class-member` |
+| `pmd:UnusedPrivateMethod`    | `unused-class-member` |
 | `pmd:UnnecessaryImport`      | `unused-import`       |
 | `pmd:EmptyCatchBlock`        | `swallowed-exception` |
 
@@ -172,12 +179,21 @@ one over-complex function.
 The bundled fallback sets `AvoidDeeplyNestedIfStmts` to `problemDepth=3`
 explicitly, so the third nested `if` is the first one reported; a project-owned
 ruleset only receives that smell when it enables the PMD rule itself.
+The same fallback enables `UnusedPrivateField` and `UnusedPrivateMethod` once
+each without overriding PMD's properties. Their Java issues remain file-keyed:
+`key` and `details.file` name the anchored Java file, `details.line` is PMD's
+beginning line, `details.message` is PMD's complete unmodified description, and
+`details.source` preserves the distinct raw rule. Java does not synthesize
+`details.name` or parse the message. Multiple unused members in one file
+therefore share a key and the existing file-level snooze behavior.
 PMD never discovers a project ruleset, so the sensor reaches for one only after
 checking the conventional locations (`src/main/resources/pmd/ruleset.xml`,
 `pmd/ruleset.xml`, `ruleset.xml`, `pmd.xml`) or a `--rulesets` in its args, then
 falls back to the bundled `pmd-ruleset.xml` — a project's own ruleset wins
-([config.md](config.md)). PMD 7's `UnnecessaryImport` is the renamed
-`UnusedImports`.
+([config.md](config.md)). The fallback is not merged into a project ruleset:
+the project may omit, enable, or configure either unused-member rule, and PMD's
+result under that policy is authoritative. PMD 7's `UnnecessaryImport` is the
+renamed `UnusedImports`.
 
 ## Ruby plugin translation
 
