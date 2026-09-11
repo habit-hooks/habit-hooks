@@ -219,6 +219,12 @@ takes the key out of the index. That is deliberate — a project upgrading must
 not find its snoozes re-arming by themselves — and it is the whole difference
 from [`--until-changed`](#--until-changed-keeps-a-snooze-only-while-its-file-is-unchanged)
 below. The file here is committed and then edited, and the issue stays dropped.
+The ceiling keeps `git init` from finding habit-hooks' own checkout above it.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
 
 📄src/x.ts
 ```ts
@@ -511,7 +517,15 @@ snooze permanent again, silently, which is the bug this transformer exists to
 fix.
 
 Every case below inherits this repository: `src/x.ts` and `src/other.ts`
-committed on `main`, with `src/x.ts` snoozed.
+committed on `main`, with `src/x.ts` snoozed. The ceiling is what keeps it
+*this* repository: the spec harness runs each case inside habit-hooks' own
+checkout, and without it git walks up and answers about habit-hooks — a case
+that branches would then rename a ref in the checkout you are reading.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
 
 📄src/x.ts
 ```ts
