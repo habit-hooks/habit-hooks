@@ -23,6 +23,7 @@ from .changed_files import changed_against_base
 from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
 from .config import load_config
 from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
+from .snooze_lapse import anchor_file, finding_keys, snoozed_anchors
 
 __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 
@@ -30,19 +31,6 @@ __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 # --no-snooze` strips them so `--prune` can compare the index against a
 # snooze-free view of the run instead of one snooze already emptied (#94).
 SNOOZE_TRANSFORMERS = frozenset({"snooze", "snooze-until-changed"})
-
-
-def finding_keys(findings: list[dict]) -> list[str]:
-    return [issue["key"] for finding in findings for issue in finding["issues"]]
-
-
-def anchor_file(issue: dict) -> str:
-    """The file an issue's snooze is anchored to: its ``details.file``, else its key.
-
-    A sensor keys an issue by whatever groups it best — a module or export name,
-    not always a path — so the file to compare comes from the details bag.
-    """
-    return issue.get("details", {}).get("file", issue["key"])
 
 
 def transform(
@@ -72,16 +60,6 @@ def transform(
 
 def _still_snoozed(issue: dict, snoozed: set[str], lapsed: Collection[str]) -> bool:
     return issue["key"] in snoozed and anchor_file(issue) not in lapsed
-
-
-def snoozed_anchors(findings: list[dict], snoozed: set[str]) -> set[str]:
-    """The files the snoozed issues sit in — where a lapse could apply."""
-    return {
-        anchor_file(issue)
-        for finding in findings
-        for issue in finding["issues"]
-        if issue["key"] in snoozed
-    }
 
 
 def read_findings() -> list[dict]:

@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 from habit_hooks import sensors
-from habit_hooks.snooze import anchor_file, parse_args, transform
+from habit_hooks.snooze import parse_args, transform
+from habit_hooks.snooze_lapse import anchor_file
 
 _FINDING = {
     "smell": "oversized-file",
