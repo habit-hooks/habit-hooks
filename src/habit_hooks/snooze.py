@@ -73,7 +73,9 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
             sys.stdout.write(key + "\n")
         return 0
     if args.snooze:
-        save_index(load_index(project_dir) + finding_keys(read_findings()), project_dir)
+        index = load_index(project_dir)
+        keys = finding_keys(read_findings())
+        save_index(index | {key: index.get(key, {}) for key in keys}, project_dir)
         return 0
     if args.prune:
         return _prune(project_dir)
@@ -98,7 +100,7 @@ def _prune(project_dir: Path) -> int:
             "Index left unchanged.\n"
         )
         return 1
-    save_index([key for key in index if key in present], project_dir)
+    save_index({key: index[key] for key in index if key in present}, project_dir)
     return 0
 
 

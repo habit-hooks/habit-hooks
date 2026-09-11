@@ -470,7 +470,7 @@ habit-snooze --list 2>&1 >/dev/null | sed 's| /.*/\.habit-hooks/| .habit-hooks/|
 
 🖥️ ❌ 2
 ```text
-habit-snooze: .habit-hooks/snooze.json: expected a JSON list of string keys, got an object
+habit-snooze: .habit-hooks/snooze.json: expected a JSON list of snoozed entries, got an object
 ```
 
 ## `--until-changed` keeps a snooze only while its file is unchanged
