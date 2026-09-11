@@ -29,10 +29,6 @@ from .snooze_index import Anchors, Index
 CONTENT_ALGORITHM = "sha256"
 
 
-def finding_keys(findings: list[dict]) -> list[str]:
-    return [issue["key"] for finding in findings for issue in finding["issues"]]
-
-
 def anchor_file(issue: dict) -> str:
     """The file an issue's snooze is anchored to: its ``details.file``, else its key.
 

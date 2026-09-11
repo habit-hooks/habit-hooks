@@ -505,6 +505,10 @@ Supersedes "leaves the index format and `--prune` untouched" under #80 above: bo
   records into, including a half-migrated index, with `SnoozeError` and exit 2. A team where one
   person upgrades breaks everyone else's runs, and CI's, until they upgrade. It fails by name and
   names the file, which is the right direction to fail, but it is a minor-version break.
+- **`--prune` reaps a stale anchor the same way it reaps a key.** An anchor goes stale inside an
+  entry that is still live — one of two files deleted while the key is still reported through the
+  other — and pruning by key alone would leave it recorded forever. Its contract is unchanged, and
+  the #94 refusal to empty a populated index on a run that measured nothing is untouched.
 - **A key written twice is refused when the two disagree, and only then.** Loading into a mapping
   keeps the last, so a bare duplicate beside a recorded one drops the recording with the order in
   the file deciding — the "survived only to be flattened on the next write" class #94 parses

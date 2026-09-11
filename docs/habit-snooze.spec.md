@@ -326,7 +326,8 @@ deleted — is stale, and `--prune` drops it. But `--prune` must read the findin
 stripped every snoozed issue, so a naive `--prune` would see none of them and
 empty the whole index (#94). The documented pipeline therefore runs
 `habit-sensors --no-snooze`, so `--prune` compares the index against everything
-the run still finds — snoozed or not.
+the run still finds — snoozed or not. It reaps stale **anchors** the same way: a
+key can stay live through one file while another it recorded is gone.
 
 These cases drive that real pipeline through a stub sensor rather than hand-fed
 findings, so the bypass that hid the bug cannot come back. Discovery is opt-in

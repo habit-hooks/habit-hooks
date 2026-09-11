@@ -21,8 +21,8 @@ from pathlib import Path
 from .changed_files import changed_against_base
 from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
 from .config import load_config
-from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
-from .snooze_lapse import Lapse, anchor_file, finding_keys, renewed, snoozed_anchors
+from .snooze_index import INDEX_PATH, Anchors, SnoozeError, load_index, save_index
+from .snooze_lapse import Lapse, anchor_file, anchors_by_key, renewed, snoozed_anchors
 
 __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 
@@ -81,14 +81,20 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
 
 
 def _prune(project_dir: Path) -> int:
-    """Drop index keys the latest run no longer reports — but never on an empty
-    run. Empty findings mean "nothing was measured" (an empty scope, or a
-    snooze-filtered pipe), not "every exemption is obsolete"; emptying the whole
-    index on that is the false-clean class of #78/#84, so it is refused (#94).
-    The run must be fed snooze-free (`habit-sensors --no-snooze`), else every
-    still-violating key is missing from stdin and would be pruned away.
+    """Drop index keys the latest run no longer reports, and within a key it
+    keeps, the anchors it no longer reports either — a key can stay live through
+    one file while another it recorded is gone. A key whose anchors have all
+    moved (a rename, a split) keeps the key and loses its recordings, falling
+    back to pre-#163 behaviour until the next ``--snooze``.
+
+    Never on an empty run, though. Empty findings mean "nothing was measured" (an
+    empty scope, or a snooze-filtered pipe), not "every exemption is obsolete";
+    emptying the whole index on that is the false-clean class of #78/#84, so it
+    is refused (#94). The run must be fed snooze-free (`habit-sensors
+    --no-snooze`), else every still-violating key is missing from stdin and would
+    be pruned away.
     """
-    present = set(finding_keys(read_findings()))
+    present = anchors_by_key(read_findings())
     index = load_index(project_dir)
     if index and not present:
         sys.stderr.write(
@@ -98,8 +104,13 @@ def _prune(project_dir: Path) -> int:
             "Index left unchanged.\n"
         )
         return 1
-    save_index({key: index[key] for key in index if key in present}, project_dir)
+    kept = {key: _reported(index[key], present[key]) for key in index if key in present}
+    save_index(kept, project_dir)
     return 0
+
+
+def _reported(recorded: Anchors, anchors: set[str]) -> Anchors:
+    return {anchor: content for anchor, content in recorded.items() if anchor in anchors}
 
 
 def _write_transformed(
