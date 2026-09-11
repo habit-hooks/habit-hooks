@@ -16,13 +16,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Collection
 from pathlib import Path
 
 from .changed_files import changed_against_base
 from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
 from .config import load_config
-from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
+from .snooze_index import INDEX_PATH, Anchors, SnoozeError, load_index, save_index
+from .snooze_lapse import Lapse, anchor_file, anchors_by_key, renewed, snoozed_anchors
 
 __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 
@@ -32,26 +32,13 @@ __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 SNOOZE_TRANSFORMERS = frozenset({"snooze", "snooze-until-changed"})
 
 
-def finding_keys(findings: list[dict]) -> list[str]:
-    return [issue["key"] for finding in findings for issue in finding["issues"]]
-
-
-def anchor_file(issue: dict) -> str:
-    """The file an issue's snooze is anchored to: its ``details.file``, else its key.
-
-    A sensor keys an issue by whatever groups it best — a module or export name,
-    not always a path — so the file to compare comes from the details bag.
-    """
-    return issue.get("details", {}).get("file", issue["key"])
-
-
 def transform(
-    findings: list[dict], snoozed: set[str], lapsed: Collection[str] = frozenset()
+    findings: list[dict], snoozed: set[str], lapse: Lapse = Lapse()
 ) -> list[dict]:
     """Drop snoozed issues, and any finding whose last issue we just dropped.
 
-    ``snoozed`` holds keys, ``lapsed`` the files whose snooze no longer applies:
-    an issue anchored to one of those changed, so its debt is due again.
+    ``snoozed`` holds keys; ``lapse`` says which of them no longer apply, because
+    the file an issue is anchored to changed and nothing re-affirmed it.
 
     A finding that arrives with no issues is passed through rather than dropped:
     nothing in it was snoozed. That keeps an empty index a true no-op, which
@@ -62,7 +49,7 @@ def transform(
         issues = [
             issue
             for issue in finding["issues"]
-            if not _still_snoozed(issue, snoozed, lapsed)
+            if not _still_snoozed(issue, snoozed, lapse)
         ]
         snoozed_them_all = finding["issues"] and not issues
         if not snoozed_them_all:
@@ -70,18 +57,8 @@ def transform(
     return kept
 
 
-def _still_snoozed(issue: dict, snoozed: set[str], lapsed: Collection[str]) -> bool:
-    return issue["key"] in snoozed and anchor_file(issue) not in lapsed
-
-
-def snoozed_anchors(findings: list[dict], snoozed: set[str]) -> set[str]:
-    """The files the snoozed issues sit in — where a lapse could apply."""
-    return {
-        anchor_file(issue)
-        for finding in findings
-        for issue in finding["issues"]
-        if issue["key"] in snoozed
-    }
+def _still_snoozed(issue: dict, snoozed: set[str], lapse: Lapse) -> bool:
+    return issue["key"] in snoozed and lapse.spares(issue["key"], anchor_file(issue))
 
 
 def read_findings() -> list[dict]:
@@ -95,7 +72,8 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
             sys.stdout.write(key + "\n")
         return 0
     if args.snooze:
-        save_index(load_index(project_dir) + finding_keys(read_findings()), project_dir)
+        index = load_index(project_dir)
+        save_index(renewed(index, read_findings(), project_dir), project_dir)
         return 0
     if args.prune:
         return _prune(project_dir)
@@ -103,14 +81,20 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
 
 
 def _prune(project_dir: Path) -> int:
-    """Drop index keys the latest run no longer reports — but never on an empty
-    run. Empty findings mean "nothing was measured" (an empty scope, or a
-    snooze-filtered pipe), not "every exemption is obsolete"; emptying the whole
-    index on that is the false-clean class of #78/#84, so it is refused (#94).
-    The run must be fed snooze-free (`habit-sensors --no-snooze`), else every
-    still-violating key is missing from stdin and would be pruned away.
+    """Drop index keys the latest run no longer reports, and within a key it
+    keeps, the anchors it no longer reports either — a key can stay live through
+    one file while another it recorded is gone. A key whose anchors have all
+    moved (a rename, a split) keeps the key and loses its recordings, falling
+    back to pre-#163 behaviour until the next ``--snooze``.
+
+    Never on an empty run, though. Empty findings mean "nothing was measured" (an
+    empty scope, or a snooze-filtered pipe), not "every exemption is obsolete";
+    emptying the whole index on that is the false-clean class of #78/#84, so it
+    is refused (#94). The run must be fed snooze-free (`habit-sensors
+    --no-snooze`), else every still-violating key is missing from stdin and would
+    be pruned away.
     """
-    present = set(finding_keys(read_findings()))
+    present = anchors_by_key(read_findings())
     index = load_index(project_dir)
     if index and not present:
         sys.stderr.write(
@@ -120,8 +104,13 @@ def _prune(project_dir: Path) -> int:
             "Index left unchanged.\n"
         )
         return 1
-    save_index([key for key in index if key in present], project_dir)
+    kept = {key: _reported(index[key], present[key]) for key in index if key in present}
+    save_index(kept, project_dir)
     return 0
+
+
+def _reported(recorded: Anchors, anchors: set[str]) -> Anchors:
+    return {anchor: content for anchor, content in recorded.items() if anchor in anchors}
 
 
 def _write_transformed(
@@ -134,13 +123,17 @@ def _write_transformed(
     not a silent fall back to ``.habit-hooks/config.toml`` (#86).
     """
     findings = read_findings()
-    snoozed = set(load_index(project_dir))
-    lapsed: set[str] = set()
+    index = load_index(project_dir)
+    lapse = Lapse()
     if until_changed:
-        base_ref = load_config(project_dir, config_path).scope.branchBase
-        anchors = snoozed_anchors(findings, snoozed)
-        lapsed = changed_against_base(anchors, project_dir, base_ref)
-    sys.stdout.write(json.dumps(transform(findings, snoozed, lapsed)) + "\n")
+        lapse = Lapse(
+            changed_against_base(
+                snoozed_anchors(findings, set(index)),
+                project_dir,
+                load_config(project_dir, config_path).scope.branchBase,
+            )
+        ).affirming(index, findings, project_dir)
+    sys.stdout.write(json.dumps(transform(findings, set(index), lapse)) + "\n")
     return 0
 
 

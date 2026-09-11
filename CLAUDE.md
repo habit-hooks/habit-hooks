@@ -799,8 +799,8 @@ commits lost). Give every git-backed section a
 `✏️GIT_CEILING_DIRECTORIES` = `$PWD/..` step next to its `git init`, as
 `## Scope` → `### Git-derived scopes` in habit-sensors.spec.md does: git's
 upward walk then stops at the case directory and the case can only ever see the
-repository it built. Older git-backed cases (habit-snooze.spec.md's
-`## --until-changed`, and two in habit-sensors.spec.md) still lack it.
+repository it built. Two older git-backed cases in habit-sensors.spec.md still
+lack it.
 
 ### `git diff --name-only` answers from the repo root, and quotes odd names
 

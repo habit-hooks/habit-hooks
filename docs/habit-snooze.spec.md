@@ -76,6 +76,15 @@ habit-snooze | jq .
 `--snooze` reads the findings on stdin and adds each issue's `key` to the index.
 `--list` then shows what is snoozed.
 
+An entry also records the content of each file the key is anchored to —
+`{"key": "src/x.ts", "anchors": {"src/x.ts": "sha256:…"}}` — which is what lets a
+later `--snooze`
+[re-affirm it](#--snooze-re-affirms-a-lapsed-entry-until-the-next-change). It
+remembers per file, because a key does not always stand for exactly one
+([sensor-interface.spec.md](sensor-interface.spec.md)). A key with nothing to
+record — an anchor that is no file on disk — is written as a bare string
+instead. `--list` shows the keys either way.
+
 ⌨️
 ```json
 [
@@ -210,6 +219,12 @@ takes the key out of the index. That is deliberate — a project upgrading must
 not find its snoozes re-arming by themselves — and it is the whole difference
 from [`--until-changed`](#--until-changed-keeps-a-snooze-only-while-its-file-is-unchanged)
 below. The file here is committed and then edited, and the issue stays dropped.
+The ceiling keeps `git init` from finding habit-hooks' own checkout above it.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
 
 📄src/x.ts
 ```ts
@@ -317,7 +332,8 @@ deleted — is stale, and `--prune` drops it. But `--prune` must read the findin
 stripped every snoozed issue, so a naive `--prune` would see none of them and
 empty the whole index (#94). The documented pipeline therefore runs
 `habit-sensors --no-snooze`, so `--prune` compares the index against everything
-the run still finds — snoozed or not.
+the run still finds — snoozed or not. It reaps stale **anchors** the same way: a
+key can stay live through one file while another it recorded is gone.
 
 These cases drive that real pipeline through a stub sensor rather than hand-fed
 findings, so the bypass that hid the bug cannot come back. Discovery is opt-in
@@ -470,7 +486,7 @@ habit-snooze --list 2>&1 >/dev/null | sed 's| /.*/\.habit-hooks/| .habit-hooks/|
 
 🖥️ ❌ 2
 ```text
-habit-snooze: .habit-hooks/snooze.json: expected a JSON list of string keys, got an object
+habit-snooze: .habit-hooks/snooze.json: expected a JSON list of snoozed entries, got an object
 ```
 
 ## `--until-changed` keeps a snooze only while its file is unchanged
@@ -501,7 +517,15 @@ snooze permanent again, silently, which is the bug this transformer exists to
 fix.
 
 Every case below inherits this repository: `src/x.ts` and `src/other.ts`
-committed on `main`, with `src/x.ts` snoozed.
+committed on `main`, with `src/x.ts` snoozed. The ceiling is what keeps it
+*this* repository: the spec harness runs each case inside habit-hooks' own
+checkout, and without it git walks up and answers about habit-hooks — a case
+that branches would then rename a ref in the checkout you are reading.
+
+✏️GIT_CEILING_DIRECTORIES
+```text
+$PWD/..
+```
 
 📄src/x.ts
 ```ts
@@ -561,6 +585,89 @@ uncommitted edit, and that alone re-surfaces the issue.
 
 ```bash
 printf 'export const extra = 1;\n' >> src/x.ts
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/x.ts"]
+```
+
+### `--snooze` re-affirms a lapsed entry until the next change
+
+The file lapsed above, and sometimes the answer is still the one given last
+time. Running `--snooze` again records the entry against the file as it now
+stands, and the finding is dropped for the rest of this branch. The index keeps
+that answer, so a teammate's checkout and CI honour it too.
+
+Note that `--snooze` re-affirms every lapsed entry the run reports, not only the
+one you had in mind: it renews what it is fed.
+
+```bash
+printf 'export const extra = 1;\n' >> src/x.ts
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --snooze
+```
+
+The finding is gone again, and the file was never changed back.
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+The next edit asks again: what was affirmed was that state of the file.
+
+```bash
+printf 'export const more = 2;\n' >> src/x.ts
 ```
 
 ⌨️
