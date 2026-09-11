@@ -76,6 +76,15 @@ habit-snooze | jq .
 `--snooze` reads the findings on stdin and adds each issue's `key` to the index.
 `--list` then shows what is snoozed.
 
+An entry also records the content of each file the key is anchored to —
+`{"key": "src/x.ts", "anchors": {"src/x.ts": "sha256:…"}}` — which is what lets a
+later `--snooze`
+[re-affirm it](#--snooze-re-affirms-a-lapsed-entry-until-the-next-change). It
+remembers per file, because a key does not always stand for exactly one
+([sensor-interface.spec.md](sensor-interface.spec.md)). A key with nothing to
+record — an anchor that is no file on disk — is written as a bare string
+instead. `--list` shows the keys either way.
+
 ⌨️
 ```json
 [
@@ -561,6 +570,89 @@ uncommitted edit, and that alone re-surfaces the issue.
 
 ```bash
 printf 'export const extra = 1;\n' >> src/x.ts
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+["src/x.ts"]
+```
+
+### `--snooze` re-affirms a lapsed entry until the next change
+
+The file lapsed above, and sometimes the answer is still the one given last
+time. Running `--snooze` again records the entry against the file as it now
+stands, and the finding is dropped for the rest of this branch. The index keeps
+that answer, so a teammate's checkout and CI honour it too.
+
+Note that `--snooze` re-affirms every lapsed entry the run reports, not only the
+one you had in mind: it renews what it is fed.
+
+```bash
+printf 'export const extra = 1;\n' >> src/x.ts
+```
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --snooze
+```
+
+The finding is gone again, and the file was never changed back.
+
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": { "maxAllowed": 200 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
+    ]
+  }
+]
+```
+
+```bash
+habit-snooze --until-changed | jq -c '[.[].issues[].key]'
+```
+
+🖥️ ✅
+```json
+[]
+```
+
+The next edit asks again: what was affirmed was that state of the file.
+
+```bash
+printf 'export const more = 2;\n' >> src/x.ts
 ```
 
 ⌨️

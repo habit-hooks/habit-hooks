@@ -14,7 +14,7 @@ import pytest
 
 from habit_hooks import sensors
 from habit_hooks.snooze import parse_args, transform
-from habit_hooks.snooze_lapse import anchor_file
+from habit_hooks.snooze_lapse import Lapse, anchor_file
 
 _FINDING = {
     "smell": "oversized-file",
@@ -45,18 +45,18 @@ def test_no_lapsed_file_drops_every_snoozed_issue() -> None:
 
 
 def test_a_lapsed_file_resurfaces_only_its_own_issue() -> None:
-    kept = transform([_FINDING], {"src/x.ts", "requests"}, {"src/y.py"})
+    kept = transform([_FINDING], {"src/x.ts", "requests"}, Lapse({"src/y.py"}))
     assert [issue["key"] for issue in kept[0]["issues"]] == ["requests"]
 
 
 def test_a_lapsed_file_leaves_unsnoozed_issues_alone() -> None:
-    kept = transform([_FINDING], set(), {"src/y.py"})
+    kept = transform([_FINDING], set(), Lapse({"src/y.py"}))
     assert [issue["key"] for issue in kept[0]["issues"]] == ["src/x.ts", "requests"]
 
 
 def test_a_finding_without_issues_passes_through() -> None:
     empty = {"smell": "duplicated-code", "details": {}, "issues": []}
-    assert transform([empty], {"src/x.ts"}, {"src/x.ts"}) == [empty]
+    assert transform([empty], {"src/x.ts"}, Lapse({"src/x.ts"})) == [empty]
 
 
 def test_file_run_bypasses_the_snooze_transformer(tmp_path: Path) -> None:

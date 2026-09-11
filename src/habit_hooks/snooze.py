@@ -16,14 +16,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Collection
 from pathlib import Path
 
 from .changed_files import changed_against_base
 from .cli import EXIT_TOOL_ERROR, add_version_flag, run_console
 from .config import load_config
 from .snooze_index import INDEX_PATH, SnoozeError, load_index, save_index
-from .snooze_lapse import anchor_file, finding_keys, snoozed_anchors
+from .snooze_lapse import Lapse, anchor_file, finding_keys, renewed, snoozed_anchors
 
 __all__ = ["INDEX_PATH", "SnoozeError", "load_index", "main", "save_index"]
 
@@ -34,12 +33,12 @@ SNOOZE_TRANSFORMERS = frozenset({"snooze", "snooze-until-changed"})
 
 
 def transform(
-    findings: list[dict], snoozed: set[str], lapsed: Collection[str] = frozenset()
+    findings: list[dict], snoozed: set[str], lapse: Lapse = Lapse()
 ) -> list[dict]:
     """Drop snoozed issues, and any finding whose last issue we just dropped.
 
-    ``snoozed`` holds keys, ``lapsed`` the files whose snooze no longer applies:
-    an issue anchored to one of those changed, so its debt is due again.
+    ``snoozed`` holds keys; ``lapse`` says which of them no longer apply, because
+    the file an issue is anchored to changed and nothing re-affirmed it.
 
     A finding that arrives with no issues is passed through rather than dropped:
     nothing in it was snoozed. That keeps an empty index a true no-op, which
@@ -50,7 +49,7 @@ def transform(
         issues = [
             issue
             for issue in finding["issues"]
-            if not _still_snoozed(issue, snoozed, lapsed)
+            if not _still_snoozed(issue, snoozed, lapse)
         ]
         snoozed_them_all = finding["issues"] and not issues
         if not snoozed_them_all:
@@ -58,8 +57,8 @@ def transform(
     return kept
 
 
-def _still_snoozed(issue: dict, snoozed: set[str], lapsed: Collection[str]) -> bool:
-    return issue["key"] in snoozed and anchor_file(issue) not in lapsed
+def _still_snoozed(issue: dict, snoozed: set[str], lapse: Lapse) -> bool:
+    return issue["key"] in snoozed and lapse.spares(issue["key"], anchor_file(issue))
 
 
 def read_findings() -> list[dict]:
@@ -74,8 +73,7 @@ def run(args: argparse.Namespace, project_dir: Path) -> int:
         return 0
     if args.snooze:
         index = load_index(project_dir)
-        keys = finding_keys(read_findings())
-        save_index(index | {key: index.get(key, {}) for key in keys}, project_dir)
+        save_index(renewed(index, read_findings(), project_dir), project_dir)
         return 0
     if args.prune:
         return _prune(project_dir)
@@ -114,13 +112,17 @@ def _write_transformed(
     not a silent fall back to ``.habit-hooks/config.toml`` (#86).
     """
     findings = read_findings()
-    snoozed = set(load_index(project_dir))
-    lapsed: set[str] = set()
+    index = load_index(project_dir)
+    lapse = Lapse()
     if until_changed:
-        base_ref = load_config(project_dir, config_path).scope.branchBase
-        anchors = snoozed_anchors(findings, snoozed)
-        lapsed = changed_against_base(anchors, project_dir, base_ref)
-    sys.stdout.write(json.dumps(transform(findings, snoozed, lapsed)) + "\n")
+        lapse = Lapse(
+            changed_against_base(
+                snoozed_anchors(findings, set(index)),
+                project_dir,
+                load_config(project_dir, config_path).scope.branchBase,
+            )
+        ).affirming(index, findings, project_dir)
+    sys.stdout.write(json.dumps(transform(findings, set(index), lapse)) + "\n")
     return 0
 
 

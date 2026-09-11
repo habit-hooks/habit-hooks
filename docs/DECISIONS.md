@@ -206,6 +206,9 @@ mapping, config validation) are resolved and recorded above / in
   ever encoded content in a key, so the ratchet simply vanished. Keeping the
   index keyed on `key` alone and moving the question into the drop decision
   leaves the index format and `--prune` untouched.
+  _(SUPERSEDED by "A snooze records what it was granted against" below — the
+  index now records content per anchor and `--prune` reaps anchors too. It is
+  still keyed on `key` alone.)_
 - **An issue is anchored to `details.file`, falling back to `key`.** A sensor
   keys by whatever groups issues best — `deptry` by module, `knip` by export —
   so the key is not always a path; all eight shipped sensors carry
@@ -384,7 +387,8 @@ mapping, config validation) are resolved and recorded above / in
 - **A malformed index fails by name.** `load_index` was `json.loads` with no
   type check: `null` iterated as `None`, a bare `"src/a.py"` iterated per
   character (a silent index of nothing), an object survived only to be flattened
-  on the next `--snooze`. It now demands a JSON list of strings and raises
+  on the next `--snooze`. It now demands a JSON list of strings _(AMENDED below
+  — a list of entries, each a key or a key with its recorded anchors)_ and raises
   `SnoozeError` naming the file — a checked-in file a human edits must not fail
   as a traceback or, worse, quietly. It **exits 2**, not 1: the index is part of
   the tool's own inputs, so a broken one is #103's "failure of the tool itself",
@@ -461,3 +465,58 @@ mapping, config validation) are resolved and recorded above / in
   `unused-import`, `unused-file`, `unused-dependency`, `unused-class-member` are
   all enforced). A project that wants it advisory sets
   `[smells.unused-export] severity = "suggested"`.
+
+## A snooze records what it was granted against (2026-09, issue #163, agent decision)
+
+Supersedes "leaves the index format and `--prune` untouched" under #80 above: both change here.
+
+- **Re-affirming is `--snooze` itself, not a new flag** _(Ivett's call)_. Running it again on an
+  entry whose file changed records the file as it now stands, and the finding is dropped until the
+  next edit. The issue had proposed a `--reaffirm`; it was refused as a new option for behaviour
+  the existing one should have.
+- **An entry is a key and the anchors it was granted against** — `{"key": …, "anchors": {"<file>":
+  "sha256:…"}}` — and an entry recording nothing stays a bare key string, so an index written
+  before this loads and rewrites unchanged and a project migrates one `--snooze` at a time.
+- **A lapse needs both halves: git says the anchor changed, *and* the recorded content no longer
+  matches.** Content alone would break the promise recorded under #80 — work landed on the base ref
+  afterwards lapses nothing — because a branch that never touched the file still sees the content
+  someone else landed. The git half is what keeps that branch alone; the index half is the only
+  thing a re-run of `--snooze` can change, which is why a bare path could never re-affirm anything.
+- **One digest per anchor, not per key.** A key can cover several files (`deptry` keys by module,
+  `knip` by export), and the pre-#163 rule already decided per issue against that issue's own
+  anchor. A single digest per key could only describe one of them, and *which* one fell out of the
+  order the sensor emitted its issues — a checked-in file that differs by sensor output order. It
+  also suppressed new debt: a key that becomes aliased on day two carries a digest recorded on day
+  one, and the file that has only just started reporting the smell inherits an affirmation nobody
+  gave it. Affirmation is therefore per `(key, anchor)`, which is what the rule always was.
+- **The digest normalises `\r\n` and nothing else, deliberately one notch more forgiving than
+  `git diff`.** Measured: under `core.autocrlf` git reports nothing for a CRLF-only rewrite;
+  without it git reports the file. Hashing the bytes on disk would lapse an affirmation made on a
+  CRLF checkout the moment an LF one read the index, and the index is checked in precisely so the
+  answer travels. A line-ending-only rewrite is not the debt the ratchet exists to surface.
+- **Rejected: `git hash-object`.** It would honour `eol=` and other clean filters and would be the
+  most faithful to "let the tool answer", but `--snooze` must work with no repository at all
+  (habit-snooze.spec.md snoozes without a `git init`), and a spec case without
+  `GIT_CEILING_DIRECTORIES` would read *this* checkout's attributes.
+- **Every `--snooze` records, plain `snooze` included.** `--snooze --until-changed` is already a
+  usage error (#86), so there is no flag to key the recording off. A project that never opted into
+  the ratchet therefore gains the new entry shape too — and with it the read break below.
+- **The break is forwards-only, and loud.** 1.5.0's `_parse_index` refuses any entry this version
+  records into, including a half-migrated index, with `SnoozeError` and exit 2. A team where one
+  person upgrades breaks everyone else's runs, and CI's, until they upgrade. It fails by name and
+  names the file, which is the right direction to fail, but it is a minor-version break.
+- **A key written twice is refused when the two disagree, and only then.** Loading into a mapping
+  keeps the last, so a bare duplicate beside a recorded one drops the recording with the order in
+  the file deciding — the "survived only to be flattened on the next write" class #94 parses
+  strictly to prevent. Two entries that agree lose nothing, so a plain `["a", "a"]` stays legal as
+  it always was, and nothing that 1.5.0 reads is refused here. The same rule covers a name written
+  twice inside one object, which `json` would otherwise resolve last-wins in silence.
+- **Only an anchor git called changed is hashed.** The other half of the rule decides every other
+  one without it, so asking them all would read and hash every snoozed file in the project on the
+  ordinary run where git flagged none — in a transform that runs inside a hook loop, and whose git
+  half is batched into a single call for exactly that reason. The narrowing lives on `Lapse`, which
+  already holds git's answer, so the transform's argument count is unchanged.
+- **Out of scope, deliberately:** a `reason` field and a per-smell key (both from the issue's own
+  proposal, neither needed for the ruling given), and restricting the recording to
+  `oversized-file` — the transformer works on keys and knows nothing of the smell vocabulary,
+  which is `catalogue.py`'s; the property that matters is structural, not a name.
