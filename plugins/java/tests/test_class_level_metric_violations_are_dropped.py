@@ -127,3 +127,40 @@ def test_a_class_level_violation_never_reaches_findings() -> None:
     assert len(result) == 1
     assert result[0]["smell"] == "high-complexity"
     assert len(result[0]["issues"]) == 1
+
+
+def test_unused_private_members_preserve_opaque_pmd_diagnostics() -> None:
+    entries = [
+        _entry("UnusedPrivateField", "Field is retained only by custom wiring", 7),
+        _entry("UnusedPrivateMethod", "Lifecycle entry point is never invoked", 11),
+    ]
+
+    result = findings(entries)
+
+    assert result == [
+        {
+            "smell": "unused-class-member",
+            "details": {},
+            "issues": [
+                {
+                    "key": "Fat.java",
+                    "details": {
+                        "file": "Fat.java",
+                        "line": 7,
+                        "message": "Field is retained only by custom wiring",
+                        "source": "pmd:UnusedPrivateField",
+                    },
+                },
+                {
+                    "key": "Fat.java",
+                    "details": {
+                        "file": "Fat.java",
+                        "line": 11,
+                        "message": "Lifecycle entry point is never invoked",
+                        "source": "pmd:UnusedPrivateMethod",
+                    },
+                },
+            ],
+        }
+    ]
+    assert all("name" not in issue["details"] for issue in result[0]["issues"])

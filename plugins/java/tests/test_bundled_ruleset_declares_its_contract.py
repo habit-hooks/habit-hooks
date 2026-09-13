@@ -14,6 +14,10 @@ RULESET = (
 )
 PMD_NAMESPACE = {"pmd": "http://pmd.sourceforge.net/ruleset/2.0.0"}
 DEEP_NESTING_RULE = "category/java/design.xml/AvoidDeeplyNestedIfStmts"
+UNUSED_PRIVATE_MEMBER_RULES = (
+    "category/java/bestpractices.xml/UnusedPrivateField",
+    "category/java/bestpractices.xml/UnusedPrivateMethod",
+)
 
 
 def test_the_bundled_ruleset_explicitly_reports_the_third_nested_if() -> None:
@@ -31,3 +35,16 @@ def test_the_bundled_ruleset_explicitly_reports_the_third_nested_if() -> None:
     )
     assert len(problem_depth) == 1
     assert problem_depth[0].get("value") == "3"
+
+
+def test_the_bundled_ruleset_enables_pmds_unused_private_member_defaults() -> None:
+    root = ElementTree.parse(RULESET).getroot()
+
+    rules = [
+        rule
+        for rule in root.findall("pmd:rule", PMD_NAMESPACE)
+        if rule.get("ref") in UNUSED_PRIVATE_MEMBER_RULES
+    ]
+
+    assert [rule.get("ref") for rule in rules] == list(UNUSED_PRIVATE_MEMBER_RULES)
+    assert all(len(rule) == 0 for rule in rules)

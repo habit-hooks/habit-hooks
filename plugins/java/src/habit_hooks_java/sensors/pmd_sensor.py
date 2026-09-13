@@ -40,6 +40,8 @@ RULE_SMELLS = {
     "CyclomaticComplexity": "high-complexity",
     "NcssCount": "oversized-function",
     "UnusedLocalVariable": "unused-variable",
+    "UnusedPrivateField": "unused-class-member",
+    "UnusedPrivateMethod": "unused-class-member",
     "UnnecessaryImport": "unused-import",
     "EmptyCatchBlock": "swallowed-exception",
 }
@@ -105,16 +107,32 @@ def smell_of(entry: dict) -> str | None:
     return RULE_SMELLS.get(rule)
 
 
-def issue(entry: dict) -> dict:
+def source_line(entry: dict) -> str | None:
     violation = entry["violation"]
+    try:
+        line = Path(entry["file"]).read_text(
+            encoding="utf-8", errors="replace"
+        ).splitlines()[violation["beginline"] - 1]
+    except (OSError, IndexError):
+        return None
+    return line.strip() or None
+
+
+def issue(entry: dict, smell: str) -> dict:
+    violation = entry["violation"]
+    details = {
+        "file": entry["file"],
+        "line": violation["beginline"],
+        "message": violation["description"],
+        "source": "pmd:" + violation["rule"],
+    }
+    if smell == "unused-class-member":
+        content = source_line(entry)
+        if content is not None:
+            details["content"] = content
     return {
         "key": entry["file"],
-        "details": {
-            "file": entry["file"],
-            "line": violation["beginline"],
-            "message": violation["description"],
-            "source": "pmd:" + violation["rule"],
-        },
+        "details": details,
     }
 
 
@@ -123,7 +141,7 @@ def findings(entries: list[dict]) -> list[dict]:
     for entry in entries:
         smell = smell_of(entry)
         if smell is not None:
-            by_smell.setdefault(smell, []).append(issue(entry))
+            by_smell.setdefault(smell, []).append(issue(entry, smell))
     return [
         {"smell": smell, "details": {}, "issues": issues}
         for smell, issues in by_smell.items()

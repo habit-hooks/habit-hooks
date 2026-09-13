@@ -18,6 +18,8 @@
     <properties><property name="methodReportLevel" value="12"/></properties>
   </rule>
   <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
   <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
   <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
 </ruleset>

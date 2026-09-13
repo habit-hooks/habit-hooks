@@ -142,9 +142,12 @@ function signature(row) {
   return `${row.knipKey}\n${row.file}\n${row.name ?? ""}`;
 }
 
-function issueFrom(row, source) {
+function issueFrom(row, source, smell) {
   const details = { file: row.file, source };
   if (row.name !== undefined) details.name = row.name;
+  if (smell === "unused-class-member" && row.name !== undefined) {
+    details.content = row.name;
+  }
   if (row.line !== undefined) details.line = row.line;
   // knip spells it `col`; the sensor contract (docs/sensor-interface.spec.md)
   // spells it `column`, as every other sensor does. Translating the tool's
@@ -170,7 +173,7 @@ function findings(defaultReport, productionReport) {
   for (const row of defaultRows) {
     const smell = SMELL_BY_KEY[row.knipKey];
     if (!smell) continue;
-    add(grouped, smell, issueFrom(row, `knip:${row.knipKey}`));
+    add(grouped, smell, issueFrom(row, `knip:${row.knipKey}`, smell));
   }
   if (productionReport) {
     const alreadyDead = new Set(defaultRows.map(signature));
@@ -178,7 +181,11 @@ function findings(defaultReport, productionReport) {
       if (!DEAD_CODE_KEYS.has(row.knipKey)) continue;
       if (alreadyDead.has(signature(row))) continue;
       if (isTestFile(row.file)) continue;
-      add(grouped, PRODUCTION_SMELL, issueFrom(row, `knip:production:${row.knipKey}`));
+      add(
+        grouped,
+        PRODUCTION_SMELL,
+        issueFrom(row, `knip:production:${row.knipKey}`, PRODUCTION_SMELL),
+      );
     }
   }
   return [...grouped.values()];

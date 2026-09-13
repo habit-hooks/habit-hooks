@@ -66,6 +66,39 @@ habit-sensors --all | jq 'sort_by(.smell)[] | {smell, language, key: (.issues[0]
 }
 ```
 
+## bundled PMD reports unused private fields and methods
+
+The fallback ruleset enables PMD's `UnusedPrivateField` and
+`UnusedPrivateMethod` rules. Both translate to one `unused-class-member`
+finding. The referenced field and method are controls: PMD does not report them.
+
+📄Members.java
+```java
+class Members {
+    private int staleField = 1;
+    private int liveField = 2;
+    private void staleMethod() {}
+    private int liveMethod() { return liveField; }
+    int value() { return liveMethod(); }
+}
+```
+
+```bash
+habit-sensors --all | jq '.[] | select(.smell == "unused-class-member") | {smell, language, sources: [.issues[].details.source]}'
+```
+
+🖥️ ✅
+```json
+{
+  "smell": "unused-class-member",
+  "language": "java",
+  "sources": [
+    "pmd:UnusedPrivateField",
+    "pmd:UnusedPrivateMethod"
+  ]
+}
+```
+
 ## pmd sensor reports the third nested if from the bundled ruleset
 
 With no PMD ruleset in the project, the plugin's bundled fallback explicitly
