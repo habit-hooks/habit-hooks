@@ -35,6 +35,7 @@ exits 0. The mapper config can override it per project.
 | `deep-nesting`              | Deep nesting                          | enforced         |
 | `oversized-file`            | Oversized file                        | enforced         |
 | `oversized-block`           | Oversized block                       | enforced         |
+| `multiple-expectations`     | Multiple expectations                 | enforced         |
 | `unused-variable`           | Unused variable                       | enforced         |
 | `loose-equality`            | Loose equality                        | enforced         |
 | `var-declaration`           | `var` declaration                     | enforced         |
@@ -189,6 +190,7 @@ catalogue is shared, only the plugin's sensors differ).
 | `rubocop:Metrics/ParameterLists`        | `too-many-parameters` |
 | `rubocop:Metrics/MethodLength`          | `oversized-function`  |
 | `rubocop:Metrics/BlockLength`           | `oversized-block`     |
+| `rubocop:RSpec/MultipleExpectations`    | `multiple-expectations` |
 | `rubocop:Metrics/CyclomaticComplexity`  | `high-complexity`     |
 | `rubocop:Metrics/PerceivedComplexity`   | `high-complexity`     |
 | `rubocop:Metrics/AbcSize`               | `high-complexity`     |

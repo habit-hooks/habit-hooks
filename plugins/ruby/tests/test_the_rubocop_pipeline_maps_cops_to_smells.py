@@ -67,6 +67,13 @@ def test_every_mapped_cop_reaches_its_smell(cop: str) -> None:
     assert finding["issues"][0]["details"]["source"] == f"rubocop:{cop}"
 
 
+def test_multiple_expectations_reaches_its_guide_smell() -> None:
+    [finding] = findings([_entry("RSpec/MultipleExpectations")])
+
+    assert finding["smell"] == "multiple-expectations"
+    assert finding["issues"][0]["details"]["source"] == "rubocop:RSpec/MultipleExpectations"
+
+
 def test_findings_are_grouped_by_smell_and_sorted() -> None:
     """One finding per smell whatever order the offences arrive in. The output
     is compared byte for byte by the spec cases, so it has to be deterministic."""
