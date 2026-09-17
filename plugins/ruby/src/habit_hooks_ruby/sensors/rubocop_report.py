@@ -38,6 +38,7 @@ COP_SMELLS = {
     "Metrics/ParameterLists": "too-many-parameters",
     "Metrics/MethodLength": "oversized-function",
     "Metrics/BlockLength": "oversized-block",
+    "RSpec/MultipleExpectations": "multiple-expectations",
     "Metrics/CyclomaticComplexity": "high-complexity",
     "Metrics/PerceivedComplexity": "high-complexity",
     "Metrics/AbcSize": "high-complexity",
