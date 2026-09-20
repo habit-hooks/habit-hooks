@@ -17,7 +17,6 @@ other way, as the name ``Config`` annotates its detectors with.
 from __future__ import annotations
 
 import ntpath
-import posixpath
 
 from attrs import field, fields, frozen
 
@@ -126,18 +125,26 @@ def _splices_extra_directories(path: str) -> bool:
 
 
 def _escapes_the_project(path: str) -> bool:
-    """Whether the path names anything but a directory under the project.
+    r"""Whether the path names anything but a directory under the project.
 
     Both platforms' forms, not the host's, because a config travels: a Windows
     drive or rooted path reads as relative to ``os.path.isabs`` on a Mac and is
     a directory this project still does not keep. Drive-relative (``C:tools``)
     is refused with them — it names the current directory of another drive —
     and so is a ``..`` component, which climbs out the same way.
+
+    The leading separator is read off the components rather than asked of
+    ``isabs``, which cannot answer for both platforms at once: ``ntpath.isabs``
+    stopped counting a single leading (back)slash as rooted in CPython 3.13,
+    and ``\tools`` is still ``C:\tools`` to ``project_dir /`` on Windows
+    (#166). Once ``splitdrive`` has returned empty, an empty first component
+    is what the older ``ntpath.isabs`` meant, and it subsumes
+    ``posixpath.isabs``.
     """
     if ntpath.splitdrive(path)[0]:
         return True
     components = path.replace("\\", "/").split("/")
-    return posixpath.isabs(path) or ntpath.isabs(path) or ".." in components
+    return components[0] == "" or ".." in components
 
 
 def _reject_invalid_detector(entry: object, where: str) -> None:

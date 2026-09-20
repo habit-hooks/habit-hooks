@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **On Python 3.13 a plugin's `search_paths` could name a directory outside
+  your project.** A detector names the directories under the project its tool
+  is looked for in, and an entry that climbs out of it is refused — except a
+  Windows-rooted one like `\tools`, which stopped being refused when CPython
+  3.13 changed what counts as a rooted path there. On Windows that entry
+  resolves to `C:\tools`, so a tool could be found, and spawned, from outside
+  the project; on POSIX it named a directory under the project and was
+  harmless. `search_paths` is declared in a plugin's `config.toml`, which a
+  project can also carry itself under `.habit-hooks/<plugin>/`. It is refused
+  again, on every interpreter. (#166)
+
 ## 1.5.0
 
 Ruby. A `Gemfile` or a `.rubocop.yml` in your project and habit-hooks now
