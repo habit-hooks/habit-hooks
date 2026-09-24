@@ -44,7 +44,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
     parser.add_argument("--no-snooze", action="store_true")
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--all", action="store_true")
-    modes.add_argument("--file")
+    modes.add_argument("--file", action="append")
     modes.add_argument("--branch", nargs="?", const="", metavar="base")
     modes.add_argument("--last", type=_positive_int)
     modes.add_argument("--since")

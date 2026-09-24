@@ -94,6 +94,18 @@ def test_a_named_file_inside_files_is_scanned(tmp_path: Path) -> None:
     assert scoped == ["src/a.py"]
 
 
+def test_repeated_named_files_are_all_in_scope(tmp_path: Path) -> None:
+    source = _source_file(tmp_path)
+    second = source.with_name("b.py")
+    second.write_text("", encoding="utf-8")
+    scoped = _scoped_files(
+        ["--file", "src/a.py", "--file", "src/b.py"],
+        tmp_path,
+        Config(files=["src/**"]),
+    )
+    assert scoped == ["src/a.py", "src/b.py"]
+
+
 def test_an_absolute_named_file_is_placed_in_the_project(tmp_path: Path) -> None:
     absolute = str(_source_file(tmp_path))
     scoped = _scoped_files(["--file", absolute], tmp_path, Config(files=["src/**"]))

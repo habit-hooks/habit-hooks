@@ -26,7 +26,7 @@ class Scope:
 def resolve_scope(args: argparse.Namespace, config: Config, project_dir: Path) -> Scope:
     placed = _placed(_selected(args, config, project_dir), project_dir)
     files = _source_files(placed, config, project_dir)
-    notices = [] if files else empty_scope_notices(args.file, project_dir, config)
+    notices = [] if files else empty_scope_notices(args.file[-1] if args.file else None, project_dir, config)
     if args.file is None:
         notices = [*submodule_notices(placed, config, project_dir), *notices]
     return Scope(files, notices)
@@ -36,7 +36,7 @@ def _selected(
     args: argparse.Namespace, config: Config, project_dir: Path
 ) -> list[str]:
     if args.file is not None:
-        return [args.file]
+        return args.file
     if args.branch is not None:
         base = args.branch or config.scope.branchBase
         return _changed_since(

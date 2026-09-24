@@ -106,3 +106,9 @@ def test_a_failure_that_already_names_itself_is_not_named_twice(
 
     assert run_console("habit-sensors", fail, []) == 2
     assert capsys.readouterr().err == "habit-sensors: not a git repository\n"
+
+
+def test_repeated_file_flags_are_preserved() -> None:
+    parsed = sensors.parse_args(["--file", "a.md", "--file", "b.md"])
+
+    assert parsed.file == ["a.md", "b.md"]
