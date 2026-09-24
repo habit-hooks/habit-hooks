@@ -38,6 +38,7 @@ class SensorOverride:
 
 @define
 class Config:
+    requires: str | None = None
     plugins: list[str] = field(factory=lambda: ["generic"])
     transformers: list[str] = field(factory=lambda: ["snooze"])
     files: list[str] | None = None

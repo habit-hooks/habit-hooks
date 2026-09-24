@@ -2,6 +2,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from importlib.metadata import version
+
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import Version
+
+from .cli import ConfigError
 
 from .config_schema import (
     PLUGIN_CONFIG_KEYS,
@@ -113,6 +119,18 @@ def declared_detectors(plugins: list[str], project_dir: Path) -> list[Detector]:
 def load_config(project_dir: Path, config_path: Path | None = None) -> Config:
     path = config_path or project_config_path(project_dir)
     config = _build_config(_read_toml(path))
+    if config.requires is not None:
+        if not isinstance(config.requires, str):
+            raise ConfigError("'requires' in the project config must be a version requirement string")
+        try:
+            required = SpecifierSet(config.requires)
+        except InvalidSpecifier:
+            raise ConfigError(f"invalid 'requires' version requirement {config.requires!r}") from None
+        running = Version(version("habit-hooks"))
+        if running not in required:
+            raise ConfigError(
+                f"project requires habit-hooks {config.requires}, but running version is {running}"
+            )
     plugin_configs = _plugin_configs(config.plugins, project_dir)
     if config.files is None:
         config.files = _plugin_files(plugin_configs) or None

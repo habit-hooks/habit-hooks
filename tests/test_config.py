@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from importlib.metadata import version
+
+import pytest
+
+from habit_hooks.cli import ConfigError
 
 from habit_hooks.config import (
     Config,
@@ -117,3 +122,20 @@ def test_direct_defaults_are_independent_instances() -> None:
     a.plugins.append("mutated")
     assert b.plugins == ["generic"]
     assert a.scope is not b.scope
+
+
+def test_satisfied_requires_version_loads(tmp_path: Path) -> None:
+    running = version("habit-hooks")
+    assert _load(_write(tmp_path, f'requires = "=={running}"\n')).requires == f"=={running}"
+
+
+def test_unmet_requires_version_names_requirement_and_running_version(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError) as refusal:
+        _load(_write(tmp_path, 'requires = ">=9999"\n'))
+    assert ">=9999" in str(refusal.value)
+    assert version("habit-hooks") in str(refusal.value)
+
+
+def test_invalid_requires_version_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="invalid 'requires' version requirement"):
+        _load(_write(tmp_path, 'requires = "definitely not a specifier"\n'))
