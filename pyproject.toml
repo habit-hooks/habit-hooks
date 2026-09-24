@@ -45,6 +45,7 @@ requires-python = ">=3.11"
 dependencies = [
     "jinja2>=3",
     "pathspec>=0.12",
+    "packaging>=24",
     "attrs>=23",
     "jq>=1.8",
     "habit-hooks-generic>=1.5.dev0,<2",
@@ -98,8 +99,6 @@ habit-hooks-ruby = { workspace = true }
 dev = [
     "pytest>=8",
     "markdown-it-py>=3",
-    # The floor gate asks pip's own question of this repo's own specifiers.
-    "packaging>=24",
     "ruff>=0.15.20",
     "deptry>=0.25.1",
     "habit-hooks-generic",
