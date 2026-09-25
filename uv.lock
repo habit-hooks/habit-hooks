@@ -82,6 +82,7 @@ dependencies = [
     { name = "habit-hooks-generic" },
     { name = "jinja2" },
     { name = "jq" },
+    { name = "packaging" },
     { name = "pathspec" },
 ]
 
@@ -119,7 +120,6 @@ dev = [
     { name = "habit-hooks-ruby" },
     { name = "habit-hooks-typescript" },
     { name = "markdown-it-py" },
-    { name = "packaging" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -140,6 +140,7 @@ requires-dist = [
     { name = "habit-hooks-typescript", marker = "extra == 'typescript'", editable = "plugins/typescript" },
     { name = "jinja2", specifier = ">=3" },
     { name = "jq", specifier = ">=1.8" },
+    { name = "packaging", specifier = ">=24" },
     { name = "pathspec", specifier = ">=0.12" },
 ]
 provides-extras = ["python", "typescript", "php", "java", "ruby", "all"]
@@ -154,7 +155,6 @@ dev = [
     { name = "habit-hooks-ruby", editable = "plugins/ruby" },
     { name = "habit-hooks-typescript", editable = "plugins/typescript" },
     { name = "markdown-it-py", specifier = ">=3" },
-    { name = "packaging", specifier = ">=24" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.15.20" },
 ]
