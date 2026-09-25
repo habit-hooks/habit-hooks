@@ -127,3 +127,9 @@ class Stderr:
             if result.returncode != self.exit_code:
                 raise SpecFailure(f"exit {result.returncode}, expected {self.exit_code}")
         c.assert_stream("stderr", result.stderr, self.block)
+
+
+@dataclass
+class Continued:
+    def apply(self, c: Context) -> None:
+        pass

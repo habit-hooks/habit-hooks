@@ -27,9 +27,9 @@ So given:
 
 `Example A` and `Example B` each start from a clean temp dir with `FOO` set and `config.toml` written.
 
-A heading that ends in `(continued)` continues the previous section instead of starting fresh: it runs in the directory the previous section left behind, and its inherited preambles are skipped — their effect is already on disk. Sections chain in document order, so a `(continued)` section may continue another `(continued)` section.
+A section that contains the line `(example continued from previous section)` continues the previous section instead of starting fresh: it runs in the directory the previous section left behind, and its inherited preambles are skipped — their effect is already on disk. Sections chain in document order, so one continued section may follow another.
 
-A `(continued)` section with no previous section is an error, so running one on its own (for example picked out by `pytest -k`) fails instead of silently missing its context.
+A continued section with no previous section is an error, so running one on its own (for example picked out by `pytest -k`) fails instead of silently missing its context.
 
 ## Steps
 

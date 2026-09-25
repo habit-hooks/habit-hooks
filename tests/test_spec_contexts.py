@@ -47,7 +47,7 @@ def test_a_continued_section_keeps_the_previous_state(tmp_path):
     spec = (
         "# Root\n"
         "## A\n📄state.txt\n```text\nsaved\n```\n"
-        "## B (continued)\n```bash\ncat state.txt\n```\n🖥️ ✅\n```text\nsaved\n```\n"
+        "## B\n(example continued from previous section)\n```bash\ncat state.txt\n```\n🖥️ ✅\n```text\nsaved\n```\n"
     )
     assert run(spec, tmp_path) == ["pass", "pass"]
 
@@ -56,13 +56,13 @@ def test_a_continued_section_skips_the_inherited_preamble(tmp_path):
     spec = (
         "# Root\n📄note.txt\n```text\noriginal\n```\n"
         "## A\n```bash\nprintf changed > note.txt\n```\n"
-        "## B (continued)\n```bash\ncat note.txt\n```\n🖥️ ✅\n```text\nchanged\n```\n"
+        "## B\n(example continued from previous section)\n```bash\ncat note.txt\n```\n🖥️ ✅\n```text\nchanged\n```\n"
     )
     assert run(spec, tmp_path) == ["pass", "pass"]
 
 
 def test_a_continued_section_needs_a_previous_section(tmp_path):
-    spec = "# Root\n## A (continued)\n```bash\ntrue\n```\n"
+    spec = "# Root\n## A\n(example continued from previous section)\n```bash\ntrue\n```\n"
     assert run(spec, tmp_path) == ["fail"]
 
 

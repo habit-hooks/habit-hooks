@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from .errors import SpecError
 from .glyphs import FAIL, PASS
 from .markdown import Block, Heading, Marker, read_elements
-from .steps import Command, CopyFile, Screen, SetEnv, Stderr, Stdin, WriteFile
+from .steps import Command, Continued, CopyFile, Screen, SetEnv, Stderr, Stdin, WriteFile
 
 
 @dataclass
@@ -44,6 +44,8 @@ def build_marker(marker: Marker) -> tuple[object, bool | None]:
         return Stdin(), True
     if kind == "screen":
         return Screen(_exit_code(arg) or 0), False
+    if kind == "continued":
+        return Continued(), None
     return Stderr(_exit_code(arg)), False  # kind == "stderr"
 
 
@@ -148,7 +150,7 @@ def _leaf_case(leaf: _Node) -> SpecCase:
         leaf.name,
         any(n.skip for n in chain),
         inherited + own,
-        "(continued)" in leaf.name,
+        any(isinstance(step, Continued) for step in own),
         len(inherited),
     )
 

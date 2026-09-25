@@ -8,6 +8,8 @@ from markdown_it.tree import SyntaxTreeNode
 
 from .glyphs import MARKERS, SKIP
 
+CONTINUED = "(example continued from previous section)"
+
 
 @dataclass
 class Heading:
@@ -53,5 +55,9 @@ def read_elements(text: str) -> list[object]:
         elif node.type == "fence":
             elements.append(Block(node.info.strip(), node.content.rstrip("\n")))
         elif node.type == "paragraph":
-            elements.extend(_markers(node.children[0].content))
+            content = node.children[0].content
+            if content.strip() == CONTINUED:
+                elements.append(Marker("continued", ""))
+            else:
+                elements.extend(_markers(content))
     return elements

@@ -4,52 +4,28 @@ When using habit-hooks, you may have findings you agree with but do not want to 
 
 Use `--snooze` to add snoozes, `--prune` to remove ones that no longer apply, and `--list` to see what's currently snoozed. Running `habit-snooze` on its own, with no flags, just applies the existing snoozes to filter findings — it doesn't change what's saved.
 
-The examples below share one small project and run it through the real pipeline; the sensor is a stub that reports whatever a file says, so the findings stay simple while the snoozing stays real:
+The examples below share one small project and run it through the real pipeline; the sensor is the python plugin's comment sensor, so every finding is one a real run would report:
 
 📄.habit-hooks/config.toml
 ```toml
-plugins = ["generic"]
-files   = ["**"]
+plugins = ["python"]
+
+[sensors.ruff]
+disabled = true
+
+[sensors.deptry]
+disabled = true
 ```
 
-📄.habit-hooks/generic/config.toml
-```toml
-sensors = ["alpha"]
+📄src/x.py
+```python
+total = 1 + 2
+# total is 3
 ```
 
-📄.habit-hooks/generic/sensors/alpha.toml
-```toml
-command = "cat ${dir}/alpha.json"
-```
-
-📄src/x.ts
-```ts
-export const equal = (a, b) => a == b;
-```
-
-📄src/other.ts
-```ts
-export const untouched = 1;
-```
-
-📄.habit-hooks/generic/sensors/alpha.json
-```json
-[
-  {
-    "smell": "oversized-file",
-    "details": { "maxAllowed": 200 },
-    "issues": [
-      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 251 } }
-    ]
-  },
-  {
-    "smell": "oversized-file",
-    "details": { "maxAllowed": 200 },
-    "issues": [
-      { "key": "src/other.ts", "details": { "file": "src/other.ts", "lines": 300 } }
-    ]
-  }
-]
+📄src/other.py
+```python
+ready = True
 ```
 
 ## Basic behaviour
@@ -58,125 +34,157 @@ export const untouched = 1;
 By default all findings pass through.
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].key]'
+habit-sensors --all | jq .
 ```
 🖥️ ✅
 ```json
-["src/x.ts","src/other.ts"]
+[
+  {
+    "smell": "non-essential-comment",
+    "details": {},
+    "issues": [
+      {
+        "key": "src/x.py",
+        "details": {
+          "file": "src/x.py",
+          "line": 2,
+          "message": "# total is 3",
+          "source": "comment"
+        }
+      }
+    ],
+    "language": "python"
+  }
+]
 ```
 
-## Snooze current issues (continued)
+## Snooze current issues 
 
 Snoozes are checked into the repository as `.habit-hooks/snooze.json`, so the whole team shares the same list. The default snooze key is the file name (see [sensor-interface.spec.md](sensor-interface.spec.md)), so one snooze can cover every issue reported for that file.
 
 `--snooze` adds all current findings to the snooze list.
+
+(example continued from previous section)
 
 ```bash
 habit-sensors --all | habit-snooze --snooze && habit-snooze --list
 ```
 🖥️ ✅
 ```text
-src/other.ts
-src/x.ts
+src/x.py
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].key]'
+habit-sensors --all | jq .
 ```
 🖥️ ✅
 ```json
 []
 ```
 
-## Issues resurface on next edit (continued)
+## Issues resurface on next edit
 
 When you snooze an issue, habit-snooze will keep filtering it out as long as the file's contents remains the same.
 
+(example continued from previous section)
+
 ```bash
-printf 'export const touched = 2;\n' >> src/other.ts
+printf '# what other.py is for\n' >> src/other.py
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].key]'
+habit-sensors --all | jq .
 ```
 🖥️ ✅
 ```json
-["src/other.ts"]
+[
+  {
+    "smell": "non-essential-comment",
+    "details": {},
+    "issues": [
+      {
+        "key": "src/other.py",
+        "details": {
+          "file": "src/other.py",
+          "line": 2,
+          "message": "# what other.py is for",
+          "source": "comment"
+        }
+      }
+    ],
+    "language": "python"
+  }
+]
 ```
 
 When the file is edited next time, the issue comes back. We recommend fixing the issue at that time, however running `--snooze` again approves the new version.
 
 ```bash
-printf 'export const extra = (a, b) => a == b;\n' >> src/x.ts
+printf '# another comment\n' >> src/x.py
 ```
 
-The sensor now also reports the issue the edit created:
-
-📄.habit-hooks/generic/sensors/alpha.json
+```bash
+habit-sensors --all | jq .
+```
+🖥️ ✅
 ```json
 [
   {
-    "smell": "oversized-file",
-    "details": { "maxAllowed": 200 },
+    "smell": "non-essential-comment",
+    "details": {},
     "issues": [
-      { "key": "src/x.ts", "details": { "file": "src/x.ts", "lines": 252 } }
-    ]
-  },
-  {
-    "smell": "loose-equality",
-    "details": { "maxAllowed": 0 },
-    "issues": [
-      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 2 } }
-    ]
-  },
-  {
-    "smell": "oversized-file",
-    "details": { "maxAllowed": 200 },
-    "issues": [
-      { "key": "src/other.ts", "details": { "file": "src/other.ts", "lines": 301 } }
-    ]
+      {
+        "key": "src/other.py",
+        "details": {
+          "file": "src/other.py",
+          "line": 2,
+          "message": "# what other.py is for",
+          "source": "comment"
+        }
+      },
+      {
+        "key": "src/x.py",
+        "details": {
+          "file": "src/x.py",
+          "line": 2,
+          "message": "# total is 3",
+          "source": "comment"
+        }
+      },
+      {
+        "key": "src/x.py",
+        "details": {
+          "file": "src/x.py",
+          "line": 3,
+          "message": "# another comment",
+          "source": "comment"
+        }
+      }
+    ],
+    "language": "python"
   }
 ]
 ```
 
 ```bash
-habit-sensors --all | jq -c '[.[].issues[].key]'
-```
-🖥️ ✅
-```json
-["src/x.ts","src/x.ts","src/other.ts"]
-```
-
-```bash
-habit-sensors --all | habit-snooze --snooze && habit-sensors --all | jq -c '[.[].issues[].key]'
+habit-sensors --all | habit-snooze --snooze && habit-sensors --all | jq .
 ```
 🖥️ ✅
 ```json
 []
 ```
 
-## Remove snoozes for findings that no longer exist (continued)
+## Remove snoozes for findings that no longer exist
 
 Use `habit-sensors --all --no-snooze | habit-snooze --prune` when you want to remove snoozes for issues that are no longer reported. The command keeps snoozes for issues that are still present.
 
-Both issues in `src/x.ts` get fixed:
+Both issues in `src/x.py` get fixed:
 
-📄src/x.ts
-```ts
-export const equal = (a, b) => a === b;
-```
+(example continued from previous section)
 
-📄.habit-hooks/generic/sensors/alpha.json
-```json
-[
-  {
-    "smell": "oversized-file",
-    "details": { "maxAllowed": 200 },
-    "issues": [
-      { "key": "src/other.ts", "details": { "file": "src/other.ts", "lines": 301 } }
-    ]
-  }
-]
+📄src/x.py
+```python
+total = 1 + 2
 ```
 
 ```bash
@@ -184,5 +192,5 @@ habit-sensors --all --no-snooze | habit-snooze --prune && habit-snooze --list
 ```
 🖥️ ✅
 ```text
-src/other.ts
+src/other.py
 ```
