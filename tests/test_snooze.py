@@ -47,6 +47,11 @@ def test_a_changed_file_resurfaces_only_its_own_issue(tmp_path: Path) -> None:
     assert [issue["key"] for issue in kept[0]["issues"]] == ["src/x.ts"]
 
 
+def test_a_snoozed_issue_is_dropped_from_its_finding(tmp_path: Path) -> None:
+    kept = transform([_FINDING], {"src/x.ts": {}}, tmp_path)
+    assert [issue["key"] for issue in kept[0]["issues"]] == ["requests"]
+
+
 def test_an_issue_whose_key_is_not_snoozed_is_never_dropped(tmp_path: Path) -> None:
     kept = transform([_FINDING], {}, tmp_path)
     assert [issue["key"] for issue in kept[0]["issues"]] == ["src/x.ts", "requests"]
