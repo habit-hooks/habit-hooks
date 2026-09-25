@@ -15,6 +15,8 @@ class SpecCase:
     name: str
     skip: bool
     steps: list[object]
+    continued: bool = False
+    inherited_steps: int = 0
 
 
 def _exit_code(arg: str) -> int | None:
@@ -140,8 +142,15 @@ def _ancestry(leaf: _Node) -> list[_Node]:
 
 def _leaf_case(leaf: _Node) -> SpecCase:
     chain = _ancestry(leaf)
-    steps = [step for node in chain for step in StepBuilder().build(node.elements)]
-    return SpecCase(leaf.name, any(n.skip for n in chain), steps)
+    inherited = [step for node in chain[:-1] for step in StepBuilder().build(node.elements)]
+    own = StepBuilder().build(leaf.elements)
+    return SpecCase(
+        leaf.name,
+        any(n.skip for n in chain),
+        inherited + own,
+        "(continued)" in leaf.name,
+        len(inherited),
+    )
 
 
 def parse_spec(text: str) -> list[SpecCase]:
