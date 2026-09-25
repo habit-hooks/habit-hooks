@@ -17,23 +17,16 @@ function isAbsent(error) {
   return error.code === "MODULE_NOT_FOUND";
 }
 
-const MAX_SINGLE_LINE_CHARS = 10;
-const MAX_BLOCK_CHARS = 15;
-
 function isExempt(text) {
   return text.includes("eslint-disable");
 }
 
 function isReportableSingle(text) {
-  return (
-    text.startsWith("//") && !isExempt(text) && text.length >= MAX_SINGLE_LINE_CHARS
-  );
+  return text.startsWith("//") && !isExempt(text);
 }
 
 function isReportableBlock(text) {
-  return (
-    text.startsWith("/*") && !isExempt(text) && text.length >= MAX_BLOCK_CHARS
-  );
+  return text.startsWith("/*") && !isExempt(text);
 }
 
 function truncate(text) {
