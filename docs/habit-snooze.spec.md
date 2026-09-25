@@ -90,13 +90,9 @@ src/x.ts
 
 ## Issues resurface on next edit
 
-When you snooze an issue, habit-snooze will keep filtering it out as long as the file's contents remains the same; 
-
->> "An edit brings the issue back" should belong here. and it should set up the re snoose case bellow
+When you snooze an issue, habit-snooze will keep filtering it out as long as the file's contents remains the same.
 
 When the file is edited next time, the issue comes back. We recommend fixing the issue at that time, however running `--snooze` again approves the new version.
-
-When you snooze an issue tied to a file, habit-snooze remembers what that file looked like when you approved it. The issue stays snoozed as long as the file still matches; edit the file and the issue comes back so you can review the change. Run `--snooze` again to approve the new version.
 
 📄src/x.ts
 ```ts
@@ -130,9 +126,112 @@ export const untouched = 1;
 habit-snooze --snooze
 ```
 
+### An edit brings the issue back
+
+```bash
+printf 'export const extra = 1;\n' >> src/x.ts
+```
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": {
+      "maxAllowed": 200
+    },
+    "issues": [
+      {
+        "key": "src/x.ts",
+        "details": {
+          "file": "src/x.ts",
+          "lines": 251
+        }
+      }
+    ]
+  }
+]
+```
+```bash
+habit-snooze | jq -c '[.[].issues[].key]'
+```
+🖥️ ✅
+```json
+["src/x.ts"]
+```
+
+### Running `--snooze` again approves the new version
+
+```bash
+printf 'export const extra = 1;\n' >> src/x.ts
+```
+⌨️
+```json
+[
+  {
+    "smell": "oversized-file",
+    "details": {
+      "maxAllowed": 200
+    },
+    "issues": [
+      {
+        "key": "src/x.ts",
+        "details": {
+          "file": "src/x.ts",
+          "lines": 251
+        }
+      }
+    ]
+  }
+]
+```
+```bash
+habit-snooze | jq -c '[.[].issues[].key]'
+```
+🖥️ ✅
+```json
+["src/x.ts"]
+```
+```bash
+habit-snooze --snooze && habit-snooze | jq -c '[.[].issues[].key]'
+```
+🖥️ ✅
+```json
+[]
+```
+
 ## Remove snoozes for findings that no longer exist
 
 Use `habit-sensors --all --no-snooze | habit-snooze --prune` when you want to remove snoozes for issues that are no longer reported. The command keeps snoozes for issues that are still present.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["**"]
+```
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["alpha"]
+```
+📄.habit-hooks/generic/sensors/alpha.toml
+```toml
+command = "cat ${dir}/alpha.json"
+```
+📄.habit-hooks/generic/sensors/alpha.json
+```json
+[
+  {
+    "smell": "loose-equality",
+    "details": { "maxAllowed": 0 },
+    "issues": [
+      { "key": "src/x.ts", "details": { "file": "src/x.ts", "line": 1 } }
+    ]
+  }
+]
+```
+📄.habit-hooks/snooze.json
+```json
+["src/x.ts", "src/y.ts"]
+```
 
 ```bash
 habit-sensors --all --no-snooze | habit-snooze --prune && habit-snooze --list
