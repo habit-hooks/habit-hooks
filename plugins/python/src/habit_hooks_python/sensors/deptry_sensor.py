@@ -7,6 +7,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+UNREADABLE_DECLARATION_NAMES = ("setup.py", "setup.cfg", "Pipfile")
+
 
 def run_deptry(deptry: str, report: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -23,6 +25,36 @@ def deptry_crashed(result: subprocess.CompletedProcess[str], report: Path) -> bo
 
 def deptry_found_no_declaration(result: subprocess.CompletedProcess[str]) -> bool:
     return "DependencySpecificationNotFoundError" in result.stderr
+
+
+def unreadable_declarations() -> list[Path]:
+    return [
+        Path(name) for name in UNREADABLE_DECLARATION_NAMES if Path(name).is_file()
+    ]
+
+
+def unchecked_dependencies(declarations: list[Path]) -> list[dict]:
+    return [
+        {
+            "smell": "parse-error",
+            "details": {},
+            "issues": [
+                {
+                    "key": str(declaration),
+                    "details": {
+                        "file": str(declaration),
+                        "message": (
+                            f"dependencies declared in {declaration} are never "
+                            "checked — deptry reads pyproject.toml or requirements "
+                            "files only"
+                        ),
+                        "source": "deptry:no-declaration",
+                    },
+                }
+                for declaration in declarations
+            ],
+        }
+    ]
 
 
 def unused_dependencies(report: Path) -> list[dict]:
@@ -61,6 +93,10 @@ def main() -> int:
         result = run_deptry(deptry, report)
         if deptry_crashed(result, report):
             if deptry_found_no_declaration(result):
+                declarations = unreadable_declarations()
+                if declarations:
+                    print(json.dumps(unchecked_dependencies(declarations)))
+                    return 0
                 print(json.dumps([]))
                 return 0
             sys.stderr.write(result.stderr)
