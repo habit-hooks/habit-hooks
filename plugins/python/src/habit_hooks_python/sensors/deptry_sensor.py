@@ -43,7 +43,7 @@ def unchecked_dependencies(declarations: list[Path]) -> list[dict]:
                     "key": str(declaration),
                     "details": {
                         "file": str(declaration),
-                        "message": (
+                        "content": (
                             f"dependencies declared in {declaration} are never "
                             "checked — deptry reads pyproject.toml or requirements "
                             "files only"

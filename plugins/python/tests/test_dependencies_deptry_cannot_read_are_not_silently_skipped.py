@@ -13,18 +13,12 @@ SENSOR = (
     / "src/habit_hooks_python/sensors/deptry_sensor.py"
 )
 
-DECLARATIONS = (
-    (
-        "setup.py",
-        "from setuptools import setup\n\nsetup(name='demo', version='0.0.0')\n",
-    ),
-    (
-        "setup.cfg",
-        "[metadata]\nname = demo\nversion = 0.0.0\n\n"
-        "[options]\ninstall_requires =\n    attrs\n",
-    ),
-    ("Pipfile", "[packages]\nattrs = '*'\n"),
-)
+DECLARATION_CONTENTS = {
+    "setup.py": "from setuptools import setup\n\nsetup(name='demo', version='0.0.0')\n",
+    "setup.cfg": "[metadata]\nname = demo\nversion = 0.0.0\n\n"
+    "[options]\ninstall_requires =\n    attrs\n",
+    "Pipfile": "[packages]\nattrs = '*'\n",
+}
 
 
 def _run_sensor(tmp_path: Path, deptry: str) -> subprocess.CompletedProcess[str]:
@@ -38,12 +32,14 @@ def _run_sensor(tmp_path: Path, deptry: str) -> subprocess.CompletedProcess[str]
 
 
 @pytest.mark.parametrize(
-    ("declaration", "contents"), DECLARATIONS, ids=[name for name, _ in DECLARATIONS]
+    "declaration", DECLARATION_CONTENTS, ids=list(DECLARATION_CONTENTS)
 )
 def test_dependencies_deptry_cannot_read_are_not_silently_skipped(
-    tmp_path: Path, deptry: str, declaration: str, contents: str
+    tmp_path: Path, deptry: str, declaration: str
 ) -> None:
-    (tmp_path / declaration).write_text(contents, encoding="utf-8")
+    (tmp_path / declaration).write_text(
+        DECLARATION_CONTENTS[declaration], encoding="utf-8"
+    )
     (tmp_path / "app.py").write_text("import rich\n", encoding="utf-8")
 
     result = _run_sensor(tmp_path, deptry)
