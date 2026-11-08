@@ -35,6 +35,19 @@ def repository_with_committed_file(project_dir: Path) -> Path:
     return committed_file
 
 
+def holding(project_dir: Path, files: dict[str, str]) -> None:
+    git(project_dir, "init", "-q", "-b", "main", ".")
+    for relative, body in files.items():
+        path = project_dir / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+
+
+def tracking(project_dir: Path, files: dict[str, str]) -> None:
+    holding(project_dir, files)
+    git(project_dir, "add", "-A")
+
+
 def written(file: Path) -> Path:
     file.parent.mkdir(parents=True, exist_ok=True)
     file.write_text("x = 1\n", encoding="utf-8")

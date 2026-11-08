@@ -3,22 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from git_repo import git
+from git_repo import holding, tracking
 from habit_hooks.initialise import plan
 from plugin_fixture import write_plugin, write_project_config
-
-
-def _holding(project_dir: Path, files: dict[str, str]) -> None:
-    git(project_dir, "init", "-q", "-b", "main", ".")
-    for relative, body in files.items():
-        path = project_dir / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(body, encoding="utf-8")
-
-
-def _tracking(project_dir: Path, files: dict[str, str]) -> None:
-    _holding(project_dir, files)
-    git(project_dir, "add", "-A")
 
 
 def test_a_project_of_no_known_language_plans_the_generic_plugin_alone(
@@ -69,7 +56,7 @@ def test_every_language_found_is_planned_before_the_languageless_plugin(
 def test_a_source_file_names_a_language_with_no_config_file_to_announce_it(
     init_project: Path,
 ) -> None:
-    _tracking(init_project, {"src/app.py": "x = 1\n"})
+    tracking(init_project, {"src/app.py": "x = 1\n"})
 
     assert plan(init_project).languages == ("python",)
 
@@ -77,13 +64,13 @@ def test_a_source_file_names_a_language_with_no_config_file_to_announce_it(
 def test_a_source_file_git_has_not_been_shown_yet_names_a_language(
     init_project: Path,
 ) -> None:
-    _holding(init_project, {"src/app.py": "x = 1\n"})
+    holding(init_project, {"src/app.py": "x = 1\n"})
 
     assert plan(init_project).languages == ("python",)
 
 
 def test_a_file_git_ignores_names_no_language(init_project: Path) -> None:
-    _tracking(init_project, {".gitignore": "node_modules/\n"})
+    tracking(init_project, {".gitignore": "node_modules/\n"})
     vendored = init_project / "node_modules" / "pkg"
     vendored.mkdir(parents=True)
     (vendored / "index.d.ts").write_text("", encoding="utf-8")
