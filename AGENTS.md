@@ -36,6 +36,7 @@ Working in this repo:
 - A unit failure in `tests/` is always real. Spec and installed-packaging failures only count after a quiet re-run.
 - Scratch scripts and test fixtures: every git command spells `git -C <dir>`, never a bare `git` after a `cd` — a failed `cd` runs the rest against THIS repo.
 - New git-backed spec cases set `✏️GIT_CEILING_DIRECTORIES` next to their `git init` (see habit-sensors.spec.md), or git answers about this repo instead of the case's.
+- Anything feeding `used_languages` must carry forward-slash paths (`git ls-files`, `project_relative`/`as_posix()`) — the dependency-directory filter splits on `/`.
 
 Sensors wrap tools and must reproduce the tool's behaviour exactly:
 - jscpd turns `<cwd>/.gitignore` lines into globs over absolute paths, so a checkout under an ignored segment (e.g. `.claude/worktrees/…`) scans nothing — `--all` in such a worktree proves nothing about duplication.
