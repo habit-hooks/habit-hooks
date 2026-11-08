@@ -29,10 +29,22 @@ class PluginStatus:
     is_installed: Callable[[str], bool]
 
 
+DEPENDENCY_DIRECTORIES = frozenset(
+    {"node_modules", "vendor", "site-packages", ".venv", "venv"}
+)
+
+
+def _inside_dependency_directory(path: str) -> bool:
+    return any(part in DEPENDENCY_DIRECTORIES for part in path.split("/")[:-1])
+
+
 def _is_used(signal: LanguageSignal, project_dir: Path, files: list[str]) -> bool:
     if any((project_dir / name).is_file() for name in signal.config_files):
         return True
-    return any(file.endswith(signal.extensions) for file in files)
+    return any(
+        file.endswith(signal.extensions) and not _inside_dependency_directory(file)
+        for file in files
+    )
 
 
 def _enable(language: str) -> str:

@@ -18,14 +18,9 @@ from .resolve import Resolver
 
 LANGUAGE_AGNOSTIC_PLUGIN = "generic"
 
-DEPENDENCY_DIRECTORIES = frozenset(
-    {"node_modules", "vendor", "site-packages", ".venv", "venv"}
-)
-
 
 @frozen
 class Plan:
-
     languages: tuple[str, ...]
     plugins: tuple[str, ...]
     already_configured: bool
@@ -46,16 +41,8 @@ class Plan:
         )
 
 
-def _inside_dependency_directory(path: str) -> bool:
-    return any(part in DEPENDENCY_DIRECTORIES for part in path.split("/")[:-1])
-
-
 def plan(project_dir: Path) -> Plan:
-    files = [
-        path
-        for path in git_listing.project_files(project_dir)
-        if not _inside_dependency_directory(path)
-    ]
+    files = git_listing.project_files(project_dir)
     languages = tuple(used_languages(project_dir, files))
     config = _project_config(project_dir)
     plugins = _plugins(languages, config)
