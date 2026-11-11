@@ -8,6 +8,7 @@ from habit_hooks.argv_budget import (
     POSIX_ARGUMENT_BUDGET,
     WINDOWS_ARGUMENT_BUDGET,
     argument_budget,
+    argument_cost,
     within_argument_limits,
 )
 
@@ -44,3 +45,10 @@ def test_the_same_paths_split_once_windows_s_narrower_budget_applies(
     on_windows(monkeypatch)
 
     assert len(list(within_argument_limits(BORDERLINE_ARGUMENTS))) == 2
+
+
+def test_a_batch_never_costs_more_than_the_budget() -> None:
+    batches = list(within_argument_limits(["aaaa", "bbbbb"], budget=10))
+
+    assert batches == [["aaaa"], ["bbbbb"]]
+    assert all(argument_cost(batch) <= 10 for batch in batches)

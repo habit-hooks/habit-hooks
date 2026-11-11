@@ -26,7 +26,7 @@ def within_argument_limits(
     batch: list[str] = []
     length = 0
     for argument in arguments:
-        if batch and length + len(argument) > budget:
+        if batch and length + len(argument) + 1 > budget:
             yield batch
             batch, length = [], 0
         batch.append(argument)
