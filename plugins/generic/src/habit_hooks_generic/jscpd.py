@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -16,6 +15,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("jscpd")
     parser.add_argument("--fallback-config", required=True)
+    parser.add_argument("files", nargs="*")
     return parser.parse_args(argv)
 
 
@@ -36,20 +36,13 @@ def project_configures_jscpd(project: Path) -> bool:
     return bool(manifest_of(project).get("jscpd"))
 
 
-def scan_paths(config: str) -> list[str]:
-    return json.loads(Path(config).read_text(encoding="utf-8"))["path"]
-
-
-def is_windows() -> bool:
-    return os.name == "nt"
-
-
-def config_arguments(fallback: str, project: Path) -> list[str]:
+def config_arguments(fallback: str, project: Path, files: list[str]) -> list[str]:
+    project_path = [Path.cwd().as_posix()]
+    if files:
+        return files if project_configures_jscpd(project) else ["--config", fallback, *files]
     if project_configures_jscpd(project):
-        if is_windows():
-            return [Path.cwd().as_posix()]
-        return []
-    return ["--config", fallback, *scan_paths(fallback)]
+        return project_path
+    return ["--config", fallback, *project_path]
 
 
 def run_jscpd(
@@ -93,7 +86,7 @@ def findings(report: Path) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
-    arguments = config_arguments(args.fallback_config, Path.cwd())
+    arguments = config_arguments(args.fallback_config, Path.cwd(), args.files)
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp)
         result = run_jscpd(args.jscpd, arguments, output)

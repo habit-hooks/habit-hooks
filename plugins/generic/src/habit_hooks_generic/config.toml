@@ -1,7 +1,7 @@
 sensors = [
   { name = "line-count", tool = "${python}", args = ["${dir}/line-count.py", "${args}", "${files}"] },
   # A program, not data: whose config is in play is a judgement.
-  { name = "jscpd", tool = "${python}", args = ["${dir}/jscpd.py", "${detector:jscpd}", "--fallback-config", "${dir}/.jscpd.json"] },
+  { name = "jscpd", tool = "${python}", args = ["${dir}/jscpd.py", "${detector:jscpd}", "--fallback-config", "${dir}/.jscpd.json", "${files}"] },
 ]
 
 # jscpd is the only tool this plugin spawns.

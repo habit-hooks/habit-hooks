@@ -42,7 +42,6 @@ def windows_findings(
         stub.write_text(python_body, encoding="utf-8")
         stub.chmod(stub.stat().st_mode | 0o111)
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(jscpd_sensor, "is_windows", lambda: True)
         assert jscpd_sensor.main([str(stub), "--fallback-config", str(fallback)]) == 0
         return json.loads(capsys.readouterr().out)
 
