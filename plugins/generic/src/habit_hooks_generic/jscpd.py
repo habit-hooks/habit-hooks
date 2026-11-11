@@ -76,9 +76,10 @@ def clone_finding(clone: dict) -> dict:
     }
 
 
+MISSING_REPORT = "jscpd wrote no report: it scanned nothing\n"
+
+
 def findings(report: Path) -> list[dict]:
-    if not report.is_file():
-        return []
     clones = json.loads(report.read_text(encoding="utf-8"))["duplicates"]
     return [clone_finding(clone) for clone in clones]
 
@@ -90,8 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         output = Path(tmp)
         result = run_jscpd(args.jscpd, arguments, output)
         report = output / "jscpd-report.json"
-        if result.returncode != 0 and not report.is_file():
-            sys.stderr.write(result.stderr or result.stdout)
+        if not report.is_file():
+            sys.stderr.write(result.stderr if result.returncode != 0 else MISSING_REPORT)
             return 1
         print(json.dumps(findings(report)))
     return 0
