@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -39,8 +40,14 @@ def scan_paths(config: str) -> list[str]:
     return json.loads(Path(config).read_text(encoding="utf-8"))["path"]
 
 
+def is_windows() -> bool:
+    return os.name == "nt"
+
+
 def config_arguments(fallback: str, project: Path) -> list[str]:
     if project_configures_jscpd(project):
+        if is_windows():
+            return [Path.cwd().as_posix()]
         return []
     return ["--config", fallback, *scan_paths(fallback)]
 
