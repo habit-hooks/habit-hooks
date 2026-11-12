@@ -1661,11 +1661,9 @@ habit-sensors --all | jq -c '[.[].issues[].key]'
 ["notes/design.md"]
 ```
 
-### A sensor that does not name `${files}` scans the whole project
+### A sensor that cannot filter scans the whole project
 
-A sensor whose command names neither `${files}` nor a `[sensors.<name>] files` ignores the scope entirely: it runs once over the project, even when the scope is empty. Chunking would split a change set across runs and hide every clone whose copies sit in different chunks — and those cross-chunk clones are exactly the ones worth catching. The cost is runtime: the tool re-reads the whole project on every run.
-
-Duplication is the motivating case, and the `jscpd` sensor is built this way: a duplicate with one copy outside the change set is invisible to a scoped run, so `jscpd` always scans the project in a single invocation.
+Not every sensor can reasonably support filtering to a list of files within a project. The most notable example is a duplication detector, since it needs to compare across files. For sensors that do not support filtering, the scope restriction is ignored: they run over the whole project, even when the scope is empty. A sensor supports filtering when its config defines its `command` with the `${files}` placeholder — the spot where the scoped file list is inserted — or with a `files` entry.
 
 Here the scoped sensor sees only the one file in scope, while the whole-project sensor reports regardless.
 
