@@ -15,7 +15,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("jscpd")
     parser.add_argument("--fallback-config", required=True)
-    parser.add_argument("files", nargs="*")
     return parser.parse_args(argv)
 
 
@@ -36,10 +35,8 @@ def project_configures_jscpd(project: Path) -> bool:
     return bool(manifest_of(project).get("jscpd"))
 
 
-def config_arguments(fallback: str, project: Path, files: list[str]) -> list[str]:
-    project_path = [Path.cwd().as_posix()]
-    if files:
-        return files if project_configures_jscpd(project) else ["--config", fallback, *files]
+def config_arguments(fallback: str, project: Path) -> list[str]:
+    project_path = [project.as_posix()]
     if project_configures_jscpd(project):
         return project_path
     return ["--config", fallback, *project_path]
@@ -86,7 +83,7 @@ def findings(report: Path) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
-    arguments = config_arguments(args.fallback_config, Path.cwd(), args.files)
+    arguments = config_arguments(args.fallback_config, Path.cwd())
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp)
         result = run_jscpd(args.jscpd, arguments, output)

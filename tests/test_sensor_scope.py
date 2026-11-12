@@ -33,7 +33,23 @@ def test_no_sensor_files_leaves_the_whole_scope(tmp_path: Path) -> None:
     assert execution._expand(part) == ["bash", "-c", "src/a.py tests/b.py"]
 
 
-def test_an_empty_scope_runs_no_sensor(tmp_path: Path) -> None:
+def test_an_empty_scope_runs_no_scoped_sensor(tmp_path: Path) -> None:
+    marker = tmp_path / "SENSOR_RAN"
+    part = Part(
+        name="probe",
+        command=f"touch {shlex.quote(str(marker))}; printf '[]' ${{files}}",
+        directory=tmp_path,
+        args=[],
+    )
+    execution = Execution(project_dir=tmp_path, scope=Scope(files=[]))
+
+    run = execution.run_sensors([part])
+
+    assert run.findings == []
+    assert not marker.exists()
+
+
+def test_an_empty_scope_still_runs_a_whole_project_sensor(tmp_path: Path) -> None:
     marker = tmp_path / "SENSOR_RAN"
     part = Part(
         name="probe",
@@ -46,7 +62,7 @@ def test_an_empty_scope_runs_no_sensor(tmp_path: Path) -> None:
     run = execution.run_sensors([part])
 
     assert run.findings == []
-    assert not marker.exists()
+    assert marker.exists()
 
 
 def test_a_non_empty_scope_still_runs_its_sensors(tmp_path: Path) -> None:

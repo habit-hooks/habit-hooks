@@ -11,7 +11,7 @@ from ..path_globs import matching
 from ..scope import Scope
 from . import inline_run
 from .broken_part import run_part
-from .chunking import chunked_commands
+from .chunking import chunked_commands, spells_files
 from .command_text import expanded, spelled_files
 from .deadline import DEFAULT_SENSOR_TIMEOUT_SECONDS
 from .finding_paths import aliasing_notices, anchored
@@ -42,11 +42,11 @@ class Execution:
     timeout: float = DEFAULT_SENSOR_TIMEOUT_SECONDS
 
     def run_sensors(self, sensors: list[Part]) -> Run:
-        scoped = [sensor for sensor in sensors if self.scoped_files(sensor)]
-        if not scoped:
+        running = [sensor for sensor in sensors if self.runs_on(sensor)]
+        if not running:
             return Run()
         run = Run()
-        for findings, notices in self._sensor_outputs(scoped):
+        for findings, notices in self._sensor_outputs(running):
             run.findings.extend(findings)
             run.notices.extend(notices)
         return run
@@ -124,6 +124,12 @@ class Execution:
 
     def _expand_files(self, part: Part, files: list[str]) -> list[str]:
         return expanded(part, files, self.config_path)
+
+    def runs_on(self, sensor: Part) -> bool:
+        return self.whole_project(sensor) or bool(self.scoped_files(sensor))
+
+    def whole_project(self, sensor: Part) -> bool:
+        return not spells_files(sensor) and sensor.files is None
 
     def scoped_files(self, part: Part) -> list[str]:
         if part.files is None:

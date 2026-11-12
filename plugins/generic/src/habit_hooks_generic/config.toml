@@ -1,7 +1,9 @@
 sensors = [
   { name = "line-count", tool = "${python}", args = ["${dir}/line-count.py", "${args}", "${files}"] },
-  # A program, not data: whose config is in play is a judgement.
-  { name = "jscpd", tool = "${python}", args = ["${dir}/jscpd.py", "${detector:jscpd}", "--fallback-config", "${dir}/.jscpd.json", "${files}"] },
+  # A program, not data: whose config is in play is a judgement. No ${files}:
+  # duplication is a whole-codebase property, so jscpd runs once over the
+  # project and never over the scoped list (docs/habit-sensors.spec.md, Scope).
+  { name = "jscpd", tool = "${python}", args = ["${dir}/jscpd.py", "${detector:jscpd}", "--fallback-config", "${dir}/.jscpd.json"] },
 ]
 
 # jscpd is the only tool this plugin spawns.

@@ -1660,3 +1660,51 @@ habit-sensors --all | jq -c '[.[].issues[].key]'
 ```json
 ["notes/design.md"]
 ```
+
+### A sensor that does not name `${files}` scans the whole project
+
+A sensor whose command names neither `${files}` nor a `[sensors.<name>] files` ignores the scope entirely: it runs once over the project, even when the scope is empty. Chunking would split a change set across runs and hide every clone whose copies sit in different chunks — and those cross-chunk clones are exactly the ones worth catching. The cost is runtime: the tool re-reads the whole project on every run.
+
+Duplication is the motivating case, and the `jscpd` sensor is built this way: a duplicate with one copy outside the change set is invisible to a scoped run, so `jscpd` always scans the project in a single invocation.
+
+Here the scoped sensor sees only the one file in scope, while the whole-project sensor reports regardless.
+
+📄.habit-hooks/config.toml
+```toml
+plugins = ["generic"]
+files   = ["src/**"]
+```
+
+📄.habit-hooks/generic/config.toml
+```toml
+sensors = ["echo-files", "whole"]
+```
+
+📄.habit-hooks/generic/sensors/echo-files.toml
+```toml
+command = "jq -n --args '[{smell: \"warning-comment\", details: {}, issues: ($ARGS.positional | map({key: ., details: {file: .}}))}]' ${files}"
+```
+
+📄.habit-hooks/generic/sensors/whole.toml
+```toml
+command = "jq -n '[{smell: \"duplicated-code\", details: {}, issues: [{key: \"whole-project\", details: {file: \"src\"}}]}]'"
+```
+
+📄src/a.txt
+```text
+a
+```
+
+📄src/b.txt
+```text
+b
+```
+
+```bash
+habit-sensors --file src/a.txt | jq -c '[.[] | {smell, seen: [.issues[].key]}]'
+```
+
+🖥️ ✅
+```json
+[{"smell":"warning-comment","seen":["src/a.txt"]},{"smell":"duplicated-code","seen":["whole-project"]}]
+```

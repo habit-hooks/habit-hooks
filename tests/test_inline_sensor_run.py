@@ -67,9 +67,8 @@ def test_without_a_transform_stdout_is_already_the_findings(tmp_path: Path) -> N
 
 
 def test_an_empty_scope_never_spawns_the_tool(tmp_path: Path) -> None:
-    entry, files = an_entry(
-        'import pathlib; pathlib.Path("SPAWNED").write_text("x"); print("[]")\n'
-    )
+    files = {"tool.py": 'import pathlib; pathlib.Path("SPAWNED").write_text("x"); print("[]")\n'}
+    entry = '{ tool = "${python}", name = "lint", args = ["${dir}/tool.py", "${files}"] }'
 
     write_project_config(tmp_path, 'plugins = ["fixt"]')
     write_plugin(tmp_path, "fixt", {"config.toml": f"sensors = [{entry}]", **files})
