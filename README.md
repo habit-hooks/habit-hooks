@@ -2,12 +2,13 @@
 
 [![PyPI](https://img.shields.io/pypi/v/habit-hooks)](https://pypi.org/project/habit-hooks/) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://pypi.org/project/habit-hooks/) [![CI](https://github.com/habit-hooks/habit-hooks/actions/workflows/ci.yml/badge.svg)](https://github.com/habit-hooks/habit-hooks/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/habit-hooks/habit-hooks/blob/main/LICENSE.md)
 
-**Turn best-practice coding advice into AI habits.**
-
-Stop reciting software engineering literature to your AI agent. Habit Hooks runs your linters, then replaces
-each raw rule violation with a short coaching guide the agent can act on — so it writes code like this:
+**Habit Hooks improves code quality by guiding AI agents to remove code smells 5× more effectively than traditional linters alone.**
 
 ![TypeScript written by an agent running Habit Hooks: small functions, named constants, no duplication](https://raw.githubusercontent.com/habit-hooks/habit-hooks/main/write_code_like_this.png)
+
+To find out more about how Habit Hooks works, [watch a short video on YouTube](https://www.youtube.com/watch?v=FIhC7Oslh88) or read on.
+
+<a href="https://www.youtube.com/watch?v=FIhC7Oslh88"><img alt="Short introduction to Habit Hooks on YouTube" src="https://img.youtube.com/vi/FIhC7Oslh88/maxresdefault.jpg" width="480"></a>
 
 > 👀 Looking for co-maintainers — see [Contributing](#contributing).
 
@@ -41,7 +42,7 @@ pre-registered before any model ran.
   while the code got no simpler.
 - **The stronger model gamed it more, not less.** Haiku 4.5 managed 28.9% on the same bare metric. Capability
   does not buy honesty about a target.
-- **Coaching fixed it on both.** 83.3% genuine, and the confidence intervals do not overlap the bare-metric ones
+- **Coaching fixed it on both.** 83.3% genuine — about 5× the bare metric's 17% averaged across both models — and the confidence intervals do not overlap the bare-metric ones
   on either model.
 - **It is the phrasing, not just asking nicely.** A control that said only "improve this code" stayed at 25.6%
   and 34.4%.

@@ -9,7 +9,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://habit-hooks.com/">
 <meta property="og:title" content="Habit Hooks">
-<meta property="og:description" content="Turn best-practice coding advice into AI habits.">
+<meta property="og:description" content="Habit Hooks improves code quality by guiding AI agents to remove code smells 5× more effectively than traditional linters alone.">
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:image" content="https://habit-hooks.com/social-preview.png">
 <meta name="twitter:image" content="https://habit-hooks.com/social-preview.png">
@@ -49,7 +49,7 @@
   header { padding: 72px 0 56px; text-align: center; }
   .mark { width: 96px; height: 96px; color: var(--ink); }
   h1 { font-size: clamp(2.4rem, 7vw, 3.4rem); margin: 18px 0 6px; letter-spacing: -0.02em; }
-  .tagline { font-size: clamp(1.05rem, 2.6vw, 1.3rem); color: var(--muted); margin: 0 auto 28px; max-width: 30ch; }
+  .tagline { font-size: clamp(1.05rem, 2.6vw, 1.3rem); color: var(--muted); margin: 0 auto 28px; max-width: 44ch; text-wrap: balance; }
 
   pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   pre {
@@ -91,6 +91,10 @@
   }
   .lang span { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
 
+  .video { margin: 32px auto 0; max-width: 480px; }
+  .video p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .video img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
+
   footer { padding: 40px 0 64px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
   footer p { margin: 0 0 8px; }
 </style>
@@ -106,7 +110,7 @@
   </svg>
 
   <h1>Habit Hooks</h1>
-  <p class="tagline">Turn best-practice coding advice into AI habits.</p>
+  <p class="tagline">Habit Hooks improves code quality by guiding AI agents to remove code smells 5× more effectively than traditional linters alone.</p>
 
   <div class="install">
 <pre><code>uv tool install habit-hooks
@@ -118,6 +122,11 @@ habit-hooks init</code></pre>
     <a class="btn" href="https://github.com/habit-hooks/habit-hooks">GitHub</a>
     <a class="btn ghost" href="https://pypi.org/project/habit-hooks/">PyPI</a>
     <a class="btn ghost" href="https://github.com/habit-hooks/habit-hooks#readme">Docs</a>
+  </div>
+
+  <div class="video">
+    <p>To find out more about how Habit Hooks works, <a href="https://www.youtube.com/watch?v=FIhC7Oslh88">watch a short video on YouTube</a> or read on.</p>
+    <a href="https://www.youtube.com/watch?v=FIhC7Oslh88"><img alt="Short introduction to Habit Hooks on YouTube" src="https://img.youtube.com/vi/FIhC7Oslh88/maxresdefault.jpg"></a>
   </div>
 </header>
 
@@ -146,7 +155,7 @@ habit-hooks init</code></pre>
     helpers so the number fell while the code got no simpler.</li>
     <li><strong>The stronger model gamed it more, not less.</strong> Haiku 4.5 managed 28.9% on the same bare
     metric. Capability does not buy honesty about a target.</li>
-    <li><strong>Coaching fixed it on both.</strong> 83.3% genuine, and the confidence intervals do not overlap
+    <li><strong>Coaching fixed it on both.</strong> 83.3% genuine — about 5× the bare metric's 17% averaged across both models — and the confidence intervals do not overlap
     the bare-metric ones on either model.</li>
     <li><strong>It is the phrasing, not just asking nicely.</strong> A control that said only "improve this code"
     stayed at 25.6% and 34.4%.</li>
