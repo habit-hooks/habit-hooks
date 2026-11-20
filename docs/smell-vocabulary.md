@@ -32,6 +32,7 @@ Default severity: `enforced` fails the run (exit 1); `suggested` coaches but exi
 | `unused-dependency`         | Unused dependency                     | enforced         |
 | `unused-import`             | Unused import                         | enforced         |
 | `swallowed-exception`       | Swallowed exception                   | suggested        |
+| `slow-test`                 | Slow test                             | suggested        |
 | `parse-error`               | Parse / config error                  | enforced         |
 
 ## Proposing new smells

@@ -56,3 +56,11 @@ def test_unused_variable_resolves_for_python_and_typescript_not_just_php(
         assert (
             routing.guide_for("unused-variable", language) != UNCOACHED_GUIDE
         ), f"unused-variable renders {UNCOACHED_GUIDE} for a {language} finding"
+
+
+def test_slow_test_resolves_from_the_generic_guide(tmp_path: Path) -> None:
+    routing = Routing.full_plugin_set(tmp_path)
+    for language in (None, "python"):
+        assert (
+            routing.guide_for("slow-test", language) == "slow-test.md"
+        ), f"slow-test renders {routing.guide_for('slow-test', language)} for {language!r}"
