@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **Python flags tests that exceed a 1 second budget**, coached as `slow-test`. The sensor runs pytest and reads precise setup, call and teardown timings through its report hooks, independently of terminal output. Override the budget through the usual sensor args, for example `[sensors.slow-test] args = ["--budget", "2"]`. The generic `slow-test` guide coaches keeping tests fast and deterministic. (#57)
+
 ### Fixed
 
 - **On Python 3.13 a plugin's `search_paths` could name a directory outside

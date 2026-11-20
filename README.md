@@ -142,7 +142,7 @@ Detectors are **not** bundled: a plugin spawns the real tool, or reads it as a l
 | Plugin | Detectors | Install |
 | ------ | --------- | ------- |
 | **generic** | [`jscpd`](https://github.com/kucherenko/jscpd) — the line counter is built in | `npm install --save-dev jscpd` |
-| **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry) | `pip install ruff deptry` |
+| **python** | [`ruff`](https://docs.astral.sh/ruff/), [`deptry`](https://github.com/fpgmaas/deptry), [`pytest`](https://pytest.org/) | `pip install ruff deptry pytest` |
 | **typescript** | `node`, [`eslint`](https://eslint.org/), [`knip`](https://knip.dev/), [`ts-morph`](https://ts-morph.com/) | `npm install --save-dev eslint knip ts-morph` (`node` from your system package manager) |
 | **php** | `php` — [phpmd](https://phpmd.org/) ships bundled as a phar | nothing beyond a PHP runtime |
 | **java** | [`pmd`](https://pmd.github.io/) | `brew install pmd` |
@@ -333,7 +333,7 @@ The plugins we ship:
 | Plugin | Language | Sensors | Tools used |
 |--------|----------|---------|------------|
 | `generic` | (none) | `line-count`, `jscpd` | built-in line counter, jscpd |
-| `python` | `python` | `ruff`, `deptry` | ruff, deptry |
+| `python` | `python` | `ruff`, `deptry`, `slow-test` | ruff, deptry, pytest |
 | `typescript` | `typescript` | `eslint`, `knip`, `comment` | eslint, knip, ts-morph |
 | `php` | `php` | `phpmd` | phpmd |
 | `java` | `java` | `pmd` | pmd |

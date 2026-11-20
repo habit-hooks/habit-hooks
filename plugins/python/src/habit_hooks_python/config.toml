@@ -10,10 +10,12 @@ sensors = [
   { tool = "ruff", args = ["check", "--output-format=json", "--select=C901,PLR0913,PLR0915,F841,F401,BLE001", "${files}"], transform = "ruff.jq", success_exit_codes = [0, 1] },
   { name = "deptry", tool = "${python}", args = ["${dir}/sensors/deptry_sensor.py", "${detector:deptry}"] },
   { name = "comment", tool = "${python}", args = ["${dir}/comment.py", "${files}"] },
+  { name = "slow-test", tool = "${python}", args = ["${dir}/sensors/slow_test.py", "${detector:pytest}", "${args}", "--", "${files}"] },
 ]
 transformers = []
 
 detectors = [
   { name = "ruff", kind = "command", install = "pip install ruff" },
   { name = "deptry", kind = "command", install = "pip install deptry" },
+  { name = "pytest", kind = "command", install = "pip install pytest" },
 ]
